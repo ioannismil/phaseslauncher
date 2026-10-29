@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,6 +76,7 @@ fun AppDrawer(
     onLaunch: (AppInfo, Rect?) -> Unit,
     appActions: (AppInfo) -> List<AppAction>,
     onClose: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
@@ -149,6 +151,7 @@ fun AppDrawer(
                         .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape),
                 )
                 SearchField(
+                    onOpenSettings = onOpenSettings,
                     query = query,
                     onQueryChange = onQueryChange,
                     onSearch = { state.apps.firstOrNull()?.let { onLaunch(it, null) } },
@@ -202,6 +205,7 @@ private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     TextField(
@@ -214,6 +218,10 @@ private fun SearchField(
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                }
+            } else {
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Outlined.Settings, contentDescription = "Launcher settings")
                 }
             }
         },

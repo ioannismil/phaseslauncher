@@ -7,8 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,18 +23,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.themelauncher.ui.onboarding.rememberDefaultHomeState
 
 /** Opened by long-pressing empty space on the home screen. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeOptionsSheet(
     onNewTheme: () -> Unit,
-    onRunSetup: () -> Unit,
+    onOpenSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val defaultHome = rememberDefaultHomeState()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
@@ -58,15 +55,9 @@ fun HomeOptionsSheet(
                 } catch (_: ActivityNotFoundException) {
                 }
             }
-            if (!defaultHome.isDefault) {
-                Option(Icons.Outlined.Home, "Set as default home app") {
-                    onDismiss()
-                    defaultHome.request()
-                }
-            }
-            Option(Icons.Outlined.Restore, "Run setup again", "Pick favorites and add themes from presets") {
+            Option(Icons.Outlined.Settings, "Launcher settings", "Theme switcher side, themes, setup") {
                 onDismiss()
-                onRunSetup()
+                onOpenSettings()
             }
         }
     }

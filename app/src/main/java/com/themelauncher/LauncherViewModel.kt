@@ -10,6 +10,7 @@ import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.apps.AppsRepository
 import com.themelauncher.data.apps.filterApps
 import com.themelauncher.data.settings.SettingsRepository
+import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.themes.AddFavoriteResult
 import com.themelauncher.data.themes.FavoritesRepository
 import com.themelauncher.data.themes.Theme
@@ -108,6 +109,14 @@ class LauncherViewModel(
     val onboardingComplete: StateFlow<Boolean?> =
         settingsRepository.onboardingComplete
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val switcherSide: StateFlow<SwitcherSide> =
+        settingsRepository.switcherSide
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SwitcherSide.Right)
+
+    fun setSwitcherSide(side: SwitcherSide) {
+        viewModelScope.launch { settingsRepository.setSwitcherSide(side) }
+    }
 
     // region Onboarding
 

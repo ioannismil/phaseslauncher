@@ -31,13 +31,14 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 
 | Where | Gesture | What happens |
 |---|---|---|
-| Theme row | Tap | Switch theme |
-| Theme row | Long-press | Edit / Reorder / Delete theme |
-| Theme row | `+` | New theme (name, icon, color, app checklist) |
+| Edge bar (right or left) | Swipe toward the middle, release on a theme | Switch theme (release back at the edge to cancel) |
+| Edge bar / theme label under the clock | Tap | Open the theme arc; tap a theme, long-press it for Edit / Delete |
+| Theme arc | Release on **+** | New theme |
 | Anywhere on home | Swipe up | App drawer with search |
 | App (grid, dock, drawer) | Long-press | App menu |
 | App (grid, dock) | Long-press, then drag | Reorder |
-| Empty space | Long-press | New theme, wallpaper, default home, run setup again |
+| Empty space | Long-press | New theme, wallpaper, launcher settings |
+| Drawer search bar | Gear | Launcher settings (bar side, themes, default home, setup) |
 
 ## Code map
 
