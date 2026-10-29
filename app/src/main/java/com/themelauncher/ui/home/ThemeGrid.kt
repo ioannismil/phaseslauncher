@@ -11,6 +11,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,18 +30,24 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.themelauncher.HomeState
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.ui.components.AppAction
+import com.themelauncher.ui.components.AppMenuState
 import com.themelauncher.ui.components.AppTileWithMenu
+import com.themelauncher.ui.components.rememberReorderState
+import com.themelauncher.ui.components.reorderContainer
+import com.themelauncher.ui.components.reorderItem
 import com.themelauncher.ui.theme.LocalWallpaperContent
 import com.themelauncher.ui.theme.imageVector
 import com.themelauncher.ui.theme.onWallpaper
@@ -57,6 +64,8 @@ fun ThemeGrid(
     appActions: (AppInfo) -> List<AppAction>,
     onCreateTheme: () -> Unit,
     onAddApps: (Theme) -> Unit,
+    onReorder: (Theme, List<String>) -> Unit,
+    onEmptyLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val themes = state.themes
@@ -83,6 +92,7 @@ fun ThemeGrid(
                 body = "Themes group your apps by context, like Gaming or Work.",
                 button = "New theme",
                 onClick = onCreateTheme,
+                onLongPress = onEmptyLongPress,
             )
             else -> {
                 val apps = state.appsFor(theme)
@@ -92,10 +102,11 @@ fun ThemeGrid(
                         body = "Pick apps for this theme, or long-press any app in the drawer.",
                         button = "Add apps",
                         onClick = { onAddApps(theme) },
+                        onLongPress = onEmptyLongPress,
                         theme = theme,
                     )
                 } else {
-                    AppGrid(apps, swipeUpConnection, onLaunch, appActions)
+                    AppGrid(apps, swipeUpConnection, onLaunch, appActions, onReorder = { onReorder(theme, it) }, onEmptyLongPress = onEmptyLongPress)
                 }
             }
         }
@@ -108,26 +119,32 @@ private fun AppGrid(
     swipeUpConnection: NestedScrollConnection,
     onLaunch: (AppInfo, Rect?) -> Unit,
     appActions: (AppInfo) -> List<AppAction>,
+    onReorder: (List<String>) -> Unit,
+    onEmptyLongPress: () -> Unit,
 ) {
     val wallpaper = LocalWallpaperContent.current
     val labelStyle = MaterialTheme.typography.labelMedium.onWallpaper(wallpaper)
+    val menuState = remember { AppMenuState() }
+    val reorder = rememberReorderState(apps.map { it.key }, onReorder)
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val columns = if (maxWidth < 600.dp) GridCells.Fixed(4) else GridCells.Adaptive(96.dp)
         LazyVerticalGrid(
             columns = columns,
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(swipeUpConnection),
+                .nestedScroll(swipeUpConnection)
+                .reorderContainer(reorder, onDragStart = menuState::close, onEmptyLongPress = onEmptyLongPress),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            items(apps, key = { it.key }) { app ->
+            items(reorder.arrange(apps) { it.key }, key = { it.key }) { app ->
                 AppTileWithMenu(
                     app = app,
                     labelStyle = labelStyle,
                     onClick = { onLaunch(app, it) },
                     actions = { appActions(app) },
-                    modifier = Modifier.animateItem(),
+                    menuState = menuState,
+                    modifier = Modifier.animateItem().reorderItem(reorder, app.key),
                 )
             }
         }
@@ -140,10 +157,17 @@ private fun EmptyMessage(
     body: String,
     button: String,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
     theme: Theme? = null,
 ) {
     val wallpaper = LocalWallpaperContent.current
-    Box(Modifier.fillMaxSize().padding(horizontal = 32.dp), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(onLongPress) { detectTapGestures(onLongPress = { onLongPress() }) }
+            .padding(horizontal = 32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (theme != null) {
                 Icon(

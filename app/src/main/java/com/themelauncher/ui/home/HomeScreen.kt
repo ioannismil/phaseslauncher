@@ -37,6 +37,9 @@ fun HomeScreen(
     onSwipeUp: () -> Unit,
     gridAppActions: (AppInfo) -> List<AppAction>,
     dockAppActions: (AppInfo) -> List<AppAction>,
+    onReorderThemeApps: (Theme, List<String>) -> Unit,
+    onReorderFavorites: (List<String>) -> Unit,
+    onEmptyLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val swipeUpConnection = rememberSwipeUpConnection(onSwipeUp)
@@ -46,7 +49,7 @@ fun HomeScreen(
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        ClockHeader(Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp))
+        ClockHeader(onLongPress = onEmptyLongPress, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp))
         Spacer(Modifier.height(20.dp))
         ThemeSwitcher(
             themes = state.themes,
@@ -63,12 +66,16 @@ fun HomeScreen(
             appActions = gridAppActions,
             onCreateTheme = onCreateTheme,
             onAddApps = onAddApps,
+            onReorder = onReorderThemeApps,
+            onEmptyLongPress = onEmptyLongPress,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         FavoritesDock(
             favorites = state.favorites,
             onLaunch = onLaunch,
             appActions = dockAppActions,
+            onReorder = onReorderFavorites,
+            onEmptyLongPress = onEmptyLongPress,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
         )
     }

@@ -4,7 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.provider.AlarmClock
 import android.text.format.DateFormat
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +29,7 @@ import java.util.Locale
 
 /** Time and date. Ticks on the minute while visible; tapping opens the clock app. */
 @Composable
-fun ClockHeader(modifier: Modifier = Modifier) {
+fun ClockHeader(onLongPress: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val wallpaperColors = LocalWallpaperContent.current
@@ -51,7 +51,11 @@ fun ClockHeader(modifier: Modifier = Modifier) {
     val datePattern = DateFormat.getBestDateTimePattern(locale, "EEEEMMMMd")
 
     Column(
-        modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+        modifier.combinedClickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onLongClick = onLongPress,
+        ) {
             try {
                 context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch (_: ActivityNotFoundException) {

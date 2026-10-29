@@ -34,9 +34,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -51,6 +53,7 @@ import com.themelauncher.ui.editor.AddToThemesDialog
 import com.themelauncher.ui.editor.DeleteThemeDialog
 import com.themelauncher.ui.editor.ReorderThemesDialog
 import com.themelauncher.ui.editor.ThemeEditorSheet
+import com.themelauncher.ui.home.HomeOptionsSheet
 import com.themelauncher.ui.home.HomeScreen
 import com.themelauncher.ui.home.ThemeAction
 import com.themelauncher.ui.onboarding.OnboardingScreen
@@ -71,6 +74,8 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
     var addToThemesApp by remember { mutableStateOf<AppInfo?>(null) }
     var deletingTheme by remember { mutableStateOf<Theme?>(null) }
     var reordering by remember { mutableStateOf(false) }
+    var showHomeOptions by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
 
     // Decided once the setting has loaded; stays up after completion until the user taps Finish.
     val onboardingComplete by viewModel.onboardingComplete.collectAsStateWithLifecycle()
@@ -174,6 +179,12 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                 onSwipeUp = viewModel::openDrawer,
                 gridAppActions = gridActions,
                 dockAppActions = dockActions,
+                onReorderThemeApps = { theme, keys -> viewModel.reorderThemeApps(theme.id, keys) },
+                onReorderFavorites = viewModel::reorderFavorites,
+                onEmptyLongPress = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showHomeOptions = true
+                },
                 modifier = Modifier.graphicsLayer { alpha = homeAlpha }.pointerInput(Unit) {
                     var dragged = 0f
                     detectVerticalDragGestures(
@@ -206,6 +217,7 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
         ThemeEditorSheet(
             initial = theme?.let { ThemeDraft(it.name, it.icon, it.accentColor, it.appKeys) },
             allApps = homeState.apps.values.toList(),
+            usedColors = homeState.themes.mapTo(HashSet()) { it.accentColor },
             onSave = { draft ->
                 editor = null
                 if (theme == null) {
@@ -238,6 +250,14 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                 viewModel.deleteTheme(theme.id)
             },
             onDismiss = { deletingTheme = null },
+        )
+    }
+
+    if (showHomeOptions) {
+        HomeOptionsSheet(
+            onNewTheme = { editor = EditorRequest(themeId = null) },
+            onRunSetup = { showOnboarding = true },
+            onDismiss = { showHomeOptions = false },
         )
     }
 

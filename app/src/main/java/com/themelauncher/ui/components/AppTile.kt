@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -115,20 +116,21 @@ fun AppTileWithMenu(
     modifier: Modifier = Modifier,
     iconSize: Dp = 56.dp,
     showLabel: Boolean = true,
+    menuState: AppMenuState = remember { AppMenuState() },
 ) {
-    var menuBounds by remember { mutableStateOf<Rect?>(null) }
+    val expanded = menuState.openKey == app.key
     Box(modifier) {
         AppTile(
             app = app,
             labelStyle = labelStyle,
             onClick = onClick,
-            onLongClick = { menuBounds = it ?: Rect() },
+            onLongClick = { menuState.open(app.key, it) },
             iconSize = iconSize,
             showLabel = showLabel,
         )
         DropdownMenu(
-            expanded = menuBounds != null,
-            onDismissRequest = { menuBounds = null },
+            expanded = expanded,
+            onDismissRequest = { menuState.close() },
             shape = RoundedCornerShape(16.dp),
         ) {
             Text(
@@ -144,13 +146,31 @@ fun AppTileWithMenu(
                     text = { Text(action.label) },
                     leadingIcon = { Icon(action.icon, contentDescription = null) },
                     onClick = {
-                        val bounds = menuBounds
-                        menuBounds = null
+                        val bounds = menuState.bounds
+                        menuState.close()
                         action.onClick(bounds)
                     },
                 )
             }
         }
+    }
+}
+
+/** Which tile's long-press menu is open. Shared by a group of tiles so a drag can close it. */
+@Stable
+class AppMenuState {
+    var openKey by mutableStateOf<String?>(null)
+        private set
+    var bounds: Rect? = null
+        private set
+
+    fun open(key: String, bounds: Rect?) {
+        this.bounds = bounds
+        openKey = key
+    }
+
+    fun close() {
+        openKey = null
     }
 }
 

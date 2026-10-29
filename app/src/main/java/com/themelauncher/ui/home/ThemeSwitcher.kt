@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,7 +44,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -92,7 +100,9 @@ fun ThemeSwitcher(
 
     LazyRow(
         state = listState,
-        modifier = modifier.height(ActiveHeight + 8.dp),
+        modifier = modifier
+            .height(ActiveHeight + 8.dp)
+            .fadingEdges(listState),
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -129,6 +139,29 @@ fun ThemeSwitcher(
         }
     }
 }
+
+/** Fades the row's edges where more themes are scrolled out of view. */
+private fun Modifier.fadingEdges(state: LazyListState): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        val fade = 28.dp.toPx()
+        if (state.canScrollBackward) {
+            drawRect(
+                brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = 0f, endX = fade),
+                size = Size(fade, size.height),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+        if (state.canScrollForward) {
+            drawRect(
+                brush = Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - fade, endX = size.width),
+                topLeft = Offset(size.width - fade, 0f),
+                size = Size(fade, size.height),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+    }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

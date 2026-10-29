@@ -79,11 +79,19 @@ fun ThemeEditorSheet(
     allApps: List<AppInfo>,
     onSave: (ThemeDraft) -> Unit,
     onDismiss: () -> Unit,
+    /** Accents already taken by other themes; a new theme starts on the first free one. */
+    usedColors: Set<Int> = emptySet(),
 ) {
     val isNew = initial == null
     var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
     var icon by rememberSaveable { mutableStateOf(initial?.icon ?: ThemeIconKey.Star) }
-    var color by rememberSaveable { mutableIntStateOf(initial?.accentColor ?: ThemeDefaults.AccentColors.first()) }
+    var color by rememberSaveable {
+        mutableIntStateOf(
+            initial?.accentColor
+                ?: ThemeDefaults.AccentColors.firstOrNull { it !in usedColors }
+                ?: ThemeDefaults.AccentColors[usedColors.size % ThemeDefaults.AccentColors.size],
+        )
+    }
     val selected = rememberSaveable(saver = stringListSaver) { initial?.appKeys.orEmpty().toMutableStateList() }
     var query by rememberSaveable { mutableStateOf("") }
 

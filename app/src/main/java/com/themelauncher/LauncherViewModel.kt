@@ -212,9 +212,10 @@ class LauncherViewModel(
         viewModelScope.launch { themeRepository.removeApp(theme.id, app.key) }
     }
 
-    fun reorderActiveThemeApps(orderedKeys: List<String>) {
-        val theme = homeState.value.activeTheme ?: return
-        viewModelScope.launch { themeRepository.setThemeApps(theme.id, orderedKeys) }
+    /** [visibleOrder] covers only the apps on screen; hidden (unavailable) ones keep their place at the end. */
+    fun reorderThemeApps(themeId: Long, visibleOrder: List<String>) {
+        val theme = homeState.value.themes.firstOrNull { it.id == themeId } ?: return
+        viewModelScope.launch { themeRepository.setThemeApps(themeId, withHidden(visibleOrder, theme.appKeys)) }
     }
 
     // endregion
@@ -240,9 +241,14 @@ class LauncherViewModel(
         viewModelScope.launch { favoritesRepository.remove(app.key) }
     }
 
-    fun reorderFavorites(orderedKeys: List<String>) {
-        viewModelScope.launch { favoritesRepository.setFavorites(orderedKeys) }
+    fun reorderFavorites(visibleOrder: List<String>) {
+        viewModelScope.launch {
+            favoritesRepository.setFavorites(withHidden(visibleOrder, favoritesRepository.favoriteKeys.first()))
+        }
     }
+
+    private fun withHidden(visibleOrder: List<String>, allKeys: List<String>): List<String> =
+        visibleOrder + allKeys.filter { it !in visibleOrder }
 
     private fun reportFavoriteResult(app: AppInfo, result: AddFavoriteResult) = when (result) {
         AddFavoriteResult.Added -> Unit
