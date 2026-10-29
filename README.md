@@ -34,15 +34,26 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 | Edge bar (right or left) | Swipe toward the middle, release on a theme | Switch theme (release back at the edge to cancel) |
 | Edge bar / theme label under the clock | Tap | Open the theme arc; tap a theme, long-press it for Edit / Delete |
 | Theme arc | Release on **+** / **Settings** | New theme / Launcher settings |
-| Anywhere on home | Swipe up | App drawer with search |
-| App (grid, dock, drawer) | Long-press | App menu |
+| Anywhere on home | Swipe up / swipe down | App drawer / notification shade |
+| App (grid, dock, drawer) | Long-press | App shortcuts (e.g. New tab) + app menu (drawer: hide, uninstall) |
 | App (grid, dock) | Long-press, then drag | Reorder |
 | Empty space | Long-press | New theme, wallpaper, launcher settings |
 | Drawer search bar | Gear | Launcher settings (bar side, themes, default home, setup) |
 
+## Launcher settings
+
+- **Theme switcher:** bar on the left or right edge; theme list with reorder / edit / delete / new.
+- **Home screen:** grid columns (3–6), icon size, app labels, notification dots, swipe down for notifications, wallpaper, default home app.
+- **Notification dots** need notification access; turning the switch on takes you to the system screen to grant it.
+- **Apps:** hidden apps (hidden from the drawer and its search, not from themes or the dock).
+- **Backup:** save themes, dock and settings to a JSON file, and restore from one.
+
+Work profile and Private Space (Android 15+) apps get their own drawer tabs, with pause/resume and lock/unlock.
+
 ## Code map
 
-- `data/apps` — installed apps via `LauncherApps` (+ change callback), icon cache, search
+- `data/apps` — installed apps and profiles via `LauncherApps` (+ change callback), icon cache, search, app shortcuts
+- `data/notifications` — notification dots listener; `data/backup` — JSON export/import; `data/system` — notification shade
 - `data/db`, `data/themes`, `data/settings` — Room (themes, assignments, favorites), repositories, DataStore
 - `LauncherViewModel` — combines everything into `HomeState` / `DrawerState`
 - `ui/home`, `ui/drawer`, `ui/editor`, `ui/onboarding` — screens; `ui/components/Reorder.kt` — drag-to-reorder

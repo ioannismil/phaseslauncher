@@ -1,6 +1,7 @@
 package com.themelauncher.ui
 
 import android.app.Activity
+import android.graphics.Rect
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.Star
@@ -47,16 +49,23 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.themelauncher.LauncherViewModel
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.apps.AppShortcut
+import com.themelauncher.data.system.SystemActions
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.ui.components.AppAction
+import com.themelauncher.ui.components.LocalNotificationDots
+import com.themelauncher.ui.components.LocalShortcutHost
+import com.themelauncher.ui.components.ShortcutHost
 import com.themelauncher.ui.drawer.AppDrawer
 import com.themelauncher.ui.editor.AddToThemesDialog
 import com.themelauncher.ui.editor.DeleteThemeDialog
 import com.themelauncher.ui.editor.ThemeEditorSheet
 import com.themelauncher.ui.home.ArcExtra
+import com.themelauncher.ui.home.HomeLayout
 import com.themelauncher.ui.home.HomeOptionsSheet
 import com.themelauncher.ui.home.HomeScreen
+import com.themelauncher.ui.home.LocalHomeLayout
 import com.themelauncher.ui.home.ThemeAction
 import com.themelauncher.ui.home.ThemeArcOverlay
 import com.themelauncher.ui.home.ThemeArcState
@@ -81,7 +90,15 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
     var showHomeOptions by remember { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     val arcState = remember { ThemeArcState() }
-    val switcherSide by viewModel.switcherSide.collectAsStateWithLifecycle()
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val switcherSide = prefs.switcherSide
+    val dotKeys by viewModel.notificationDots.dotKeys.collectAsStateWithLifecycle()
+    val shortcutHost = remember(viewModel) {
+        object : ShortcutHost {
+            override suspend fun load(app: AppInfo) = viewModel.shortcutsFor(app)
+            override fun launch(shortcut: AppShortcut, sourceBounds: Rect?) = viewModel.launchShortcut(shortcut, sourceBounds)
+        }
+    }
     val haptics = LocalHapticFeedback.current
 
     // Decided once the setting has loaded; stays up after completion until the user taps Finish.
@@ -136,6 +153,7 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
             }
             add(AppAction("Add to theme…", Icons.Rounded.AddCircleOutline) { addToThemesApp = app })
             add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
+            add(AppAction("Hide app", Icons.Outlined.VisibilityOff) { viewModel.hideApp(app) })
             if (app.canUninstall) add(AppAction("Uninstall", Icons.Outlined.DeleteForever) { viewModel.uninstall(app) })
         }
     }
@@ -195,7 +213,16 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
         false -> Unit
     }
 
-    CompositionLocalProvider(LocalWallpaperContent provides wallpaperColors) {
+    val swipeDown: () -> Unit = {
+        if (prefs.swipeDownForNotifications) SystemActions.expandNotifications(context)
+    }
+
+    CompositionLocalProvider(
+        LocalWallpaperContent provides wallpaperColors,
+        LocalHomeLayout provides HomeLayout(prefs.gridColumns, prefs.iconSize.dp.dp, prefs.showLabels),
+        LocalNotificationDots provides if (prefs.notificationDots) dotKeys else emptySet(),
+        LocalShortcutHost provides shortcutHost,
+    ) {
         Box(Modifier.fillMaxSize()) {
             HomeScreen(
                 state = homeState,
@@ -206,6 +233,7 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                 onCreateTheme = { editor = EditorRequest(themeId = null) },
                 onAddApps = { editor = EditorRequest(it.id) },
                 onSwipeUp = viewModel::openDrawer,
+                onSwipeDown = swipeDown,
                 gridAppActions = gridActions,
                 dockAppActions = dockActions,
                 onReorderThemeApps = { theme, keys -> viewModel.reorderThemeApps(theme.id, keys) },
@@ -219,7 +247,12 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                     detectVerticalDragGestures(
                         onDragStart = { dragged = 0f },
                         onVerticalDrag = { _, delta -> dragged += delta },
-                        onDragEnd = { if (dragged < -swipeThresholdPx) viewModel.openDrawer() },
+                        onDragEnd = {
+                            when {
+                                dragged < -swipeThresholdPx -> viewModel.openDrawer()
+                                dragged > swipeThresholdPx -> swipeDown()
+                            }
+                        },
                     )
                 },
             )
@@ -249,14 +282,20 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                         viewModel.closeDrawer()
                         showSettings = true
                     },
+                    onSelectProfile = viewModel::selectProfileTab,
+                    onSetProfileQuiet = viewModel::setProfileQuiet,
                 )
             }
 
             if (showSettings) {
                 SettingsScreen(
                     themes = homeState.themes,
-                    switcherSide = switcherSide,
-                    onSwitcherSideChange = viewModel::setSwitcherSide,
+                    prefs = prefs,
+                    allApps = homeState.apps.values.toList(),
+                    notificationDots = viewModel.notificationDots,
+                    onUpdatePrefs = viewModel::updatePrefs,
+                    onExport = viewModel::exportBackup,
+                    onImport = viewModel::importBackup,
                     onNewTheme = { editor = EditorRequest(themeId = null) },
                     onEditTheme = { editor = EditorRequest(it.id) },
                     onDeleteTheme = { deletingTheme = it },

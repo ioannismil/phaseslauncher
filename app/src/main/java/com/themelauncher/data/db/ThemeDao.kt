@@ -35,6 +35,10 @@ interface ThemeDao {
     @Query("DELETE FROM themes WHERE id = :themeId")
     suspend fun deleteTheme(themeId: Long)
 
+    /** Removes every theme (and, by cascade, every assignment). Used when restoring a backup. */
+    @Query("DELETE FROM themes")
+    suspend fun deleteAllThemes()
+
     @Query("UPDATE themes SET position = :position WHERE id = :themeId")
     suspend fun setThemePosition(themeId: Long, position: Int)
 

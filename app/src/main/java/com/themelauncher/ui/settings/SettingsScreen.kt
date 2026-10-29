@@ -2,7 +2,10 @@ package com.themelauncher.ui.settings
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,17 +25,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
+
 import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.SwipeDown
+import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,10 +55,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,23 +73,34 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.notifications.NotificationDotsRepository
+import com.themelauncher.data.settings.IconSize
+import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.ui.onboarding.rememberDefaultHomeState
 import com.themelauncher.ui.theme.contentColorOn
 import com.themelauncher.ui.theme.imageVector
+import java.time.LocalDate
 
-/** Launcher settings: switcher bar side, theme management, and home-screen options. */
+/** Launcher settings: theme switcher, themes, home screen, apps, backup. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     themes: List<Theme>,
-    switcherSide: SwitcherSide,
-    onSwitcherSideChange: (SwitcherSide) -> Unit,
+    prefs: LauncherPrefs,
+    allApps: List<AppInfo>,
+    notificationDots: NotificationDotsRepository,
+    onUpdatePrefs: ((LauncherPrefs) -> LauncherPrefs) -> Unit,
     onNewTheme: () -> Unit,
     onEditTheme: (Theme) -> Unit,
     onDeleteTheme: (Theme) -> Unit,
     onReorderThemes: (List<Long>) -> Unit,
+    onExport: (Uri) -> Unit,
+    onImport: (Uri) -> Unit,
     onRunSetup: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -81,6 +109,18 @@ fun SettingsScreen(
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
     }
+    var hasDotAccess by remember { mutableStateOf(notificationDots.hasAccess()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasDotAccess = notificationDots.hasAccess() }
+
+    var showHiddenApps by remember { mutableStateOf(false) }
+    var pendingImport by remember { mutableStateOf<Uri?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let(onExport)
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        pendingImport = uri
+    }
+
     BackHandler(onBack = onClose)
 
     Scaffold(
@@ -110,8 +150,8 @@ fun SettingsScreen(
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         SwitcherSide.entries.forEachIndexed { index, side ->
                             SegmentedButton(
-                                selected = side == switcherSide,
-                                onClick = { onSwitcherSideChange(side) },
+                                selected = side == prefs.switcherSide,
+                                onClick = { onUpdatePrefs { it.copy(switcherSide = side) } },
                                 shape = SegmentedButtonDefaults.itemShape(index, SwitcherSide.entries.size),
                             ) { Text(if (side == SwitcherSide.Left) "Left edge" else "Right edge") }
                         }
@@ -140,6 +180,64 @@ fun SettingsScreen(
 
             item { SectionHeader("Home screen") }
             item {
+                Column(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Grid columns", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text("${prefs.gridColumns}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                    val range = LauncherPrefs.COLUMN_RANGE
+                    Slider(
+                        value = prefs.gridColumns.toFloat(),
+                        onValueChange = { value -> onUpdatePrefs { it.copy(gridColumns = value.toInt()) } },
+                        valueRange = range.first.toFloat()..range.last.toFloat(),
+                        steps = range.last - range.first - 1,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("Icon size", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        IconSize.entries.forEachIndexed { index, size ->
+                            SegmentedButton(
+                                selected = size == prefs.iconSize,
+                                onClick = { onUpdatePrefs { it.copy(iconSize = size) } },
+                                shape = SegmentedButtonDefaults.itemShape(index, IconSize.entries.size),
+                            ) { Text(size.label) }
+                        }
+                    }
+                }
+            }
+            item {
+                SwitchOption(Icons.AutoMirrored.Outlined.Label, "App labels", "Show names under icons on the home screen", prefs.showLabels) { on ->
+                    onUpdatePrefs { it.copy(showLabels = on) }
+                }
+            }
+            item {
+                val needsAccess = prefs.notificationDots && !hasDotAccess
+                SwitchOption(
+                    icon = Icons.Outlined.Badge,
+                    title = "Notification dots",
+                    subtitle = when {
+                        needsAccess -> "Needs notification access — tap to allow"
+                        prefs.notificationDots -> "A dot on apps with new notifications"
+                        else -> "Off"
+                    },
+                    checked = prefs.notificationDots,
+                    subtitleIsWarning = needsAccess,
+                    onClick = if (needsAccess) ({ notificationDots.openAccessSettings(context) }) else null,
+                ) { on ->
+                    onUpdatePrefs { it.copy(notificationDots = on) }
+                    if (on && !hasDotAccess) notificationDots.openAccessSettings(context)
+                }
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.SwipeDown,
+                    "Swipe down for notifications",
+                    "Swipe down anywhere on the home screen",
+                    prefs.swipeDownForNotifications,
+                ) { on -> onUpdatePrefs { it.copy(swipeDownForNotifications = on) } }
+            }
+            item {
                 Option(Icons.Outlined.Wallpaper, "Wallpaper") {
                     try {
                         context.startActivity(
@@ -157,12 +255,64 @@ fun SettingsScreen(
                     Option(Icons.Outlined.Home, "Set as default home app", "So the Home button opens ThemeLauncher", onClick = defaultHome.request)
                 }
             }
+
+            item { SectionHeader("Apps") }
+            item {
+                Option(
+                    Icons.Outlined.VisibilityOff,
+                    "Hidden apps",
+                    when (prefs.hiddenApps.size) {
+                        0 -> "None hidden. Long-press an app in the drawer to hide it."
+                        1 -> "1 app hidden from the drawer"
+                        else -> "${prefs.hiddenApps.size} apps hidden from the drawer"
+                    },
+                ) { showHiddenApps = true }
+            }
+
+            item { SectionHeader("Backup") }
+            item {
+                Option(Icons.Outlined.Upload, "Back up themes", "Save themes, dock and settings to a file") {
+                    exportLauncher.launch("themelauncher-${LocalDate.now()}.json")
+                }
+            }
+            item {
+                Option(Icons.Outlined.Download, "Restore from backup", "Replaces your current themes, dock and settings") {
+                    importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                }
+            }
             item { Option(Icons.Outlined.Restore, "Run setup again", "Pick favorites and add themes from presets", onClick = onRunSetup) }
 
             item { SectionHeader("About") }
             item { Option(Icons.Outlined.Info, "ThemeLauncher", versionName?.let { "Version $it" }, onClick = null) }
             item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
         }
+    }
+
+    if (showHiddenApps) {
+        HiddenAppsSheet(
+            allApps = allApps,
+            hidden = prefs.hiddenApps,
+            onSave = { keys ->
+                showHiddenApps = false
+                onUpdatePrefs { it.copy(hiddenApps = keys) }
+            },
+            onDismiss = { showHiddenApps = false },
+        )
+    }
+
+    pendingImport?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("Restore from backup?") },
+            text = { Text("Your current themes, dock and launcher settings will be replaced by the ones in the backup.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingImport = null
+                    onImport(uri)
+                }) { Text("Restore") }
+            },
+            dismissButton = { TextButton(onClick = { pendingImport = null }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -234,6 +384,31 @@ private fun Option(icon: ImageVector, title: String, subtitle: String? = null, o
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 8.dp),
+    )
+}
+
+/** A row with a switch. Tapping the row toggles, unless [onClick] overrides it (e.g. to grant access). */
+@Composable
+private fun SwitchOption(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    subtitleIsWarning: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = {
+            Text(subtitle, color = if (subtitleIsWarning) MaterialTheme.colorScheme.error else Color.Unspecified)
+        },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier
+            .clickable { if (onClick != null) onClick() else onCheckedChange(!checked) }
             .padding(horizontal = 8.dp),
     )
 }

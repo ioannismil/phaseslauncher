@@ -14,7 +14,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -126,8 +125,9 @@ private fun AppGrid(
     val labelStyle = MaterialTheme.typography.labelMedium.onWallpaper(wallpaper)
     val menuState = remember { AppMenuState() }
     val reorder = rememberReorderState(apps.map { it.key }, onReorder)
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val columns = if (maxWidth < 600.dp) GridCells.Fixed(4) else GridCells.Adaptive(96.dp)
+    Box(Modifier.fillMaxSize()) {
+        val layout = LocalHomeLayout.current
+        val columns = GridCells.Fixed(layout.columns)
         LazyVerticalGrid(
             columns = columns,
             modifier = Modifier
@@ -144,6 +144,8 @@ private fun AppGrid(
                     onClick = { onLaunch(app, it) },
                     actions = { appActions(app) },
                     menuState = menuState,
+                    iconSize = layout.iconSize,
+                    showLabel = layout.showLabels,
                     modifier = Modifier.animateItem().reorderItem(reorder, app.key),
                 )
             }

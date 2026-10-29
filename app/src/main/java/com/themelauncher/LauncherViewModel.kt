@@ -1,14 +1,22 @@
 package com.themelauncher
 
 import android.graphics.Rect
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.apps.AppShortcut
 import com.themelauncher.data.apps.AppsRepository
+import com.themelauncher.data.apps.ProfileState
+import com.themelauncher.data.apps.ProfileType
+import com.themelauncher.data.apps.ShortcutsRepository
 import com.themelauncher.data.apps.filterApps
+import com.themelauncher.data.backup.BackupRepository
+import com.themelauncher.data.notifications.NotificationDotsRepository
+import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.settings.SettingsRepository
 import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.themes.AddFavoriteResult
@@ -26,8 +34,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -35,7 +45,12 @@ import kotlinx.coroutines.launch
 data class DrawerState(
     val isLoading: Boolean = true,
     val apps: List<AppInfo> = emptyList(),
-)
+    /** Personal plus any work profile / private space; tabs are shown when there's more than one. */
+    val profiles: List<ProfileState> = emptyList(),
+    val selectedProfile: ProfileType = ProfileType.Personal,
+) {
+    val selectedProfileState: ProfileState? get() = profiles.firstOrNull { it.type == selectedProfile }
+}
 
 data class HomeState(
     val isLoading: Boolean = true,
@@ -58,7 +73,15 @@ class LauncherViewModel(
     private val themeRepository: ThemeRepository,
     private val favoritesRepository: FavoritesRepository,
     private val settingsRepository: SettingsRepository,
+    private val shortcutsRepository: ShortcutsRepository,
+    private val backupRepository: BackupRepository,
+    val notificationDots: NotificationDotsRepository,
 ) : ViewModel() {
+
+    val prefs: StateFlow<LauncherPrefs> =
+        settingsRepository.prefs.stateIn(viewModelScope, SharingStarted.Eagerly, LauncherPrefs())
+
+    private val selectedProfile = MutableStateFlow(ProfileType.Personal)
 
     private val _drawerOpen = MutableStateFlow(false)
     val drawerOpen: StateFlow<Boolean> = _drawerOpen.asStateFlow()
@@ -71,8 +94,22 @@ class LauncherViewModel(
     val messages: Flow<String> = _messages.receiveAsFlow()
 
     val drawerState: StateFlow<DrawerState> =
-        combine(appsRepository.apps, _query) { apps, query ->
-            DrawerState(isLoading = apps == null, apps = filterApps(apps.orEmpty(), query))
+        combine(
+            appsRepository.apps,
+            appsRepository.profiles,
+            _query,
+            prefs.map { it.hiddenApps }.distinctUntilChanged(),
+            selectedProfile,
+        ) { apps, profiles, query, hidden, selected ->
+            val tab = selected.takeIf { type -> profiles.any { it.type == type } } ?: ProfileType.Personal
+            val visible = apps.orEmpty().filter { it.key !in hidden }
+            DrawerState(
+                isLoading = apps == null,
+                // Searching looks across every profile; browsing shows the selected tab.
+                apps = if (query.isBlank()) visible.filter { it.profile == tab } else filterApps(visible, query),
+                profiles = profiles,
+                selectedProfile = tab,
+            )
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, DrawerState())
@@ -110,13 +147,52 @@ class LauncherViewModel(
         settingsRepository.onboardingComplete
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val switcherSide: StateFlow<SwitcherSide> =
-        settingsRepository.switcherSide
-            .stateIn(viewModelScope, SharingStarted.Eagerly, SwitcherSide.Right)
+    // region Settings
 
-    fun setSwitcherSide(side: SwitcherSide) {
-        viewModelScope.launch { settingsRepository.setSwitcherSide(side) }
+    fun updatePrefs(transform: (LauncherPrefs) -> LauncherPrefs) {
+        viewModelScope.launch { settingsRepository.updatePrefs(transform) }
     }
+
+    fun setSwitcherSide(side: SwitcherSide) = updatePrefs { it.copy(switcherSide = side) }
+
+    fun hideApp(app: AppInfo) {
+        updatePrefs { it.copy(hiddenApps = it.hiddenApps + app.key) }
+        message("${app.label} hidden. Unhide it in Launcher settings.")
+    }
+
+    fun setHiddenApps(keys: Set<String>) = updatePrefs { it.copy(hiddenApps = keys) }
+
+    fun exportBackup(uri: Uri) {
+        viewModelScope.launch {
+            runCatching { backupRepository.exportTo(uri) }
+                .onSuccess { message("Backed up ${it.themes} themes and ${it.favorites} favorites") }
+                .onFailure { message("Backup failed: ${it.message}") }
+        }
+    }
+
+    fun importBackup(uri: Uri) {
+        viewModelScope.launch {
+            runCatching { backupRepository.importFrom(uri) }
+                .onSuccess {
+                    selectedThemeId.value = null
+                    message("Restored ${it.themes} themes and ${it.favorites} favorites")
+                }
+                .onFailure { message("Couldn't restore: ${it.message}") }
+        }
+    }
+
+    // endregion
+
+    // region Profiles
+
+    fun selectProfileTab(type: ProfileType) {
+        selectedProfile.value = type
+    }
+
+    /** Pause/resume the work profile, or lock/unlock the private space. */
+    fun setProfileQuiet(profile: ProfileState, quiet: Boolean) = appsRepository.setProfileQuiet(profile.user, quiet)
+
+    // endregion
 
     // region Onboarding
 
@@ -166,6 +242,12 @@ class LauncherViewModel(
     fun openAppInfo(app: AppInfo, sourceBounds: Rect?) = appsRepository.openAppInfo(app, sourceBounds)
 
     fun uninstall(app: AppInfo) = appsRepository.requestUninstall(app)
+
+    suspend fun shortcutsFor(app: AppInfo): List<AppShortcut> = shortcutsRepository.shortcutsFor(app)
+
+    fun launchShortcut(shortcut: AppShortcut, sourceBounds: Rect?) {
+        if (!shortcutsRepository.launch(shortcut, sourceBounds)) message("Couldn't open “${shortcut.label}”")
+    }
 
     // endregion
 
@@ -280,6 +362,9 @@ class LauncherViewModel(
                     themeRepository = container.themeRepository,
                     favoritesRepository = container.favoritesRepository,
                     settingsRepository = container.settingsRepository,
+                    shortcutsRepository = container.shortcutsRepository,
+                    backupRepository = container.backupRepository,
+                    notificationDots = container.notificationDots,
                 )
             }
         }

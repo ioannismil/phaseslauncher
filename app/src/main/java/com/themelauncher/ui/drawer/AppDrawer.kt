@@ -5,8 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -31,13 +33,19 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -47,10 +55,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -61,6 +72,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.themelauncher.DrawerState
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.apps.ProfileState
+import com.themelauncher.data.apps.ProfileType
 import com.themelauncher.ui.components.AppAction
 import com.themelauncher.ui.components.AppTileWithMenu
 import com.themelauncher.ui.components.drawerLabelStyle
@@ -77,6 +90,8 @@ fun AppDrawer(
     appActions: (AppInfo) -> List<AppAction>,
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
+    onSelectProfile: (ProfileType) -> Unit,
+    onSetProfileQuiet: (ProfileState, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
@@ -160,13 +175,20 @@ fun AppDrawer(
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
                 )
+                if (state.profiles.size > 1 && query.isBlank()) {
+                    ProfileTabs(state, onSelectProfile)
+                }
+            }
+
+            state.selectedProfileState?.takeIf { query.isBlank() && it.type != ProfileType.Personal }?.let { profile ->
+                ProfileBanner(profile, onSetProfileQuiet)
             }
 
             Box(Modifier.fillMaxSize()) {
                 when {
                     state.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                     state.apps.isEmpty() -> Text(
-                        text = "No apps match “$query”",
+                        text = if (query.isBlank()) "No apps here" else "No apps match “$query”",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp),
@@ -179,7 +201,9 @@ fun AppDrawer(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 8.dp)
-                            .nestedScroll(pullToClose),
+                            .nestedScroll(pullToClose)
+                            // Dim a paused work profile's apps, like the stock launcher.
+                            .alpha(if (query.isBlank() && state.selectedProfileState?.isQuiet == true) 0.45f else 1f),
                     ) {
                         items(state.apps, key = { it.key }) { app ->
                             AppTileWithMenu(
@@ -242,3 +266,69 @@ private fun SearchField(
         keyboardActions = KeyboardActions(onGo = { onSearch() }),
     )
 }
+
+@Composable
+private fun ProfileTabs(state: DrawerState, onSelect: (ProfileType) -> Unit) {
+    val selectedIndex = state.profiles.indexOfFirst { it.type == state.selectedProfile }.coerceAtLeast(0)
+    SecondaryTabRow(
+        selectedTabIndex = selectedIndex,
+        containerColor = Color.Transparent,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    ) {
+        state.profiles.forEach { profile ->
+            Tab(
+                selected = profile.type == state.selectedProfile,
+                onClick = { onSelect(profile.type) },
+                text = { Text(profile.type.title) },
+                icon = { Icon(profile.type.icon, contentDescription = null, modifier = Modifier.size(20.dp)) },
+            )
+        }
+    }
+}
+
+/** Work profile paused / private space locked, with the button to change it. */
+@Composable
+private fun ProfileBanner(profile: ProfileState, onSetQuiet: (ProfileState, Boolean) -> Unit) {
+    val (text, action) = when {
+        profile.type == ProfileType.Work && profile.isQuiet -> "Work apps are paused" to "Turn on"
+        profile.type == ProfileType.Work -> null to "Pause work apps"
+        profile.isQuiet -> "Private space is locked" to "Unlock"
+        else -> null to "Lock private space"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .then(
+                if (text != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .padding(start = 16.dp)
+                } else {
+                    Modifier
+                },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (text != null) Arrangement.SpaceBetween else Arrangement.End,
+    ) {
+        if (text != null) {
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+        }
+        TextButton(onClick = { onSetQuiet(profile, !profile.isQuiet) }) { Text(action) }
+    }
+}
+
+private val ProfileType.title: String
+    get() = when (this) {
+        ProfileType.Personal -> "Personal"
+        ProfileType.Work -> "Work"
+        ProfileType.Private -> "Private"
+    }
+
+private val ProfileType.icon: ImageVector
+    get() = when (this) {
+        ProfileType.Personal -> Icons.Outlined.Person
+        ProfileType.Work -> Icons.Outlined.Work
+        ProfileType.Private -> Icons.Outlined.Lock
+    }

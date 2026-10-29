@@ -58,7 +58,7 @@ class IconCache(context: Context, private val appsRepository: AppsRepository) {
     }
 
     private companion object {
-        const val ICON_SIZE_DP = 56
+        const val ICON_SIZE_DP = 64 // the largest icon size setting
 
         fun cacheSizeKb() = (Runtime.getRuntime().maxMemory() / 1024 / 6).toInt()
     }

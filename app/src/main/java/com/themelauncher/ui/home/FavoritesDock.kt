@@ -79,6 +79,7 @@ fun FavoritesDock(
                             onClick = { onLaunch(app, it) },
                             actions = { appActions(app) },
                             showLabel = false,
+                            iconSize = LocalHomeLayout.current.iconSize,
                             menuState = menuState,
                             modifier = Modifier.reorderItem(reorder, app.key),
                         )

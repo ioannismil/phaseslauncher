@@ -44,6 +44,7 @@ fun HomeScreen(
     onCreateTheme: () -> Unit,
     onAddApps: (Theme) -> Unit,
     onSwipeUp: () -> Unit,
+    onSwipeDown: () -> Unit,
     gridAppActions: (AppInfo) -> List<AppAction>,
     dockAppActions: (AppInfo) -> List<AppAction>,
     onReorderThemeApps: (Theme, List<String>) -> Unit,
@@ -51,7 +52,7 @@ fun HomeScreen(
     onEmptyLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val swipeUpConnection = rememberSwipeUpConnection(onSwipeUp)
+    val swipeUpConnection = rememberVerticalSwipeConnection(onSwipeUp, onSwipeDown)
     val barRight = switcherSide == SwitcherSide.Right
     // Keep app icons clear of the bar's touch area.
     val gridPadding = if (barRight) PaddingValues(end = 12.dp) else PaddingValues(start = 12.dp)
@@ -109,32 +110,42 @@ fun HomeScreen(
 }
 
 /**
- * Opens the drawer when an upward drag is left over after the grid has scrolled as far as it
- * can (or when it has nothing to scroll), so "swipe up" also works over the app grid.
+ * Swipe gestures over the app grid: an upward drag left over after the grid has scrolled as far
+ * as it can (or when it has nothing to scroll) opens the drawer; a downward pull at the top of
+ * the grid pulls down the notification shade. Each fires once per gesture.
  */
 @Composable
-private fun rememberSwipeUpConnection(onSwipeUp: () -> Unit): NestedScrollConnection {
+private fun rememberVerticalSwipeConnection(onSwipeUp: () -> Unit, onSwipeDown: () -> Unit): NestedScrollConnection {
     val thresholdPx = with(LocalDensity.current) { 48.dp.toPx() }
     val currentOnSwipeUp = rememberUpdatedState(onSwipeUp)
+    val currentOnSwipeDown = rememberUpdatedState(onSwipeDown)
     return remember(thresholdPx) {
         object : NestedScrollConnection {
             var pulled = 0f
+            var fired = false
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && available.y < 0) {
-                    pulled -= available.y
-                    if (pulled > thresholdPx) {
-                        pulled = 0f
-                        currentOnSwipeUp.value()
-                    }
-                } else if (available.y > 0 || consumed.y != 0f) {
+                if (source != NestedScrollSource.UserInput || fired) return Offset.Zero
+                if (consumed.y != 0f) {
                     pulled = 0f
+                    return Offset.Zero
+                }
+                // Negative = upward overscroll, positive = downward.
+                if (available.y != 0f && (pulled == 0f || (pulled < 0) == (available.y < 0))) {
+                    pulled += available.y
+                } else {
+                    pulled = available.y
+                }
+                when {
+                    pulled < -thresholdPx -> { fired = true; currentOnSwipeUp.value() }
+                    pulled > thresholdPx -> { fired = true; currentOnSwipeDown.value() }
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 pulled = 0f
+                fired = false
                 return Velocity.Zero
             }
         }

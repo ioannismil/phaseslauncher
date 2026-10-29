@@ -4,7 +4,10 @@ import android.app.Application
 import android.content.Context
 import com.themelauncher.data.apps.AppsRepository
 import com.themelauncher.data.apps.IconCache
+import com.themelauncher.data.apps.ShortcutsRepository
+import com.themelauncher.data.backup.BackupRepository
 import com.themelauncher.data.db.LauncherDatabase
+import com.themelauncher.data.notifications.NotificationDotsRepository
 import com.themelauncher.data.settings.SettingsRepository
 import com.themelauncher.data.themes.FavoritesRepository
 import com.themelauncher.data.themes.ThemeRepository
@@ -32,10 +35,14 @@ class AppContainer(context: Context) {
     val appsRepository = AppsRepository(context, appScope)
     val iconCache = IconCache(context, appsRepository)
 
+    val shortcutsRepository = ShortcutsRepository(context)
+    val notificationDots = NotificationDotsRepository(context)
+
     private val database = LauncherDatabase.create(context)
     val themeRepository = ThemeRepository(database.themeDao())
     val favoritesRepository = FavoritesRepository(database.favoritesDao())
     val settingsRepository = SettingsRepository(context)
+    val backupRepository = BackupRepository(context, database, settingsRepository)
     private val cleaner = UninstalledAppCleaner(appsRepository::isInstalled, database.themeDao(), database.favoritesDao())
 
     init {
