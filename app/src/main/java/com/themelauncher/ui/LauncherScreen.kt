@@ -30,6 +30,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -43,15 +44,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.themelauncher.LauncherViewModel
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.themes.Theme
+import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.ui.components.AppAction
 import com.themelauncher.ui.drawer.AppDrawer
 import com.themelauncher.ui.editor.AddToThemesDialog
 import com.themelauncher.ui.editor.DeleteThemeDialog
 import com.themelauncher.ui.editor.ReorderThemesDialog
-import com.themelauncher.ui.editor.ThemeDraft
 import com.themelauncher.ui.editor.ThemeEditorSheet
 import com.themelauncher.ui.home.HomeScreen
 import com.themelauncher.ui.home.ThemeAction
+import com.themelauncher.ui.onboarding.OnboardingScreen
 import com.themelauncher.ui.theme.LocalWallpaperContent
 import com.themelauncher.ui.theme.rememberWallpaperContentColors
 
@@ -70,6 +72,13 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
     var deletingTheme by remember { mutableStateOf<Theme?>(null) }
     var reordering by remember { mutableStateOf(false) }
 
+    // Decided once the setting has loaded; stays up after completion until the user taps Finish.
+    val onboardingComplete by viewModel.onboardingComplete.collectAsStateWithLifecycle()
+    var showOnboarding by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(onboardingComplete) {
+        if (showOnboarding == null) onboardingComplete?.let { showOnboarding = !it }
+    }
+
     val context = LocalContext.current
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
@@ -85,7 +94,8 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
     val darkTheme = isSystemInDarkTheme()
     SideEffect {
         val window = (view.context as? Activity)?.window ?: return@SideEffect
-        val lightBars = if (drawerOpen) !darkTheme else wallpaperColors.isDark
+        val overSurface = drawerOpen || showOnboarding == true
+        val lightBars = if (overSurface) !darkTheme else wallpaperColors.isDark
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = lightBars
             isAppearanceLightNavigationBars = lightBars
@@ -132,6 +142,24 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                 deletingTheme = theme
             },
         )
+    }
+
+    when (showOnboarding) {
+        null -> return // Still loading; show just the wallpaper for a moment.
+        true -> {
+            OnboardingScreen(
+                allApps = homeState.apps.values.toList(),
+                initialFavorites = homeState.favorites.map { it.key },
+                onComplete = viewModel::completeOnboarding,
+                onSkip = {
+                    viewModel.skipOnboarding()
+                    showOnboarding = false
+                },
+                onFinished = { showOnboarding = false },
+            )
+            return
+        }
+        false -> Unit
     }
 
     CompositionLocalProvider(LocalWallpaperContent provides wallpaperColors) {

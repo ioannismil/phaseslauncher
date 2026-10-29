@@ -14,6 +14,8 @@ data class AppInfo(
     val user: UserHandle,
     /** False for apps preinstalled in the system image (unless the user installed an update). */
     val canUninstall: Boolean = true,
+    /** The app's declared [android.content.pm.ApplicationInfo] category, or -1 if none. */
+    val category: Int = -1,
 ) {
     val packageName: String get() = componentName.packageName
 

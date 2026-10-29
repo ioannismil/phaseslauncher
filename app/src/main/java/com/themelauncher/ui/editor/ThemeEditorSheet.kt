@@ -61,19 +61,12 @@ import androidx.compose.ui.unit.dp
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.apps.filterApps
 import com.themelauncher.data.themes.ThemeDefaults
+import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.data.themes.ThemeIconKey
 import com.themelauncher.data.themes.ThemePreset
 import com.themelauncher.ui.components.AppIcon
 import com.themelauncher.ui.theme.contentColorOn
 import com.themelauncher.ui.theme.imageVector
-
-data class ThemeDraft(
-    val name: String,
-    val icon: ThemeIconKey,
-    val accentColor: Int,
-    /** In display order. */
-    val appKeys: List<String> = emptyList(),
-)
 
 /**
  * Create or edit a theme: name, icon, accent color, and which apps it contains.

@@ -1,5 +1,8 @@
 package com.themelauncher.data.themes
 
+import android.content.pm.ApplicationInfo
+import com.themelauncher.data.apps.AppInfo
+
 /** Icons a theme can use. Stored by name; the UI maps each to a Material icon. */
 enum class ThemeIconKey {
     Gaming, Work, Social, Music, Home, Fitness, Travel, Study,
@@ -20,7 +23,27 @@ data class Theme(
     val appKeys: List<String>,
 )
 
-data class ThemePreset(val name: String, val icon: ThemeIconKey, val accentColor: Int)
+/** A theme that hasn't been saved yet (editor and onboarding). */
+data class ThemeDraft(
+    val name: String,
+    val icon: ThemeIconKey,
+    val accentColor: Int,
+    /** In display order. */
+    val appKeys: List<String> = emptyList(),
+)
+
+data class ThemePreset(
+    val name: String,
+    val icon: ThemeIconKey,
+    val accentColor: Int,
+    /** Play Store categories ([ApplicationInfo.category]) whose apps are suggested for this theme. */
+    val categories: Set<Int> = emptySet(),
+    /** Well-known apps that often don't declare a category. */
+    val packages: Set<String> = emptySet(),
+) {
+    fun suggest(apps: List<AppInfo>): List<AppInfo> =
+        apps.filter { it.category in categories || it.packageName in packages }
+}
 
 object ThemeDefaults {
     const val MAX_FAVORITES = 5
@@ -32,8 +55,60 @@ object ThemeDefaults {
     ).map { it.toInt() }
 
     val Presets: List<ThemePreset> = listOf(
-        ThemePreset("Gaming", ThemeIconKey.Gaming, AccentColors[0]),
-        ThemePreset("Work", ThemeIconKey.Work, AccentColors[1]),
-        ThemePreset("Social", ThemeIconKey.Social, AccentColors[8]),
+        ThemePreset(
+            name = "Gaming",
+            icon = ThemeIconKey.Gaming,
+            accentColor = AccentColors[0],
+            categories = setOf(ApplicationInfo.CATEGORY_GAME),
+            packages = setOf(
+                "com.google.android.play.games",
+                "com.samsung.android.game.gamehome",
+                "com.discord",
+                "com.valvesoftware.android.steam.community",
+                "tv.twitch.android.app",
+            ),
+        ),
+        ThemePreset(
+            name = "Work",
+            icon = ThemeIconKey.Work,
+            accentColor = AccentColors[1],
+            categories = setOf(ApplicationInfo.CATEGORY_PRODUCTIVITY),
+            packages = setOf(
+                "com.google.android.gm",
+                "com.google.android.calendar",
+                "com.samsung.android.calendar",
+                "com.google.android.apps.docs",
+                "com.google.android.apps.docs.editors.docs",
+                "com.google.android.apps.docs.editors.sheets",
+                "com.google.android.apps.docs.editors.slides",
+                "com.microsoft.office.outlook",
+                "com.microsoft.teams",
+                "com.microsoft.office.officehubrow",
+                "com.Slack",
+                "us.zoom.videomeetings",
+                "notion.id",
+                "com.linkedin.android",
+            ),
+        ),
+        ThemePreset(
+            name = "Social",
+            icon = ThemeIconKey.Social,
+            accentColor = AccentColors[8],
+            categories = setOf(ApplicationInfo.CATEGORY_SOCIAL),
+            packages = setOf(
+                "com.whatsapp",
+                "com.instagram.android",
+                "com.facebook.katana",
+                "com.facebook.orca",
+                "org.telegram.messenger",
+                "org.thoughtcrime.securesms",
+                "com.twitter.android",
+                "com.snapchat.android",
+                "com.reddit.frontpage",
+                "com.zhiliaoapp.musically",
+                "com.viber.voip",
+                "com.bereal.ft",
+            ),
+        ),
     )
 }

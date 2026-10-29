@@ -155,6 +155,7 @@ class AppsRepository(
                         componentName = info.componentName,
                         user = user,
                         canUninstall = !isSystem,
+                        category = info.applicationInfo.category,
                     )
                 }
         }.sortedWith { a, b -> collator.compare(a.label, b.label) }

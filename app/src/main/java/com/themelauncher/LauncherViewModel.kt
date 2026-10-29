@@ -14,6 +14,7 @@ import com.themelauncher.data.themes.AddFavoriteResult
 import com.themelauncher.data.themes.FavoritesRepository
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.data.themes.ThemeDefaults
+import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.data.themes.ThemeIconKey
 import com.themelauncher.data.themes.ThemeRepository
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +103,30 @@ class LauncherViewModel(
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, HomeState())
+
+    /** null while loading, so the UI can avoid flashing home before onboarding. */
+    val onboardingComplete: StateFlow<Boolean?> =
+        settingsRepository.onboardingComplete
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    // region Onboarding
+
+    /** Saves the dock and creates the chosen themes; the first one with apps becomes active. */
+    fun completeOnboarding(favoriteKeys: List<String>, themes: List<ThemeDraft>) {
+        viewModelScope.launch {
+            favoritesRepository.setFavorites(favoriteKeys)
+            val ids = themes.map { themeRepository.createTheme(it.name, it.icon, it.accentColor, it.appKeys) }
+            val firstWithApps = themes.indexOfFirst { it.appKeys.isNotEmpty() }
+            ids.getOrNull(firstWithApps.coerceAtLeast(0))?.let { selectTheme(it) }
+            settingsRepository.setOnboardingComplete(true)
+        }
+    }
+
+    fun skipOnboarding() {
+        viewModelScope.launch { settingsRepository.setOnboardingComplete(true) }
+    }
+
+    // endregion
 
     // region Drawer
 
