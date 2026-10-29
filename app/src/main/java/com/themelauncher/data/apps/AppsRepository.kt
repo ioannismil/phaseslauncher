@@ -3,6 +3,7 @@ package com.themelauncher.data.apps
 import android.content.Context
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -25,7 +26,7 @@ import java.text.Collator
 import java.util.concurrent.ConcurrentHashMap
 
 /** A package was added, changed, removed or became (un)available for [user]. */
-data class PackageEvent(val packageName: String, val user: UserHandle)
+data class PackageEvent(val packageName: String, val user: UserHandle, val removed: Boolean = false)
 
 /**
  * Source of truth for installed launchable apps, backed by [LauncherApps].
@@ -52,7 +53,7 @@ class AppsRepository(
 
     private val callback = object : LauncherApps.Callback() {
         override fun onPackageAdded(packageName: String, user: UserHandle) = changed(packageName, user)
-        override fun onPackageRemoved(packageName: String, user: UserHandle) = changed(packageName, user)
+        override fun onPackageRemoved(packageName: String, user: UserHandle) = changed(packageName, user, removed = true)
         override fun onPackageChanged(packageName: String, user: UserHandle) = changed(packageName, user)
 
         override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) =
@@ -67,8 +68,8 @@ class AppsRepository(
         override fun onPackagesUnsuspended(packageNames: Array<out String>, user: UserHandle) =
             packageNames.forEach { changed(it, user) }
 
-        private fun changed(packageName: String, user: UserHandle) {
-            _packageEvents.tryEmit(PackageEvent(packageName, user))
+        private fun changed(packageName: String, user: UserHandle, removed: Boolean = false) {
+            _packageEvents.tryEmit(PackageEvent(packageName, user, removed))
             reload()
         }
     }
@@ -84,6 +85,26 @@ class AppsRepository(
     fun reload() = reloadRequests.update { it + 1 }
 
     fun activityInfo(key: String): LauncherActivityInfo? = activityInfos[key]
+
+    /**
+     * Whether the app's package is still installed for its user. Disabled, suspended or
+     * paused-profile apps count as installed. Blocking; call off the main thread.
+     */
+    fun isInstalled(key: String): Boolean {
+        val (component, serial) = AppInfo.parseKey(key) ?: return false
+        val user = if (serial == null) Process.myUserHandle() else userManager.getUserForSerialNumber(serial)
+        if (user == null) return false
+        return try {
+            launcherApps.getApplicationInfo(component.packageName, 0, user)
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        } catch (e: Exception) {
+            // e.g. a locked profile; keep the app rather than risk deleting the user's setup.
+            Log.w(TAG, "Could not check $key", e)
+            true
+        }
+    }
 
     /** Returns false if the app could not be started (e.g. it was just uninstalled). */
     fun launch(app: AppInfo, sourceBounds: Rect?): Boolean = try {

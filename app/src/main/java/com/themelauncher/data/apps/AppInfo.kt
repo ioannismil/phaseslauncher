@@ -21,5 +21,14 @@ data class AppInfo(
             val base = componentName.flattenToShortString()
             return if (isMainProfile) base else "$base#$userSerial"
         }
+
+        fun packageOf(key: String): String = key.substringBefore('/')
+
+        /** Splits a key into its component and user serial (null for the main profile). */
+        fun parseKey(key: String): Pair<ComponentName, Long?>? {
+            val component = ComponentName.unflattenFromString(key.substringBefore('#')) ?: return null
+            val serial = key.substringAfter('#', missingDelimiterValue = "").toLongOrNull()
+            return component to serial
+        }
     }
 }

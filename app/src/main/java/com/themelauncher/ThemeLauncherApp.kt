@@ -4,9 +4,15 @@ import android.app.Application
 import android.content.Context
 import com.themelauncher.data.apps.AppsRepository
 import com.themelauncher.data.apps.IconCache
+import com.themelauncher.data.db.LauncherDatabase
+import com.themelauncher.data.settings.SettingsRepository
+import com.themelauncher.data.themes.FavoritesRepository
+import com.themelauncher.data.themes.ThemeRepository
+import com.themelauncher.data.themes.UninstalledAppCleaner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
@@ -26,6 +32,12 @@ class AppContainer(context: Context) {
     val appsRepository = AppsRepository(context, appScope)
     val iconCache = IconCache(context, appsRepository)
 
+    private val database = LauncherDatabase.create(context)
+    val themeRepository = ThemeRepository(database.themeDao())
+    val favoritesRepository = FavoritesRepository(database.favoritesDao())
+    val settingsRepository = SettingsRepository(context)
+    private val cleaner = UninstalledAppCleaner(appsRepository::isInstalled, database.themeDao(), database.favoritesDao())
+
     init {
         appScope.launch {
             appsRepository.packageEvents.collect { iconCache.invalidate(it.packageName) }
@@ -34,6 +46,12 @@ class AppContainer(context: Context) {
         appScope.launch {
             appsRepository.apps.filterNotNull().collect { iconCache.preload(it) }
         }
+        // Drop uninstalled apps from themes and favorites: anything removed while we weren't
+        // running, then each removal as it happens.
+        appScope.launch(Dispatchers.IO) {
+            appsRepository.packageEvents.filter { it.removed }.collect { cleaner.prune(it.packageName) }
+        }
+        appScope.launch(Dispatchers.IO) { cleaner.prune() }
     }
 }
 
