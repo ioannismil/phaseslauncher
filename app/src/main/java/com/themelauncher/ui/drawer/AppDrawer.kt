@@ -60,7 +60,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.themelauncher.DrawerState
 import com.themelauncher.data.apps.AppInfo
-import com.themelauncher.ui.components.AppTile
+import com.themelauncher.ui.components.AppAction
+import com.themelauncher.ui.components.AppTileWithMenu
 import com.themelauncher.ui.components.drawerLabelStyle
 import kotlinx.coroutines.delay
 
@@ -72,6 +73,7 @@ fun AppDrawer(
     query: String,
     onQueryChange: (String) -> Unit,
     onLaunch: (AppInfo, Rect?) -> Unit,
+    appActions: (AppInfo) -> List<AppAction>,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -177,10 +179,14 @@ fun AppDrawer(
                             .nestedScroll(pullToClose),
                     ) {
                         items(state.apps, key = { it.key }) { app ->
-                            AppTile(
+                            AppTileWithMenu(
                                 app = app,
                                 labelStyle = drawerLabelStyle(),
                                 onClick = { bounds -> onLaunch(app, bounds) },
+                                actions = {
+                                    keyboard?.hide()
+                                    appActions(app)
+                                },
                                 modifier = Modifier.animateItem(),
                             )
                         }

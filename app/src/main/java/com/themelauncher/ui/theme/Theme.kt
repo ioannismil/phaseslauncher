@@ -9,9 +9,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 
 private val FallbackLight = lightColorScheme(primary = Color(0xFF5B4FC4))
 private val FallbackDark = darkColorScheme(primary = Color(0xFFC6BFFF))
@@ -31,11 +29,3 @@ fun ThemeLauncherTheme(
     }
     MaterialTheme(colorScheme = colorScheme, content = content)
 }
-
-/** Text drawn directly on the wallpaper is always light with a soft shadow, in both modes. */
-val OnWallpaperColor = Color.White
-
-fun TextStyle.onWallpaper(): TextStyle = copy(
-    color = OnWallpaperColor,
-    shadow = Shadow(color = Color.Black.copy(alpha = 0.45f), blurRadius = 6f),
-)

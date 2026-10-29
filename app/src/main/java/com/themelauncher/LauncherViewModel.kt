@@ -42,8 +42,13 @@ data class HomeState(
     /** The active theme's apps that are currently installed and launchable, in order. */
     val themeApps: List<AppInfo> = emptyList(),
     val favorites: List<AppInfo> = emptyList(),
+    /** Every launchable app by key. */
+    val apps: Map<String, AppInfo> = emptyMap(),
 ) {
     val canAddFavorite: Boolean get() = favorites.size < ThemeDefaults.MAX_FAVORITES
+
+    /** A theme's launchable apps in order; unavailable ones are skipped. */
+    fun appsFor(theme: Theme): List<AppInfo> = theme.appKeys.mapNotNull(apps::get)
 }
 
 class LauncherViewModel(
@@ -70,12 +75,18 @@ class LauncherViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, DrawerState())
 
+    /** Set on tap so the switch is instant; the persisted value catches up a moment later. */
+    private val selectedThemeId = MutableStateFlow<Long?>(null)
+
+    private val activeThemeId: Flow<Long?> =
+        combine(selectedThemeId, settingsRepository.activeThemeId) { selected, stored -> selected ?: stored }
+
     val homeState: StateFlow<HomeState> =
         combine(
             appsRepository.apps,
             themeRepository.themes,
             favoritesRepository.favoriteKeys,
-            settingsRepository.activeThemeId,
+            activeThemeId,
         ) { apps, themes, favoriteKeys, activeId ->
             val byKey = apps.orEmpty().associateBy { it.key }
             // A missing or deleted active theme falls back to the first one.
@@ -86,6 +97,7 @@ class LauncherViewModel(
                 activeTheme = active,
                 themeApps = active?.appKeys.orEmpty().mapNotNull(byKey::get),
                 favorites = favoriteKeys.mapNotNull(byKey::get),
+                apps = byKey,
             )
         }
             .flowOn(Dispatchers.Default)
@@ -124,14 +136,14 @@ class LauncherViewModel(
     // region Themes
 
     fun selectTheme(themeId: Long) {
+        selectedThemeId.value = themeId
         viewModelScope.launch { settingsRepository.setActiveThemeId(themeId) }
     }
 
     /** Creates a theme and makes it active. */
     fun createTheme(name: String, icon: ThemeIconKey, accentColor: Int, appKeys: List<String> = emptyList()) {
         viewModelScope.launch {
-            val id = themeRepository.createTheme(name, icon, accentColor, appKeys)
-            settingsRepository.setActiveThemeId(id)
+            selectTheme(themeRepository.createTheme(name, icon, accentColor, appKeys))
         }
     }
 
@@ -150,10 +162,10 @@ class LauncherViewModel(
                 return@launch
             }
             // If the active theme was deleted, move to its neighbour rather than jumping to the first.
-            if (settingsRepository.activeThemeId.first() == themeId) {
+            if (activeThemeId.first() == themeId) {
                 val index = themes.indexOfFirst { it.id == themeId }
                 val remaining = themes.filter { it.id != themeId }
-                remaining.getOrNull((index - 1).coerceAtLeast(0))?.let { settingsRepository.setActiveThemeId(it.id) }
+                remaining.getOrNull((index - 1).coerceAtLeast(0))?.let { selectTheme(it.id) }
             }
         }
     }
