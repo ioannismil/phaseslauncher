@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -285,7 +286,7 @@ fun ThemeArcOverlay(
         if (highlighted != null) haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
     }
     var menuIndex by remember { mutableStateOf<Int?>(null) }
-    val count = themes.size + 1 // the last item is "New theme"
+    val count = themes.size + ArcExtra.entries.size // themes, then "New theme" and "Settings"
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -298,7 +299,7 @@ fun ThemeArcOverlay(
                     width = constraints.maxWidth.toFloat(),
                     height = constraints.maxHeight.toFloat(),
                     spacing = 76.dp.toPx(),
-                    minRadius = 150.dp.toPx(),
+                    minRadius = 170.dp.toPx(),
                     ringGap = 92.dp.toPx(),
                     margin = 56.dp.toPx(),
                 )
@@ -328,6 +329,7 @@ fun ThemeArcOverlay(
         val iconHalfPx = with(density) { (ArcIconSize / 2).toPx() }
         repeat(count) { index ->
             val theme = themes.getOrNull(index)
+            val extra = if (theme == null) ArcExtra.entries.getOrNull(index - themes.size) else null
             val target = geometry.positions[index]
             val isHighlighted = highlighted == index
             val scale by animateFloatAsState(if (isHighlighted) 1.3f else 1f, label = "arcScale")
@@ -341,6 +343,7 @@ fun ThemeArcOverlay(
             ) {
                 ArcItem(
                     theme = theme,
+                    extra = extra,
                     active = theme != null && theme.id == activeThemeId,
                     highlighted = isHighlighted,
                     scale = scale,
@@ -373,6 +376,12 @@ fun ThemeArcOverlay(
     }
 }
 
+/** Non-theme items at the end of the arc, in order. Their arc index is `themes.size + ordinal`. */
+enum class ArcExtra(val label: String, val icon: ImageVector) {
+    NewTheme("New theme", Icons.Rounded.Add),
+    Settings("Settings", Icons.Outlined.Settings),
+}
+
 private val ArcItemWidth = 96.dp
 private val ArcIconSize = 52.dp
 
@@ -380,6 +389,7 @@ private val ArcIconSize = 52.dp
 @Composable
 private fun ArcItem(
     theme: Theme?,
+    extra: ArcExtra?,
     active: Boolean,
     highlighted: Boolean,
     scale: Float,
@@ -388,7 +398,7 @@ private fun ArcItem(
     onLongClick: () -> Unit,
 ) {
     val accent = theme?.let { Color(it.accentColor) } ?: Color.White.copy(alpha = 0.18f)
-    val label = theme?.name ?: "New theme"
+    val label = theme?.name ?: extra?.label.orEmpty()
     Column(
         Modifier
             .width(ArcItemWidth)
@@ -424,7 +434,7 @@ private fun ArcItem(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = theme?.icon?.imageVector ?: Icons.Rounded.Add,
+                imageVector = theme?.icon?.imageVector ?: extra?.icon ?: Icons.Rounded.Add,
                 contentDescription = null,
                 tint = if (theme != null) contentColorOn(accent) else Color.White,
             )

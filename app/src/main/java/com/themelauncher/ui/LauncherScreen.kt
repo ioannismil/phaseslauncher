@@ -54,6 +54,7 @@ import com.themelauncher.ui.drawer.AppDrawer
 import com.themelauncher.ui.editor.AddToThemesDialog
 import com.themelauncher.ui.editor.DeleteThemeDialog
 import com.themelauncher.ui.editor.ThemeEditorSheet
+import com.themelauncher.ui.home.ArcExtra
 import com.themelauncher.ui.home.HomeOptionsSheet
 import com.themelauncher.ui.home.HomeScreen
 import com.themelauncher.ui.home.ThemeAction
@@ -161,16 +162,18 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
             ThemeAction("Manage themes", Icons.Outlined.Settings) { showSettings = true },
         )
     }
-    // Arc items are the themes in order, then "New theme".
+    // Arc items are the themes in order, then the ArcExtra items ("New theme", "Settings").
     val onArcItem: (Int?) -> Unit = { index ->
         arcState.close()
         val theme = index?.let { homeState.themes.getOrNull(it) }
+        val extra = index?.let { ArcExtra.entries.getOrNull(it - homeState.themes.size) }
         when {
             theme != null -> {
                 if (theme.id != homeState.activeTheme?.id) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                 viewModel.selectTheme(theme.id)
             }
-            index == homeState.themes.size -> editor = EditorRequest(themeId = null)
+            extra == ArcExtra.NewTheme -> editor = EditorRequest(themeId = null)
+            extra == ArcExtra.Settings -> showSettings = true
         }
     }
 

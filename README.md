@@ -33,7 +33,7 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 |---|---|---|
 | Edge bar (right or left) | Swipe toward the middle, release on a theme | Switch theme (release back at the edge to cancel) |
 | Edge bar / theme label under the clock | Tap | Open the theme arc; tap a theme, long-press it for Edit / Delete |
-| Theme arc | Release on **+** | New theme |
+| Theme arc | Release on **+** / **Settings** | New theme / Launcher settings |
 | Anywhere on home | Swipe up | App drawer with search |
 | App (grid, dock, drawer) | Long-press | App menu |
 | App (grid, dock) | Long-press, then drag | Reorder |
