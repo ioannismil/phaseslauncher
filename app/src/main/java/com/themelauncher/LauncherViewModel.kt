@@ -131,6 +131,8 @@ class LauncherViewModel(
 
     fun openAppInfo(app: AppInfo, sourceBounds: Rect?) = appsRepository.openAppInfo(app, sourceBounds)
 
+    fun uninstall(app: AppInfo) = appsRepository.requestUninstall(app)
+
     // endregion
 
     // region Themes

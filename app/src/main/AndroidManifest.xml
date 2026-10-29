@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Lets "Uninstall" open the system uninstall confirmation. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
     <!-- Package visibility (Android 11+): see every app that has a launcher entry. -->
     <queries>
         <intent>

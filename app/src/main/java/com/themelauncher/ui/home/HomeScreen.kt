@@ -31,7 +31,7 @@ fun HomeScreen(
     state: HomeState,
     onLaunch: (AppInfo, Rect?) -> Unit,
     onSelectTheme: (Theme) -> Unit,
-    onThemeLongPress: (Theme) -> Unit,
+    themeActions: (Theme) -> List<ThemeAction>,
     onCreateTheme: () -> Unit,
     onAddApps: (Theme) -> Unit,
     onSwipeUp: () -> Unit,
@@ -52,7 +52,7 @@ fun HomeScreen(
             themes = state.themes,
             activeThemeId = state.activeTheme?.id,
             onSelect = onSelectTheme,
-            onLongPress = onThemeLongPress,
+            themeActions = themeActions,
             onAdd = onCreateTheme,
         )
         Spacer(Modifier.height(8.dp))

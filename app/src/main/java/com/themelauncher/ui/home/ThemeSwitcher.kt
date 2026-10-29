@@ -26,18 +26,25 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -54,6 +61,8 @@ import com.themelauncher.ui.theme.imageVector
 private val ActiveHeight = 52.dp
 private val InactiveSize = 44.dp
 
+data class ThemeAction(val label: String, val icon: ImageVector, val enabled: Boolean = true, val onClick: () -> Unit)
+
 /**
  * One round button per theme. The active theme grows into a filled pill showing its name;
  * the others are outlined circles in their accent color.
@@ -63,11 +72,12 @@ fun ThemeSwitcher(
     themes: List<Theme>,
     activeThemeId: Long?,
     onSelect: (Theme) -> Unit,
-    onLongPress: (Theme) -> Unit,
+    themeActions: (Theme) -> List<ThemeAction>,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    var menuThemeId by remember { mutableStateOf<Long?>(null) }
 
     // Keep the active theme in view, e.g. after creating one at the end of a long row.
     LaunchedEffect(activeThemeId, themes.size) {
@@ -88,13 +98,31 @@ fun ThemeSwitcher(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items(themes, key = { it.id }) { theme ->
-            ThemeButton(
-                theme = theme,
-                active = theme.id == activeThemeId,
-                onClick = { onSelect(theme) },
-                onLongClick = { onLongPress(theme) },
-                modifier = Modifier.animateItem(),
-            )
+            Box(Modifier.animateItem()) {
+                ThemeButton(
+                    theme = theme,
+                    active = theme.id == activeThemeId,
+                    onClick = { onSelect(theme) },
+                    onLongClick = { menuThemeId = theme.id },
+                )
+                DropdownMenu(
+                    expanded = menuThemeId == theme.id,
+                    onDismissRequest = { menuThemeId = null },
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    themeActions(theme).forEach { action ->
+                        DropdownMenuItem(
+                            text = { Text(action.label) },
+                            leadingIcon = { Icon(action.icon, contentDescription = null) },
+                            enabled = action.enabled,
+                            onClick = {
+                                menuThemeId = null
+                                action.onClick()
+                            },
+                        )
+                    }
+                }
+            }
         }
         item(key = "add") {
             AddThemeButton(onClick = onAdd, modifier = Modifier.animateItem())

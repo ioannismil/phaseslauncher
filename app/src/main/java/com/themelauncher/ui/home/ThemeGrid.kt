@@ -89,7 +89,7 @@ fun ThemeGrid(
                 if (apps.isEmpty() && !state.isLoading) {
                     EmptyMessage(
                         title = "No apps in ${theme.name} yet",
-                        body = "Long-press an app in the drawer and choose “Add to theme”.",
+                        body = "Pick apps for this theme, or long-press any app in the drawer.",
                         button = "Add apps",
                         onClick = { onAddApps(theme) },
                         theme = theme,

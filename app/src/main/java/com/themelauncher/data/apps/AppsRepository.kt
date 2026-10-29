@@ -1,10 +1,13 @@
 package com.themelauncher.data.apps
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.Rect
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
@@ -116,6 +119,15 @@ class AppsRepository(
         false
     }
 
+    /** Shows the system uninstall confirmation. Removal from themes follows via the package callback. */
+    fun requestUninstall(app: AppInfo) {
+        val intent = Intent(Intent.ACTION_DELETE, Uri.fromParts("package", app.packageName, null))
+            .putExtra(Intent.EXTRA_USER, app.user)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+            .onFailure { Log.w(TAG, "Could not uninstall ${app.key}", it) }
+    }
+
     fun openAppInfo(app: AppInfo, sourceBounds: Rect?) {
         runCatching { launcherApps.startAppDetailsActivity(app.componentName, app.user, sourceBounds, null) }
             .onFailure { Log.w(TAG, "Could not open app info for ${app.key}", it) }
@@ -134,7 +146,16 @@ class AppsRepository(
                 .map { info ->
                     val key = AppInfo.keyFor(info.componentName, serial, isMain)
                     infos[key] = info
-                    AppInfo(key = key, label = info.label.toString().trim(), componentName = info.componentName, user = user)
+                    val flags = info.applicationInfo.flags
+                    val isSystem = flags and ApplicationInfo.FLAG_SYSTEM != 0 &&
+                        flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP == 0
+                    AppInfo(
+                        key = key,
+                        label = info.label.toString().trim(),
+                        componentName = info.componentName,
+                        user = user,
+                        canUninstall = !isSystem,
+                    )
                 }
         }.sortedWith { a, b -> collator.compare(a.label, b.label) }
 

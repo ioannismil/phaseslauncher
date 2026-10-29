@@ -12,6 +12,8 @@ data class AppInfo(
     val label: String,
     val componentName: ComponentName,
     val user: UserHandle,
+    /** False for apps preinstalled in the system image (unless the user installed an update). */
+    val canUninstall: Boolean = true,
 ) {
     val packageName: String get() = componentName.packageName
 
