@@ -282,6 +282,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             dateFormat = prefs.dateFormat,
             showBattery = prefs.showBattery,
             clockPosition = prefs.clockPosition,
+            showThemeLabel = prefs.showThemeLabel,
         ),
         LocalNotificationDots provides if (prefs.notificationDots) dotKeys else emptySet(),
         LocalShortcutHost provides shortcutHost,

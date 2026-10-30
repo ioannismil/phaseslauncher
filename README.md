@@ -46,7 +46,7 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 ## Launcher settings
 
 - **Theme switcher:** bar on the left or right edge; theme list with reorder / edit / delete / new.
-- **Clock & status bar:** time, date (with a choice of format) and battery percentage each on or off independently — any mix, e.g. only the time or only the battery (all off hides the header so apps use the full height); position Left / Center / Right (the theme label follows); status bar shown or hidden while ThemeLauncher is on screen (swipe down from the top edge to see it briefly). The percentage in the system status bar itself can't be changed by apps.
+- **Clock & status bar:** time, date (with a choice of format) and battery percentage each on or off independently — any mix, e.g. only the time or only the battery (all off hides the header so apps use the full height); theme-name pill on/off (off: switch themes from the edge bar); position Left / Center / Right (the pill follows); status bar shown or hidden while ThemeLauncher is on screen (swipe down from the top edge to see it briefly). The percentage in the system status bar itself can't be changed by apps.
 - **Home screen:** grid columns (3–6), icon size, app labels, notification dots, swipe down for notifications, wallpaper, default home app.
 - **Notification dots** need notification access; turning the switch on takes you to the system screen to grant it.
 - **Apps:** hidden apps (hidden from the drawer and its search, not from themes or the dock).

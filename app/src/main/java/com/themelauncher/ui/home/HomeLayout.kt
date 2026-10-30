@@ -18,6 +18,7 @@ data class HomeLayout(
     val dateFormat: DateFormatOption = DateFormatOption.Full,
     val showBattery: Boolean = false,
     val clockPosition: ClockPosition = ClockPosition.Left,
+    val showThemeLabel: Boolean = true,
 ) {
     val showHeader: Boolean get() = showTime || showDate || showBattery
 }

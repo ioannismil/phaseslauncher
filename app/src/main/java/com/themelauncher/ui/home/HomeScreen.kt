@@ -85,18 +85,23 @@ fun HomeScreen(
                         .padding(start = 24.dp, end = 24.dp, top = if (layout.showTime) 24.dp else 16.dp),
                 )
                 Spacer(Modifier.height(14.dp))
-            } else {
+            } else if (layout.showThemeLabel) {
                 // Nothing to show: the theme label tucks under the status bar and apps get the room.
                 Spacer(Modifier.height(12.dp))
             }
-            ActiveThemeLabel(
-                theme = state.activeTheme,
-                onClick = arcState::openForTap,
-                modifier = Modifier
-                    .align(headerAlignment)
-                    .padding(horizontal = 24.dp),
-            )
-            Spacer(Modifier.height(12.dp))
+            if (layout.showThemeLabel) {
+                ActiveThemeLabel(
+                    theme = state.activeTheme,
+                    onClick = arcState::openForTap,
+                    modifier = Modifier
+                        .align(headerAlignment)
+                        .padding(horizontal = 24.dp),
+                )
+                Spacer(Modifier.height(12.dp))
+            } else if (!layout.showHeader) {
+                // Neither clock nor label: just clear the status bar.
+                Spacer(Modifier.height(8.dp))
+            }
             ThemeGrid(
                 state = state,
                 swipeUpConnection = swipeUpConnection,

@@ -45,6 +45,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.SwipeDown
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Upload
@@ -215,7 +216,7 @@ fun SettingsScreen(
             item { SectionHeader("Clock & status bar") }
             item {
                 Text(
-                    if (prefs.showTime || prefs.showDate || prefs.showBattery) {
+                    if (prefs.showTime || prefs.showDate || prefs.showBattery || prefs.showThemeLabel) {
                         "Show any mix at the top of the home screen."
                     } else {
                         "All off \u2014 apps use the whole screen."
@@ -262,7 +263,15 @@ fun SettingsScreen(
                 ) { on -> onUpdatePrefs { it.copy(showBattery = on) } }
             }
             item {
-                val anyShown = prefs.showTime || prefs.showDate || prefs.showBattery
+                SwitchOption(
+                    Icons.Outlined.Style,
+                    "Theme name",
+                    if (prefs.showThemeLabel) "Pill with the active theme; tap it to switch" else "Hidden — use the edge bar to switch themes",
+                    prefs.showThemeLabel,
+                ) { on -> onUpdatePrefs { it.copy(showThemeLabel = on) } }
+            }
+            item {
+                val anyShown = prefs.showTime || prefs.showDate || prefs.showBattery || prefs.showThemeLabel
                 Column(
                     Modifier
                         .padding(horizontal = 24.dp, vertical = 8.dp)

@@ -71,7 +71,8 @@ class BackupRepository(
                 .put("showDate", prefs.showDate)
                 .put("dateFormat", prefs.dateFormat.name)
                 .put("showBattery", prefs.showBattery)
-                .put("showStatusBar", prefs.showStatusBar))
+                .put("showStatusBar", prefs.showStatusBar)
+                .put("showThemeLabel", prefs.showThemeLabel))
 
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toString(2).toByteArray()) }
             ?: error("Could not open the file for writing")
@@ -139,6 +140,7 @@ class BackupRepository(
                     dateFormat = DateFormatOption.entries.firstOrNull { it.name == s.optString("dateFormat") } ?: current.dateFormat,
                     showBattery = s.optBoolean("showBattery", current.showBattery),
                     showStatusBar = s.optBoolean("showStatusBar", current.showStatusBar),
+                    showThemeLabel = s.optBoolean("showThemeLabel", current.showThemeLabel),
                 )
             }
         }

@@ -62,6 +62,8 @@ data class LauncherPrefs(
     val dateFormat: DateFormatOption = DateFormatOption.Full,
     val showBattery: Boolean = false,
     val clockPosition: ClockPosition = ClockPosition.Left,
+    /** The pill with the active theme's name under the clock (tap opens the theme arc). */
+    val showThemeLabel: Boolean = true,
     /** The system status bar while ThemeLauncher is on screen. */
     val showStatusBar: Boolean = true,
 ) {
@@ -112,6 +114,7 @@ class SettingsRepository(context: Context) {
         showBattery = this[SHOW_BATTERY] ?: false,
         clockPosition = ClockPosition.entries.firstOrNull { it.name == this[CLOCK_POSITION] } ?: ClockPosition.Left,
         showStatusBar = this[SHOW_STATUS_BAR] ?: true,
+        showThemeLabel = this[SHOW_THEME_LABEL] ?: true,
     )
 
     private fun MutablePreferences.write(prefs: LauncherPrefs) {
@@ -131,6 +134,7 @@ class SettingsRepository(context: Context) {
         this[SHOW_BATTERY] = prefs.showBattery
         this[CLOCK_POSITION] = prefs.clockPosition.name
         this[SHOW_STATUS_BAR] = prefs.showStatusBar
+        this[SHOW_THEME_LABEL] = prefs.showThemeLabel
     }
 
     // region Bookkeeping for theme side effects (not user settings)
@@ -203,6 +207,7 @@ class SettingsRepository(context: Context) {
         val DATE_FORMAT = stringPreferencesKey("date_format")
         val SHOW_BATTERY = booleanPreferencesKey("show_battery")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
+        val SHOW_THEME_LABEL = booleanPreferencesKey("show_theme_label")
         val LAST_WALLPAPER = stringPreferencesKey("last_wallpaper")
         val SAVED_FILTER = intPreferencesKey("saved_interruption_filter")
         val SAVED_RINGER = intPreferencesKey("saved_ringer_mode")
