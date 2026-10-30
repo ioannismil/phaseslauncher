@@ -32,18 +32,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.BatteryStd
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SwipeDown
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.outlined.ViewDay
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.Widgets
@@ -77,6 +82,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -90,11 +96,13 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.icons.IconPackInfo
 import com.themelauncher.data.notifications.NotificationDotsRepository
+import com.themelauncher.data.settings.DateFormatOption
 import com.themelauncher.data.settings.IconSize
 import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.system.LockScreenService
 import com.themelauncher.data.themes.Theme
+import com.themelauncher.ui.home.formatDate
 import com.themelauncher.ui.onboarding.rememberDefaultHomeState
 import com.themelauncher.ui.theme.contentColorOn
 import com.themelauncher.ui.theme.imageVector
@@ -131,6 +139,7 @@ fun SettingsScreen(
     var showHiddenApps by remember { mutableStateOf(false) }
     var showIconPacks by remember { mutableStateOf(false) }
     var explainLock by remember { mutableStateOf(false) }
+    var showDateFormats by remember { mutableStateOf(false) }
     val iconPacks by produceState(emptyList<IconPackInfo>()) { value = loadIconPacks() }
     var lockServiceOn by remember { mutableStateOf(LockScreenService.isEnabled(context)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { lockServiceOn = LockScreenService.isEnabled(context) }
@@ -201,6 +210,54 @@ fun SettingsScreen(
                 )
             }
             item { Option(Icons.Rounded.Add, "New theme", onClick = onNewTheme) }
+
+            item { SectionHeader("Clock & status bar") }
+            item {
+                SwitchOption(
+                    Icons.Outlined.Schedule,
+                    "Clock",
+                    if (prefs.showClock) "Time at the top of the home screen" else "Off \u2014 apps use the whole screen",
+                    prefs.showClock,
+                ) { on -> onUpdatePrefs { it.copy(showClock = on) } }
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.CalendarToday,
+                    "Date",
+                    "Under the time",
+                    prefs.showDate,
+                    enabled = prefs.showClock,
+                ) { on -> onUpdatePrefs { it.copy(showDate = on) } }
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("Date format") },
+                    supportingContent = { Text(formatDate(prefs.dateFormat)) },
+                    leadingContent = { Icon(Icons.Outlined.EditCalendar, contentDescription = null) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier
+                        .clickable(enabled = prefs.showClock && prefs.showDate) { showDateFormats = true }
+                        .alpha(if (prefs.showClock && prefs.showDate) 1f else 0.38f)
+                        .padding(horizontal = 8.dp),
+                )
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.BatteryStd,
+                    "Battery percentage",
+                    "Next to the date",
+                    prefs.showBattery,
+                    enabled = prefs.showClock,
+                ) { on -> onUpdatePrefs { it.copy(showBattery = on) } }
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.ViewDay,
+                    "Status bar",
+                    if (prefs.showStatusBar) "Shown on the home screen" else "Hidden \u2014 swipe down from the top edge to see it",
+                    prefs.showStatusBar,
+                ) { on -> onUpdatePrefs { it.copy(showStatusBar = on) } }
+            }
 
             item { SectionHeader("Home screen") }
             item {
@@ -369,6 +426,34 @@ fun SettingsScreen(
         )
     }
 
+    if (showDateFormats) {
+        AlertDialog(
+            onDismissRequest = { showDateFormats = false },
+            title = { Text("Date format") },
+            text = {
+                Column {
+                    DateFormatOption.entries.forEach { option ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(prefs.dateFormat == option, role = Role.RadioButton) {
+                                    onUpdatePrefs { it.copy(dateFormat = option) }
+                                    showDateFormats = false
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = prefs.dateFormat == option, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text(formatDate(option))
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showDateFormats = false }) { Text("Close") } },
+        )
+    }
+
     if (showIconPacks) {
         AlertDialog(
             onDismissRequest = { showIconPacks = false },
@@ -523,6 +608,8 @@ private fun SwitchOption(
     checked: Boolean,
     subtitleIsWarning: Boolean = false,
     onClick: (() -> Unit)? = null,
+    /** Greyed out and not toggleable, e.g. a sub-option of a switch that's off. */
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     ListItem(
@@ -531,10 +618,11 @@ private fun SwitchOption(
             Text(subtitle, color = if (subtitleIsWarning) MaterialTheme.colorScheme.error else Color.Unspecified)
         },
         leadingContent = { Icon(icon, contentDescription = null) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier
-            .clickable { if (onClick != null) onClick() else onCheckedChange(!checked) }
+            .clickable(enabled = enabled) { if (onClick != null) onClick() else onCheckedChange(!checked) }
+            .alpha(if (enabled) 1f else 0.38f)
             .padding(horizontal = 8.dp),
     )
 }

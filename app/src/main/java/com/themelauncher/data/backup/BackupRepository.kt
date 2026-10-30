@@ -6,6 +6,7 @@ import androidx.room.withTransaction
 import com.themelauncher.data.db.LauncherDatabase
 import com.themelauncher.data.db.ThemeEntity
 import com.themelauncher.data.db.ThemeRuleEntity
+import com.themelauncher.data.settings.DateFormatOption
 import com.themelauncher.data.settings.IconSize
 import com.themelauncher.data.settings.SettingsRepository
 import com.themelauncher.data.settings.SwitcherSide
@@ -63,7 +64,12 @@ class BackupRepository(
                 .put("hiddenApps", JSONArray(prefs.hiddenApps.toList()))
                 .put("iconPack", prefs.iconPack ?: JSONObject.NULL)
                 .put("doubleTapToLock", prefs.doubleTapToLock)
-                .put("contactSearch", prefs.contactSearch))
+                .put("contactSearch", prefs.contactSearch)
+                .put("showClock", prefs.showClock)
+                .put("showDate", prefs.showDate)
+                .put("dateFormat", prefs.dateFormat.name)
+                .put("showBattery", prefs.showBattery)
+                .put("showStatusBar", prefs.showStatusBar))
 
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toString(2).toByteArray()) }
             ?: error("Could not open the file for writing")
@@ -125,6 +131,11 @@ class BackupRepository(
                     iconPack = if (s.isNull("iconPack")) null else s.optString("iconPack").ifBlank { null },
                     doubleTapToLock = s.optBoolean("doubleTapToLock", current.doubleTapToLock),
                     contactSearch = s.optBoolean("contactSearch", current.contactSearch),
+                    showClock = s.optBoolean("showClock", current.showClock),
+                    showDate = s.optBoolean("showDate", current.showDate),
+                    dateFormat = DateFormatOption.entries.firstOrNull { it.name == s.optString("dateFormat") } ?: current.dateFormat,
+                    showBattery = s.optBoolean("showBattery", current.showBattery),
+                    showStatusBar = s.optBoolean("showStatusBar", current.showStatusBar),
                 )
             }
         }

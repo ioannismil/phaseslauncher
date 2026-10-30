@@ -23,6 +23,18 @@ enum class SwitcherSide { Left, Right }
 
 enum class IconSize(val dp: Int, val label: String) { Small(48, "Small"), Medium(56, "Medium"), Large(64, "Large") }
 
+/**
+ * How the date under the home clock is written. Each is a skeleton that Android turns into the
+ * local pattern, so "30/10/2026" vs "10/30/2026" and month names follow the phone's language.
+ */
+enum class DateFormatOption(val skeleton: String) {
+    Full("EEEEMMMMd"), // Friday, October 30
+    Short("EEEMMMd"), // Fri, Oct 30
+    FullWithYear("EEEEMMMMdy"), // Friday, October 30, 2026
+    DayMonth("dMMMM"), // October 30 / 30 October
+    Numeric("yMMdd"), // 30/10/2026
+}
+
 /** User-adjustable launcher settings. */
 data class LauncherPrefs(
     val switcherSide: SwitcherSide = SwitcherSide.Right,
@@ -38,6 +50,15 @@ data class LauncherPrefs(
     val doubleTapToLock: Boolean = false,
     /** Show matching contacts in drawer search (needs the contacts permission). */
     val contactSearch: Boolean = true,
+    /** The clock at the top of home. Off hides the whole header so apps use the full height. */
+    val showClock: Boolean = true,
+    /** Date under the clock (only shown with the clock). */
+    val showDate: Boolean = true,
+    val dateFormat: DateFormatOption = DateFormatOption.Full,
+    /** Battery percentage next to the date (only shown with the clock). */
+    val showBattery: Boolean = false,
+    /** The system status bar while ThemeLauncher is on screen. */
+    val showStatusBar: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_COLUMNS = 4
@@ -80,6 +101,11 @@ class SettingsRepository(context: Context) {
         iconPack = this[ICON_PACK]?.ifBlank { null },
         doubleTapToLock = this[DOUBLE_TAP_LOCK] ?: false,
         contactSearch = this[CONTACT_SEARCH] ?: true,
+        showClock = this[SHOW_CLOCK] ?: true,
+        showDate = this[SHOW_DATE] ?: true,
+        dateFormat = DateFormatOption.entries.firstOrNull { it.name == this[DATE_FORMAT] } ?: DateFormatOption.Full,
+        showBattery = this[SHOW_BATTERY] ?: false,
+        showStatusBar = this[SHOW_STATUS_BAR] ?: true,
     )
 
     private fun MutablePreferences.write(prefs: LauncherPrefs) {
@@ -93,6 +119,11 @@ class SettingsRepository(context: Context) {
         this[ICON_PACK] = prefs.iconPack.orEmpty()
         this[DOUBLE_TAP_LOCK] = prefs.doubleTapToLock
         this[CONTACT_SEARCH] = prefs.contactSearch
+        this[SHOW_CLOCK] = prefs.showClock
+        this[SHOW_DATE] = prefs.showDate
+        this[DATE_FORMAT] = prefs.dateFormat.name
+        this[SHOW_BATTERY] = prefs.showBattery
+        this[SHOW_STATUS_BAR] = prefs.showStatusBar
     }
 
     // region Bookkeeping for theme side effects (not user settings)
@@ -159,6 +190,11 @@ class SettingsRepository(context: Context) {
         val ICON_PACK = stringPreferencesKey("icon_pack")
         val DOUBLE_TAP_LOCK = booleanPreferencesKey("double_tap_lock")
         val CONTACT_SEARCH = booleanPreferencesKey("contact_search")
+        val SHOW_CLOCK = booleanPreferencesKey("show_clock")
+        val SHOW_DATE = booleanPreferencesKey("show_date")
+        val DATE_FORMAT = stringPreferencesKey("date_format")
+        val SHOW_BATTERY = booleanPreferencesKey("show_battery")
+        val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
         val LAST_WALLPAPER = stringPreferencesKey("last_wallpaper")
         val SAVED_FILTER = intPreferencesKey("saved_interruption_filter")
         val SAVED_RINGER = intPreferencesKey("saved_ringer_mode")

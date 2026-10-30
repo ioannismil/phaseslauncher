@@ -63,8 +63,20 @@ fun HomeScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
-            ClockHeader(onLongPress = onEmptyLongPress, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp))
-            Spacer(Modifier.height(14.dp))
+            val layout = LocalHomeLayout.current
+            if (layout.showClock) {
+                ClockHeader(
+                    showDate = layout.showDate,
+                    dateFormat = layout.dateFormat,
+                    showBattery = layout.showBattery,
+                    onLongPress = onEmptyLongPress,
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
+                )
+                Spacer(Modifier.height(14.dp))
+            } else {
+                // No clock: the theme label tucks under the status bar and apps get the room.
+                Spacer(Modifier.height(12.dp))
+            }
             ActiveThemeLabel(
                 theme = state.activeTheme,
                 onClick = arcState::openForTap,

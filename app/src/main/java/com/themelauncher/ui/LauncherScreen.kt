@@ -52,6 +52,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.themelauncher.LauncherViewModel
 import com.themelauncher.data.apps.AppInfo
@@ -150,6 +152,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = lightBars
             isAppearanceLightNavigationBars = lightBars
+            // Hidden status bar: a swipe from the top edge still shows it briefly.
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (prefs.showStatusBar) show(WindowInsetsCompat.Type.statusBars()) else hide(WindowInsetsCompat.Type.statusBars())
         }
     }
 
@@ -268,7 +273,15 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
 
     CompositionLocalProvider(
         LocalWallpaperContent provides wallpaperColors,
-        LocalHomeLayout provides HomeLayout(prefs.gridColumns, prefs.iconSize.dp.dp, prefs.showLabels),
+        LocalHomeLayout provides HomeLayout(
+            columns = prefs.gridColumns,
+            iconSize = prefs.iconSize.dp.dp,
+            showLabels = prefs.showLabels,
+            showClock = prefs.showClock,
+            showDate = prefs.showDate,
+            dateFormat = prefs.dateFormat,
+            showBattery = prefs.showBattery,
+        ),
         LocalNotificationDots provides if (prefs.notificationDots) dotKeys else emptySet(),
         LocalShortcutHost provides shortcutHost,
         LocalWidgetHost provides widgetHost,
