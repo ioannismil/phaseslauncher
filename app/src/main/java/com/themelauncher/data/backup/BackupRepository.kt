@@ -6,6 +6,7 @@ import androidx.room.withTransaction
 import com.themelauncher.data.db.LauncherDatabase
 import com.themelauncher.data.db.ThemeEntity
 import com.themelauncher.data.db.ThemeRuleEntity
+import com.themelauncher.data.settings.ClockPosition
 import com.themelauncher.data.settings.DateFormatOption
 import com.themelauncher.data.settings.IconSize
 import com.themelauncher.data.settings.SettingsRepository
@@ -65,7 +66,8 @@ class BackupRepository(
                 .put("iconPack", prefs.iconPack ?: JSONObject.NULL)
                 .put("doubleTapToLock", prefs.doubleTapToLock)
                 .put("contactSearch", prefs.contactSearch)
-                .put("showClock", prefs.showClock)
+                .put("showTime", prefs.showTime)
+                .put("clockPosition", prefs.clockPosition.name)
                 .put("showDate", prefs.showDate)
                 .put("dateFormat", prefs.dateFormat.name)
                 .put("showBattery", prefs.showBattery)
@@ -131,7 +133,8 @@ class BackupRepository(
                     iconPack = if (s.isNull("iconPack")) null else s.optString("iconPack").ifBlank { null },
                     doubleTapToLock = s.optBoolean("doubleTapToLock", current.doubleTapToLock),
                     contactSearch = s.optBoolean("contactSearch", current.contactSearch),
-                    showClock = s.optBoolean("showClock", current.showClock),
+                    showTime = s.optBoolean("showTime", s.optBoolean("showClock", current.showTime)),
+                    clockPosition = ClockPosition.entries.firstOrNull { it.name == s.optString("clockPosition") } ?: current.clockPosition,
                     showDate = s.optBoolean("showDate", current.showDate),
                     dateFormat = DateFormatOption.entries.firstOrNull { it.name == s.optString("dateFormat") } ?: current.dateFormat,
                     showBattery = s.optBoolean("showBattery", current.showBattery),

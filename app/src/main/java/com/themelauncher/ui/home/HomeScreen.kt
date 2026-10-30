@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.themelauncher.HomeState
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.settings.ClockPosition
 import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.ui.components.AppAction
@@ -64,23 +66,35 @@ fun HomeScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
             val layout = LocalHomeLayout.current
-            if (layout.showClock) {
+            // The clock block and the theme label under it share the chosen position.
+            val headerAlignment = when (layout.clockPosition) {
+                ClockPosition.Left -> Alignment.Start
+                ClockPosition.Center -> Alignment.CenterHorizontally
+                ClockPosition.Right -> Alignment.End
+            }
+            if (layout.showHeader) {
                 ClockHeader(
+                    showTime = layout.showTime,
                     showDate = layout.showDate,
                     dateFormat = layout.dateFormat,
                     showBattery = layout.showBattery,
+                    alignment = headerAlignment,
                     onLongPress = onEmptyLongPress,
-                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
+                    modifier = Modifier
+                        .align(headerAlignment)
+                        .padding(start = 24.dp, end = 24.dp, top = if (layout.showTime) 24.dp else 16.dp),
                 )
                 Spacer(Modifier.height(14.dp))
             } else {
-                // No clock: the theme label tucks under the status bar and apps get the room.
+                // Nothing to show: the theme label tucks under the status bar and apps get the room.
                 Spacer(Modifier.height(12.dp))
             }
             ActiveThemeLabel(
                 theme = state.activeTheme,
                 onClick = arcState::openForTap,
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier
+                    .align(headerAlignment)
+                    .padding(horizontal = 24.dp),
             )
             Spacer(Modifier.height(12.dp))
             ThemeGrid(

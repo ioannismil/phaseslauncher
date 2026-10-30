@@ -48,14 +48,16 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Time, with the date and battery level underneath. Ticks on the minute while visible;
- * tapping opens the clock app.
+ * Time, with the date and battery level underneath; each part is optional. Ticks on the
+ * minute while visible; tapping opens the clock app.
  */
 @Composable
 fun ClockHeader(
+    showTime: Boolean,
     showDate: Boolean,
     dateFormat: DateFormatOption,
     showBattery: Boolean,
+    alignment: Alignment.Horizontal,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -89,12 +91,15 @@ fun ClockHeader(
             } catch (_: ActivityNotFoundException) {
             }
         },
+        horizontalAlignment = alignment,
     ) {
-        Text(
-            text = DateFormat.format(timePattern, now).toString(),
-            style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light, fontSize = 72.sp)
-                .onWallpaper(wallpaperColors),
-        )
+        if (showTime) {
+            Text(
+                text = DateFormat.format(timePattern, now).toString(),
+                style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light, fontSize = 72.sp)
+                    .onWallpaper(wallpaperColors),
+            )
+        }
         if (showDate || showBattery) {
             val lineStyle = MaterialTheme.typography.titleMedium.onWallpaper(wallpaperColors)
             Row(verticalAlignment = Alignment.CenterVertically) {

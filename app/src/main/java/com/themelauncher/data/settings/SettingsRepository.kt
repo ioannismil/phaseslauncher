@@ -27,6 +27,9 @@ enum class IconSize(val dp: Int, val label: String) { Small(48, "Small"), Medium
  * How the date under the home clock is written. Each is a skeleton that Android turns into the
  * local pattern, so "30/10/2026" vs "10/30/2026" and month names follow the phone's language.
  */
+/** Where the time/date/battery block sits on the home screen. */
+enum class ClockPosition(val label: String) { Left("Left"), Center("Center"), Right("Right") }
+
 enum class DateFormatOption(val skeleton: String) {
     Full("EEEEMMMMd"), // Friday, October 30
     Short("EEEMMMd"), // Fri, Oct 30
@@ -50,13 +53,15 @@ data class LauncherPrefs(
     val doubleTapToLock: Boolean = false,
     /** Show matching contacts in drawer search (needs the contacts permission). */
     val contactSearch: Boolean = true,
-    /** The clock at the top of home. Off hides the whole header so apps use the full height. */
-    val showClock: Boolean = true,
-    /** Date under the clock (only shown with the clock). */
+    /**
+     * The time, date and battery at the top of home are each optional. With all three off the
+     * header disappears and apps use the full height.
+     */
+    val showTime: Boolean = true,
     val showDate: Boolean = true,
     val dateFormat: DateFormatOption = DateFormatOption.Full,
-    /** Battery percentage next to the date (only shown with the clock). */
     val showBattery: Boolean = false,
+    val clockPosition: ClockPosition = ClockPosition.Left,
     /** The system status bar while ThemeLauncher is on screen. */
     val showStatusBar: Boolean = true,
 ) {
@@ -101,10 +106,11 @@ class SettingsRepository(context: Context) {
         iconPack = this[ICON_PACK]?.ifBlank { null },
         doubleTapToLock = this[DOUBLE_TAP_LOCK] ?: false,
         contactSearch = this[CONTACT_SEARCH] ?: true,
-        showClock = this[SHOW_CLOCK] ?: true,
+        showTime = this[SHOW_CLOCK] ?: true,
         showDate = this[SHOW_DATE] ?: true,
         dateFormat = DateFormatOption.entries.firstOrNull { it.name == this[DATE_FORMAT] } ?: DateFormatOption.Full,
         showBattery = this[SHOW_BATTERY] ?: false,
+        clockPosition = ClockPosition.entries.firstOrNull { it.name == this[CLOCK_POSITION] } ?: ClockPosition.Left,
         showStatusBar = this[SHOW_STATUS_BAR] ?: true,
     )
 
@@ -119,10 +125,11 @@ class SettingsRepository(context: Context) {
         this[ICON_PACK] = prefs.iconPack.orEmpty()
         this[DOUBLE_TAP_LOCK] = prefs.doubleTapToLock
         this[CONTACT_SEARCH] = prefs.contactSearch
-        this[SHOW_CLOCK] = prefs.showClock
+        this[SHOW_CLOCK] = prefs.showTime
         this[SHOW_DATE] = prefs.showDate
         this[DATE_FORMAT] = prefs.dateFormat.name
         this[SHOW_BATTERY] = prefs.showBattery
+        this[CLOCK_POSITION] = prefs.clockPosition.name
         this[SHOW_STATUS_BAR] = prefs.showStatusBar
     }
 
@@ -190,7 +197,8 @@ class SettingsRepository(context: Context) {
         val ICON_PACK = stringPreferencesKey("icon_pack")
         val DOUBLE_TAP_LOCK = booleanPreferencesKey("double_tap_lock")
         val CONTACT_SEARCH = booleanPreferencesKey("contact_search")
-        val SHOW_CLOCK = booleanPreferencesKey("show_clock")
+        val SHOW_CLOCK = booleanPreferencesKey("show_clock") // the time; key kept for existing installs
+        val CLOCK_POSITION = stringPreferencesKey("clock_position")
         val SHOW_DATE = booleanPreferencesKey("show_date")
         val DATE_FORMAT = stringPreferencesKey("date_format")
         val SHOW_BATTERY = booleanPreferencesKey("show_battery")

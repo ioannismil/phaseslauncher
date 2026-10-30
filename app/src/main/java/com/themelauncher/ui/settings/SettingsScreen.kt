@@ -96,6 +96,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.icons.IconPackInfo
 import com.themelauncher.data.notifications.NotificationDotsRepository
+import com.themelauncher.data.settings.ClockPosition
 import com.themelauncher.data.settings.DateFormatOption
 import com.themelauncher.data.settings.IconSize
 import com.themelauncher.data.settings.LauncherPrefs
@@ -213,20 +214,31 @@ fun SettingsScreen(
 
             item { SectionHeader("Clock & status bar") }
             item {
+                Text(
+                    if (prefs.showTime || prefs.showDate || prefs.showBattery) {
+                        "Show any mix at the top of the home screen."
+                    } else {
+                        "All off \u2014 apps use the whole screen."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
+            }
+            item {
                 SwitchOption(
                     Icons.Outlined.Schedule,
-                    "Clock",
-                    if (prefs.showClock) "Time at the top of the home screen" else "Off \u2014 apps use the whole screen",
-                    prefs.showClock,
-                ) { on -> onUpdatePrefs { it.copy(showClock = on) } }
+                    "Time",
+                    "Large, at the top",
+                    prefs.showTime,
+                ) { on -> onUpdatePrefs { it.copy(showTime = on) } }
             }
             item {
                 SwitchOption(
                     Icons.Outlined.CalendarToday,
                     "Date",
-                    "Under the time",
+                    if (prefs.showTime) "Under the time" else "At the top",
                     prefs.showDate,
-                    enabled = prefs.showClock,
                 ) { on -> onUpdatePrefs { it.copy(showDate = on) } }
             }
             item {
@@ -236,8 +248,8 @@ fun SettingsScreen(
                     leadingContent = { Icon(Icons.Outlined.EditCalendar, contentDescription = null) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier
-                        .clickable(enabled = prefs.showClock && prefs.showDate) { showDateFormats = true }
-                        .alpha(if (prefs.showClock && prefs.showDate) 1f else 0.38f)
+                        .clickable(enabled = prefs.showDate) { showDateFormats = true }
+                        .alpha(if (prefs.showDate) 1f else 0.38f)
                         .padding(horizontal = 8.dp),
                 )
             }
@@ -245,10 +257,30 @@ fun SettingsScreen(
                 SwitchOption(
                     Icons.Outlined.BatteryStd,
                     "Battery percentage",
-                    "Next to the date",
+                    if (prefs.showDate) "Next to the date" else if (prefs.showTime) "Under the time" else "At the top",
                     prefs.showBattery,
-                    enabled = prefs.showClock,
                 ) { on -> onUpdatePrefs { it.copy(showBattery = on) } }
+            }
+            item {
+                val anyShown = prefs.showTime || prefs.showDate || prefs.showBattery
+                Column(
+                    Modifier
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                        .alpha(if (anyShown) 1f else 0.38f),
+                ) {
+                    Text("Position", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        ClockPosition.entries.forEachIndexed { index, position ->
+                            SegmentedButton(
+                                selected = position == prefs.clockPosition,
+                                onClick = { onUpdatePrefs { it.copy(clockPosition = position) } },
+                                enabled = anyShown,
+                                shape = SegmentedButtonDefaults.itemShape(index, ClockPosition.entries.size),
+                            ) { Text(position.label) }
+                        }
+                    }
+                }
             }
             item {
                 SwitchOption(
