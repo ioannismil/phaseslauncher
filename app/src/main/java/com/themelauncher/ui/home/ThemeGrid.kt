@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.FilledTonalButton
@@ -41,15 +42,18 @@ import androidx.compose.ui.unit.dp
 import com.themelauncher.HomeState
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.themes.Theme
+import com.themelauncher.data.widgets.ThemeWidget
 import com.themelauncher.ui.components.AppAction
 import com.themelauncher.ui.components.AppMenuState
 import com.themelauncher.ui.components.AppTileWithMenu
 import com.themelauncher.ui.components.rememberReorderState
+import com.themelauncher.ui.components.reorderBlocker
 import com.themelauncher.ui.components.reorderContainer
 import com.themelauncher.ui.components.reorderItem
 import com.themelauncher.ui.theme.LocalWallpaperContent
 import com.themelauncher.ui.theme.imageVector
 import com.themelauncher.ui.theme.onWallpaper
+import com.themelauncher.ui.widgets.HomeWidget
 
 /**
  * The active theme's apps. Switching themes crossfades the grid and slides it toward the
@@ -95,7 +99,8 @@ fun ThemeGrid(
             )
             else -> {
                 val apps = state.appsFor(theme)
-                if (apps.isEmpty() && !state.isLoading) {
+                val widgets = state.widgetsFor(theme)
+                if (apps.isEmpty() && widgets.isEmpty() && !state.isLoading) {
                     EmptyMessage(
                         title = "No apps in ${theme.name} yet",
                         body = "Pick apps for this theme, or long-press any app in the drawer.",
@@ -105,7 +110,7 @@ fun ThemeGrid(
                         theme = theme,
                     )
                 } else {
-                    AppGrid(apps, swipeUpConnection, onLaunch, appActions, onReorder = { onReorder(theme, it) }, onEmptyLongPress = onEmptyLongPress)
+                    AppGrid(apps, widgets, swipeUpConnection, onLaunch, appActions, onReorder = { onReorder(theme, it) }, onEmptyLongPress = onEmptyLongPress)
                 }
             }
         }
@@ -115,6 +120,7 @@ fun ThemeGrid(
 @Composable
 private fun AppGrid(
     apps: List<AppInfo>,
+    widgets: List<ThemeWidget>,
     swipeUpConnection: NestedScrollConnection,
     onLaunch: (AppInfo, Rect?) -> Unit,
     appActions: (AppInfo) -> List<AppAction>,
@@ -137,6 +143,17 @@ private fun AppGrid(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // The theme's widgets span the full width above its apps.
+            widgets.forEachIndexed { index, widget ->
+                item(key = "widget-${widget.appWidgetId}", span = { GridItemSpan(maxLineSpan) }) {
+                    HomeWidget(
+                        widget = widget,
+                        canMoveUp = index > 0,
+                        canMoveDown = index < widgets.lastIndex,
+                        modifier = Modifier.animateItem().reorderBlocker(reorder, "widget-${widget.appWidgetId}"),
+                    )
+                }
+            }
             items(reorder.arrange(apps) { it.key }, key = { it.key }) { app ->
                 AppTileWithMenu(
                     app = app,

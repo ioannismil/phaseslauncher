@@ -23,6 +23,8 @@ data class AppInfo(
     /** The app's declared [android.content.pm.ApplicationInfo] category, or -1 if none. */
     val category: Int = -1,
     val profile: ProfileType = ProfileType.Personal,
+    /** The app's own name; [label] differs when the user renamed it. */
+    val defaultLabel: String = label,
 ) {
     val packageName: String get() = componentName.packageName
 

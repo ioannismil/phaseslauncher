@@ -5,11 +5,12 @@ import android.net.Uri
 import androidx.room.withTransaction
 import com.themelauncher.data.db.LauncherDatabase
 import com.themelauncher.data.db.ThemeEntity
+import com.themelauncher.data.db.ThemeRuleEntity
 import com.themelauncher.data.settings.IconSize
-import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.settings.SettingsRepository
 import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.themes.ThemeDefaults
+import com.themelauncher.data.themes.SoundProfile
 import com.themelauncher.data.themes.ThemeIconKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -44,6 +45,12 @@ class BackupRepository(
                     .put("icon", theme.iconKey)
                     .put("color", theme.accentColor)
                     .put("apps", JSONArray(themeDao.getThemeAppKeys(theme.id)))
+                    .put("soundProfile", theme.soundProfile)
+                    .put("ownDock", theme.ownDock)
+                    .put("dock", JSONArray(database.favoritesDao().getFavoriteKeys(theme.id)))
+                    .put("rules", JSONArray(database.ruleDao().getForTheme(theme.id).map {
+                        JSONObject().put("type", it.type).put("config", it.config)
+                    }))
             }))
             .put("favorites", JSONArray(favorites))
             .put("settings", JSONObject()
@@ -53,7 +60,10 @@ class BackupRepository(
                 .put("showLabels", prefs.showLabels)
                 .put("notificationDots", prefs.notificationDots)
                 .put("swipeDownForNotifications", prefs.swipeDownForNotifications)
-                .put("hiddenApps", JSONArray(prefs.hiddenApps.toList())))
+                .put("hiddenApps", JSONArray(prefs.hiddenApps.toList()))
+                .put("iconPack", prefs.iconPack ?: JSONObject.NULL)
+                .put("doubleTapToLock", prefs.doubleTapToLock)
+                .put("contactSearch", prefs.contactSearch))
 
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toString(2).toByteArray()) }
             ?: error("Could not open the file for writing")
@@ -74,17 +84,29 @@ class BackupRepository(
         database.withTransaction {
             val themeDao = database.themeDao()
             themeDao.deleteAllThemes()
+            database.favoritesDao().clearAll()
             for (i in 0 until themes.length()) {
                 val theme = themes.getJSONObject(i)
-                themeDao.insertThemeWithApps(
+                val id = themeDao.insertThemeWithApps(
                     ThemeEntity(
                         name = theme.getString("name"),
                         iconKey = ThemeIconKey.fromName(theme.optString("icon")).name,
                         accentColor = theme.getInt("color"),
                         position = 0,
+                        // Wallpapers are files on the old phone, so they aren't part of a backup.
+                        soundProfile = SoundProfile.fromName(theme.optString("soundProfile")).name,
+                        ownDock = theme.optBoolean("ownDock"),
                     ),
                     theme.optJSONArray("apps").strings(),
                 )
+                database.favoritesDao().setFavorites(theme.optJSONArray("dock").strings().take(ThemeDefaults.MAX_FAVORITES), id)
+                val rules = theme.optJSONArray("rules")
+                if (rules != null) {
+                    database.ruleDao().setRules(id, List(rules.length()) { j ->
+                        val rule = rules.getJSONObject(j)
+                        ThemeRuleEntity(themeId = id, type = rule.getString("type"), config = rule.getString("config"))
+                    })
+                }
             }
             database.favoritesDao().setFavorites(favorites.take(ThemeDefaults.MAX_FAVORITES))
         }
@@ -92,7 +114,7 @@ class BackupRepository(
 
         json.optJSONObject("settings")?.let { s ->
             settings.updatePrefs { current ->
-                LauncherPrefs(
+                current.copy(
                     switcherSide = SwitcherSide.entries.firstOrNull { it.name == s.optString("switcherSide") } ?: current.switcherSide,
                     gridColumns = s.optInt("gridColumns", current.gridColumns),
                     iconSize = IconSize.entries.firstOrNull { it.name == s.optString("iconSize") } ?: current.iconSize,
@@ -100,6 +122,9 @@ class BackupRepository(
                     notificationDots = s.optBoolean("notificationDots", current.notificationDots),
                     swipeDownForNotifications = s.optBoolean("swipeDownForNotifications", current.swipeDownForNotifications),
                     hiddenApps = s.optJSONArray("hiddenApps").strings().toSet(),
+                    iconPack = if (s.isNull("iconPack")) null else s.optString("iconPack").ifBlank { null },
+                    doubleTapToLock = s.optBoolean("doubleTapToLock", current.doubleTapToLock),
+                    contactSearch = s.optBoolean("contactSearch", current.contactSearch),
                 )
             }
         }
@@ -114,6 +139,6 @@ class BackupRepository(
 
     private companion object {
         const val FORMAT = "themelauncher-backup"
-        const val VERSION = 1
+        const val VERSION = 2
     }
 }

@@ -64,6 +64,7 @@ import com.themelauncher.data.themes.ThemeDefaults
 import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.data.themes.ThemeIconKey
 import com.themelauncher.data.themes.ThemePreset
+import com.themelauncher.data.themes.SoundProfile
 import com.themelauncher.ui.components.AppIcon
 import com.themelauncher.ui.theme.contentColorOn
 import com.themelauncher.ui.theme.imageVector
@@ -77,6 +78,7 @@ import com.themelauncher.ui.theme.imageVector
 fun ThemeEditorSheet(
     initial: ThemeDraft?,
     allApps: List<AppInfo>,
+    env: ThemeEditorEnvironment,
     onSave: (ThemeDraft) -> Unit,
     onDismiss: () -> Unit,
     /** Accents already taken by other themes; a new theme starts on the first free one. */
@@ -94,6 +96,10 @@ fun ThemeEditorSheet(
     }
     val selected = rememberSaveable(saver = stringListSaver) { initial?.appKeys.orEmpty().toMutableStateList() }
     var query by rememberSaveable { mutableStateOf("") }
+    var wallpaperPath by rememberSaveable { mutableStateOf(initial?.wallpaperPath) }
+    var ownDock by rememberSaveable { mutableStateOf(initial?.ownDock ?: false) }
+    var soundProfile by rememberSaveable { mutableStateOf(initial?.soundProfile ?: SoundProfile.Unchanged) }
+    var rules by remember { mutableStateOf(initial?.rules.orEmpty()) }
 
     val visibleApps = remember(allApps, query) { filterApps(allApps, query) }
 
@@ -102,7 +108,7 @@ fun ThemeEditorSheet(
         val chosen = selected.toSet()
         val kept = initial?.appKeys.orEmpty().filter { it in chosen }
         val added = allApps.map { it.key }.filter { it in chosen && it !in kept }
-        onSave(ThemeDraft(name.trim(), icon, color, kept + added))
+        onSave(ThemeDraft(name.trim(), icon, color, kept + added, wallpaperPath, soundProfile, ownDock, rules))
     }
 
     ModalBottomSheet(
@@ -130,6 +136,19 @@ fun ThemeEditorSheet(
                             icon = preset.icon
                             color = preset.accentColor
                         },
+                    )
+                }
+                item(key = "extras") {
+                    ThemeExtras(
+                        env = env,
+                        wallpaperPath = wallpaperPath,
+                        onWallpaperChange = { wallpaperPath = it },
+                        ownDock = ownDock,
+                        onOwnDockChange = { ownDock = it },
+                        soundProfile = soundProfile,
+                        onSoundProfileChange = { soundProfile = it },
+                        rules = rules,
+                        onRulesChange = { rules = it },
                     )
                 }
                 item(key = "appsHeader") {

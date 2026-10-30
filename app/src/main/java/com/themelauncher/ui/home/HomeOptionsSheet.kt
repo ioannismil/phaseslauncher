@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun HomeOptionsSheet(
     onNewTheme: () -> Unit,
+    onAddWidget: () -> Unit,
     onOpenSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -44,6 +46,10 @@ fun HomeOptionsSheet(
             Option(Icons.Rounded.Add, "New theme") {
                 onDismiss()
                 onNewTheme()
+            }
+            Option(Icons.Outlined.Widgets, "Add widget", "To the theme you're on") {
+                onDismiss()
+                onAddWidget()
             }
             Option(Icons.Outlined.Wallpaper, "Wallpaper") {
                 onDismiss()

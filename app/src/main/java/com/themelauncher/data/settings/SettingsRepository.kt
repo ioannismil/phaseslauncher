@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -32,6 +33,11 @@ data class LauncherPrefs(
     val swipeDownForNotifications: Boolean = true,
     /** App keys hidden from the drawer (they can still be in themes and the dock). */
     val hiddenApps: Set<String> = emptySet(),
+    /** Package of the icon pack applied to all apps, or null for the apps' own icons. */
+    val iconPack: String? = null,
+    val doubleTapToLock: Boolean = false,
+    /** Show matching contacts in drawer search (needs the contacts permission). */
+    val contactSearch: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_COLUMNS = 4
@@ -71,6 +77,9 @@ class SettingsRepository(context: Context) {
         notificationDots = this[NOTIFICATION_DOTS] ?: true,
         swipeDownForNotifications = this[SWIPE_DOWN_NOTIFICATIONS] ?: true,
         hiddenApps = this[HIDDEN_APPS].orEmpty(),
+        iconPack = this[ICON_PACK]?.ifBlank { null },
+        doubleTapToLock = this[DOUBLE_TAP_LOCK] ?: false,
+        contactSearch = this[CONTACT_SEARCH] ?: true,
     )
 
     private fun MutablePreferences.write(prefs: LauncherPrefs) {
@@ -81,7 +90,61 @@ class SettingsRepository(context: Context) {
         this[NOTIFICATION_DOTS] = prefs.notificationDots
         this[SWIPE_DOWN_NOTIFICATIONS] = prefs.swipeDownForNotifications
         this[HIDDEN_APPS] = prefs.hiddenApps
+        this[ICON_PACK] = prefs.iconPack.orEmpty()
+        this[DOUBLE_TAP_LOCK] = prefs.doubleTapToLock
+        this[CONTACT_SEARCH] = prefs.contactSearch
     }
+
+    // region Bookkeeping for theme side effects (not user settings)
+
+    /** Wallpaper file last applied by a theme, so it isn't re-applied on every switch. */
+    suspend fun lastAppliedWallpaper(): String? = dataStore.data.first()[LAST_WALLPAPER]
+
+    suspend fun setLastAppliedWallpaper(path: String?) {
+        dataStore.edit { if (path == null) it.remove(LAST_WALLPAPER) else it[LAST_WALLPAPER] = path }
+    }
+
+    /** The user's interruption filter and ringer mode from before a theme changed them. */
+    suspend fun savedSound(): Pair<Int, Int>? {
+        val prefs = dataStore.data.first()
+        val filter = prefs[SAVED_FILTER] ?: return null
+        val ringer = prefs[SAVED_RINGER] ?: return null
+        return filter to ringer
+    }
+
+    suspend fun setSavedSound(sound: Pair<Int, Int>?) {
+        dataStore.edit {
+            if (sound == null) {
+                it.remove(SAVED_FILTER)
+                it.remove(SAVED_RINGER)
+            } else {
+                it[SAVED_FILTER] = sound.first
+                it[SAVED_RINGER] = sound.second
+            }
+        }
+    }
+
+    /** The theme to return to when an automatic switch ends, and the theme it switched to. */
+    suspend fun autoSwitchState(): Pair<Long, Long>? {
+        val prefs = dataStore.data.first()
+        val previous = prefs[AUTO_PREVIOUS] ?: return null
+        val auto = prefs[AUTO_THEME] ?: return null
+        return previous to auto
+    }
+
+    suspend fun setAutoSwitchState(state: Pair<Long, Long>?) {
+        dataStore.edit {
+            if (state == null) {
+                it.remove(AUTO_PREVIOUS)
+                it.remove(AUTO_THEME)
+            } else {
+                it[AUTO_PREVIOUS] = state.first
+                it[AUTO_THEME] = state.second
+            }
+        }
+    }
+
+    // endregion
 
     private companion object {
         val ACTIVE_THEME_ID = longPreferencesKey("active_theme_id")
@@ -93,5 +156,13 @@ class SettingsRepository(context: Context) {
         val NOTIFICATION_DOTS = booleanPreferencesKey("notification_dots")
         val SWIPE_DOWN_NOTIFICATIONS = booleanPreferencesKey("swipe_down_notifications")
         val HIDDEN_APPS = stringSetPreferencesKey("hidden_apps")
+        val ICON_PACK = stringPreferencesKey("icon_pack")
+        val DOUBLE_TAP_LOCK = booleanPreferencesKey("double_tap_lock")
+        val CONTACT_SEARCH = booleanPreferencesKey("contact_search")
+        val LAST_WALLPAPER = stringPreferencesKey("last_wallpaper")
+        val SAVED_FILTER = intPreferencesKey("saved_interruption_filter")
+        val SAVED_RINGER = intPreferencesKey("saved_ringer_mode")
+        val AUTO_PREVIOUS = longPreferencesKey("auto_previous_theme")
+        val AUTO_THEME = longPreferencesKey("auto_theme")
     }
 }

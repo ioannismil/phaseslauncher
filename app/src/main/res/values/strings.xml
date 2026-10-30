@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">ThemeLauncher</string>
+    <string name="lock_service_label">ThemeLauncher: double-tap to lock</string>
+    <string name="lock_service_description">Lets ThemeLauncher lock your screen when you double-tap an empty part of the home screen. It is used for nothing else: it does not read the screen, see what you type, or collect any data.</string>
 </resources>

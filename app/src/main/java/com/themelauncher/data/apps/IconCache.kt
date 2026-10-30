@@ -1,10 +1,13 @@
 package com.themelauncher.data.apps
 
 import android.content.Context
+import android.os.Process
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import com.themelauncher.data.db.AppCustomizationEntity
+import com.themelauncher.data.icons.IconPackManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -19,8 +22,15 @@ import kotlin.math.roundToInt
 /**
  * Renders app icons off the main thread and keeps them in memory, so scrolling the
  * drawer or switching themes never waits on PackageManager.
+ *
+ * Icon source, in order: the icon picked for the app by hand, the active icon pack's icon,
+ * the app's own icon. Pack icons get the work-profile badge like the originals.
  */
-class IconCache(context: Context, private val appsRepository: AppsRepository) {
+class IconCache(
+    private val context: Context,
+    private val appsRepository: AppsRepository,
+    private val iconPacks: IconPackManager,
+) {
 
     private val densityDpi = context.resources.displayMetrics.densityDpi
     private val iconSizePx = (ICON_SIZE_DP * context.resources.displayMetrics.density).roundToInt()
@@ -29,6 +39,9 @@ class IconCache(context: Context, private val appsRepository: AppsRepository) {
     private val cache = object : LruCache<String, ImageBitmap>(cacheSizeKb()) {
         override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4 / 1024
     }
+
+    @Volatile private var iconPack: String? = null
+    @Volatile private var customIcons: Map<String, AppCustomizationEntity> = emptyMap()
 
     /** Bumped when icons are invalidated so visible icons re-read the cache. */
     private val _generation = MutableStateFlow(0)
@@ -49,11 +62,38 @@ class IconCache(context: Context, private val appsRepository: AppsRepository) {
         _generation.update { it + 1 }
     }
 
+    /** Applies a new icon pack and/or hand-picked icons; re-renders only if something changed. */
+    fun setIconSources(iconPack: String?, customizations: Map<String, AppCustomizationEntity>) {
+        val customIconsOnly = customizations.filterValues { it.iconPack != null && it.iconName != null }
+        if (iconPack == this.iconPack && customIconsOnly == this.customIcons) return
+        val packChanged = iconPack != this.iconPack
+        val changedKeys = (customIconsOnly.keys + this.customIcons.keys)
+            .filter { customIconsOnly[it] != this.customIcons[it] }
+        this.iconPack = iconPack
+        this.customIcons = customIconsOnly
+        if (packChanged) {
+            iconPacks.clear()
+            cache.evictAll()
+        } else {
+            changedKeys.forEach { cache.remove(it) }
+        }
+        _generation.update { it + 1 }
+    }
+
     private fun render(app: AppInfo): ImageBitmap? {
         val info = appsRepository.activityInfo(app.key) ?: return null
         return runCatching {
-            info.getBadgedIcon(densityDpi).toBitmap(iconSizePx, iconSizePx).asImageBitmap()
-                .also { it.prepareToDraw() }
+            val custom = customIcons[app.key]
+            val themed = when {
+                custom != null -> iconPacks.drawable(custom.iconPack!!, custom.iconName!!, densityDpi)
+                else -> iconPack?.let { iconPacks.iconFor(it, app.componentName, densityDpi) }
+            }
+            val drawable = when {
+                themed == null -> info.getBadgedIcon(densityDpi)
+                app.user == Process.myUserHandle() -> themed
+                else -> context.packageManager.getUserBadgedIcon(themed, app.user)
+            }
+            drawable.toBitmap(iconSizePx, iconSizePx).asImageBitmap().also { it.prepareToDraw() }
         }.getOrNull()
     }
 

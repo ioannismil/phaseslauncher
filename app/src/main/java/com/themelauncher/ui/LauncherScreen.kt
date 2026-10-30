@@ -1,9 +1,13 @@
 package com.themelauncher.ui
 
+import android.Manifest
 import android.app.Activity
+import android.appwidget.AppWidgetProviderInfo
 import android.graphics.Rect
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,6 +15,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -32,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -50,16 +56,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.themelauncher.LauncherViewModel
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.apps.AppShortcut
+import com.themelauncher.data.icons.IconPackInfo
+import com.themelauncher.data.system.LockScreenService
 import com.themelauncher.data.system.SystemActions
 import com.themelauncher.data.themes.Theme
-import com.themelauncher.data.themes.ThemeDraft
+import com.themelauncher.data.themes.toDraft
 import com.themelauncher.ui.components.AppAction
 import com.themelauncher.ui.components.LocalNotificationDots
 import com.themelauncher.ui.components.LocalShortcutHost
 import com.themelauncher.ui.components.ShortcutHost
 import com.themelauncher.ui.drawer.AppDrawer
+import com.themelauncher.ui.drawer.DrawerSearchActions
 import com.themelauncher.ui.editor.AddToThemesDialog
+import com.themelauncher.ui.editor.CustomizeAppDialog
 import com.themelauncher.ui.editor.DeleteThemeDialog
+import com.themelauncher.ui.editor.ThemeEditorEnvironment
 import com.themelauncher.ui.editor.ThemeEditorSheet
 import com.themelauncher.ui.home.ArcExtra
 import com.themelauncher.ui.home.HomeLayout
@@ -73,12 +84,15 @@ import com.themelauncher.ui.onboarding.OnboardingScreen
 import com.themelauncher.ui.settings.SettingsScreen
 import com.themelauncher.ui.theme.LocalWallpaperContent
 import com.themelauncher.ui.theme.rememberWallpaperContentColors
+import com.themelauncher.ui.widgets.LocalWidgetHost
+import com.themelauncher.ui.widgets.WidgetHostUi
+import com.themelauncher.ui.widgets.WidgetPickerSheet
 
 /** Which theme the editor is open for; [themeId] == null creates a new one. */
 private data class EditorRequest(val themeId: Long?)
 
 @Composable
-fun LauncherScreen(viewModel: LauncherViewModel) {
+fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProviderInfo) -> Unit) {
     val drawerOpen by viewModel.drawerOpen.collectAsStateWithLifecycle()
     val drawerState by viewModel.drawerState.collectAsStateWithLifecycle()
     val homeState by viewModel.homeState.collectAsStateWithLifecycle()
@@ -89,6 +103,9 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
     var deletingTheme by remember { mutableStateOf<Theme?>(null) }
     var showHomeOptions by remember { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showWidgetPicker by remember { mutableStateOf(false) }
+    var customizingApp by remember { mutableStateOf<AppInfo?>(null) }
+    val customizations by viewModel.customizations.collectAsStateWithLifecycle()
     val arcState = remember { ThemeArcState() }
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val switcherSide = prefs.switcherSide
@@ -152,6 +169,7 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                 add(AppAction("Add to favorites", Icons.Rounded.StarOutline) { viewModel.addFavorite(app) })
             }
             add(AppAction("Add to theme…", Icons.Rounded.AddCircleOutline) { addToThemesApp = app })
+            add(AppAction("Customize\u2026", Icons.Outlined.Edit) { customizingApp = app })
             add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
             add(AppAction("Hide app", Icons.Outlined.VisibilityOff) { viewModel.hideApp(app) })
             if (app.canUninstall) add(AppAction("Uninstall", Icons.Outlined.DeleteForever) { viewModel.uninstall(app) })
@@ -161,12 +179,14 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
         buildList {
             add(AppAction("Remove from this theme", Icons.Rounded.RemoveCircleOutline) { viewModel.removeAppFromActiveTheme(app) })
             if (app.key !in favoriteKeys) add(AppAction("Move to favorites", Icons.Rounded.Star) { viewModel.moveToFavorites(app) })
+            add(AppAction("Customize\u2026", Icons.Outlined.Edit) { customizingApp = app })
             add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
         }
     }
     val dockActions: (AppInfo) -> List<AppAction> = { app ->
         listOf(
             AppAction("Remove from favorites", Icons.Rounded.RemoveCircleOutline) { viewModel.removeFavorite(app) },
+            AppAction("Customize\u2026", Icons.Outlined.Edit) { customizingApp = app },
             AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(app, it) },
         )
     }
@@ -216,12 +236,42 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
     val swipeDown: () -> Unit = {
         if (prefs.swipeDownForNotifications) SystemActions.expandNotifications(context)
     }
+    val doubleTap: () -> Unit = {
+        if (prefs.doubleTapToLock && !LockScreenService.lock()) {
+            viewModel.message("Turn on \u201cThemeLauncher: double-tap to lock\u201d in Accessibility settings")
+            LockScreenService.openSettings(context)
+        }
+    }
+    val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        // Re-run the search so contacts show up right away, or stop asking if declined.
+        if (granted) viewModel.refreshSearch() else viewModel.updatePrefs { it.copy(contactSearch = false) }
+    }
+    val searchActions = remember(viewModel) {
+        DrawerSearchActions(
+            onOpenContact = viewModel::openContact,
+            onOpenSettings = viewModel::openSettingsResult,
+            onSearchWeb = viewModel::searchWeb,
+            onAllowContacts = { contactsPermission.launch(Manifest.permission.READ_CONTACTS) },
+            onDeclineContacts = { viewModel.updatePrefs { it.copy(contactSearch = false) } },
+        )
+    }
+    val widgetHost = remember(viewModel) {
+        WidgetHostUi(
+            repository = viewModel.widgets,
+            onRemove = { viewModel.removeWidget(it.appWidgetId) },
+            onResize = { widget, height -> viewModel.resizeWidget(widget.appWidgetId, height) },
+            onMove = { widget, delta ->
+                homeState.themes.firstOrNull { it.id == widget.themeId }?.let { viewModel.moveWidget(it, widget.appWidgetId, delta) }
+            },
+        )
+    }
 
     CompositionLocalProvider(
         LocalWallpaperContent provides wallpaperColors,
         LocalHomeLayout provides HomeLayout(prefs.gridColumns, prefs.iconSize.dp.dp, prefs.showLabels),
         LocalNotificationDots provides if (prefs.notificationDots) dotKeys else emptySet(),
         LocalShortcutHost provides shortcutHost,
+        LocalWidgetHost provides widgetHost,
     ) {
         Box(Modifier.fillMaxSize()) {
             HomeScreen(
@@ -242,7 +292,14 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     showHomeOptions = true
                 },
-                modifier = Modifier.graphicsLayer { alpha = homeAlpha }.blur(homeBlur).pointerInput(Unit) {
+                modifier = Modifier
+                    .graphicsLayer { alpha = homeAlpha }
+                    .blur(homeBlur)
+                    // Taps on apps are consumed by the apps, so this only sees empty space.
+                    .pointerInput(prefs.doubleTapToLock) {
+                        if (prefs.doubleTapToLock) detectTapGestures(onDoubleTap = { doubleTap() })
+                    }
+                    .pointerInput(Unit) {
                     var dragged = 0f
                     detectVerticalDragGestures(
                         onDragStart = { dragged = 0f },
@@ -284,6 +341,7 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                     },
                     onSelectProfile = viewModel::selectProfileTab,
                     onSetProfileQuiet = viewModel::setProfileQuiet,
+                    searchActions = searchActions,
                 )
             }
 
@@ -305,24 +363,33 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
                         showOnboarding = true
                     },
                     onClose = { showSettings = false },
+                    loadIconPacks = viewModel::installedIconPacks,
+                    onAddWidget = { showWidgetPicker = true },
                 )
             }
         }
     }
 
+    val editorEnvironment = remember(viewModel) {
+        ThemeEditorEnvironment(
+            importWallpaper = viewModel::importWallpaper,
+            hasPolicyAccess = viewModel.themeEffects::hasPolicyAccess,
+            requestPolicyAccess = { viewModel.themeEffects.openPolicyAccessSettings(context) },
+            hasBluetoothPermission = viewModel.autoSwitcher::hasBluetoothPermission,
+            pairedDevices = viewModel.autoSwitcher::pairedDevices,
+        )
+    }
+
     editor?.let { request ->
         val theme = request.themeId?.let { id -> homeState.themes.firstOrNull { it.id == id } }
         ThemeEditorSheet(
-            initial = theme?.let { ThemeDraft(it.name, it.icon, it.accentColor, it.appKeys) },
+            initial = theme?.toDraft(),
             allApps = homeState.apps.values.toList(),
+            env = editorEnvironment,
             usedColors = homeState.themes.mapTo(HashSet()) { it.accentColor },
             onSave = { draft ->
                 editor = null
-                if (theme == null) {
-                    viewModel.createTheme(draft.name, draft.icon, draft.accentColor, draft.appKeys)
-                } else {
-                    viewModel.updateTheme(theme.id, draft.name, draft.icon, draft.accentColor, draft.appKeys)
-                }
+                if (theme == null) viewModel.createTheme(draft) else viewModel.updateTheme(theme.id, draft)
             },
             onDismiss = { editor = null },
         )
@@ -354,8 +421,36 @@ fun LauncherScreen(viewModel: LauncherViewModel) {
     if (showHomeOptions) {
         HomeOptionsSheet(
             onNewTheme = { editor = EditorRequest(themeId = null) },
+            onAddWidget = { showWidgetPicker = true },
             onOpenSettings = { showSettings = true },
             onDismiss = { showHomeOptions = false },
+        )
+    }
+
+    if (showWidgetPicker) {
+        WidgetPickerSheet(
+            themeName = homeState.activeTheme?.name ?: "this theme",
+            loadProviders = viewModel.widgets::availableProviders,
+            onPick = { info ->
+                showWidgetPicker = false
+                startWidgetAdd(info)
+            },
+            onDismiss = { showWidgetPicker = false },
+        )
+    }
+
+    customizingApp?.let { app ->
+        val iconPacks by produceState(emptyList<IconPackInfo>()) { value = viewModel.installedIconPacks() }
+        val current = customizations[app.key]
+        CustomizeAppDialog(
+            app = app,
+            initialIcon = current?.let { c -> c.iconPack?.let { pack -> c.iconName?.let { pack to it } } },
+            iconPacks = iconPacks,
+            iconPackManager = viewModel.iconPackManager(),
+            loadIconNames = viewModel::iconPackDrawables,
+            onSave = { label, pack, name -> viewModel.customizeApp(app, label, pack, name) },
+            onReset = { viewModel.resetCustomization(app) },
+            onDismiss = { customizingApp = null },
         )
     }
 

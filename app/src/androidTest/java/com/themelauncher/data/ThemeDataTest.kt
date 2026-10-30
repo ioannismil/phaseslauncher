@@ -4,10 +4,14 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.themelauncher.data.db.FavoriteEntity
 import com.themelauncher.data.db.LauncherDatabase
+import com.themelauncher.data.rules.ThemeRule
 import com.themelauncher.data.themes.AddFavoriteResult
 import com.themelauncher.data.themes.FavoritesRepository
+import com.themelauncher.data.themes.SoundProfile
 import com.themelauncher.data.themes.ThemeDefaults
+import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.data.themes.ThemeIconKey
 import com.themelauncher.data.themes.ThemeRepository
 import com.themelauncher.data.themes.UninstalledAppCleaner
@@ -32,7 +36,7 @@ class ThemeDataTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, LauncherDatabase::class.java).build()
-        themes = ThemeRepository(db.themeDao())
+        themes = ThemeRepository(db)
         favorites = FavoritesRepository(db.favoritesDao())
     }
 
@@ -108,7 +112,7 @@ class ThemeDataTest {
         val t = themes.createTheme("T", ThemeIconKey.Star, 1, listOf("kept/.A", "gone/.A", "gone/.B"))
         favorites.setFavorites(listOf("gone/.A", "kept/.A"))
         val installed = setOf("kept/.A")
-        val cleaner = UninstalledAppCleaner({ it in installed }, db.themeDao(), db.favoritesDao())
+        val cleaner = UninstalledAppCleaner({ it in installed }, db)
 
         assertEquals(emptyList<String>(), cleaner.prune("kept"))
         val removed = cleaner.prune()
@@ -116,5 +120,34 @@ class ThemeDataTest {
         assertEquals(setOf("gone/.A", "gone/.B"), removed.toSet())
         assertEquals(listOf("kept/.A"), themes.themes.first().single { it.id == t }.appKeys)
         assertEquals(listOf("kept/.A"), favorites.favoriteKeys.first())
+    }
+
+    @Test
+    fun themeWithOwnDockKeepsItSeparateFromTheSharedDock() = runTest {
+        val t = themes.createTheme(ThemeDraft("Car", ThemeIconKey.Travel, 1, ownDock = true))
+        favorites.setFavorites(listOf("shared/.A"))
+        favorites.add("car/.A", dockId = t)
+
+        val docks = favorites.docks.first()
+        assertEquals(listOf("shared/.A"), docks[FavoriteEntity.SHARED_DOCK])
+        assertEquals(listOf("car/.A"), docks[t])
+
+        // Deleting the theme removes its dock too.
+        themes.createTheme("Other", ThemeIconKey.Star, 1)
+        themes.deleteTheme(t)
+        assertEquals(null, favorites.docks.first()[t])
+    }
+
+    @Test
+    fun themeExtrasAndRulesRoundTrip() = runTest {
+        val rules = listOf(ThemeRule.WORK_HOURS, ThemeRule.Controller, ThemeRule.Bluetooth("AA:BB", "Car"))
+        val id = themes.createTheme(
+            ThemeDraft("Work", ThemeIconKey.Work, 2, listOf("a/.A"), "/w.img", SoundProfile.DndPriority, ownDock = true, rules = rules),
+        )
+        val saved = themes.themes.first().single { it.id == id }
+        assertEquals(SoundProfile.DndPriority, saved.soundProfile)
+        assertEquals("/w.img", saved.wallpaperPath)
+        assertTrue(saved.ownDock)
+        assertEquals(rules.toSet(), saved.rules.toSet())
     }
 }

@@ -3,6 +3,7 @@ package com.themelauncher.ui.components
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -40,6 +41,9 @@ class ReorderState internal constructor() {
 
     /** Item bounds in window coordinates, excluding the drag translation. */
     internal val bounds = mutableStateMapOf<String, Rect>()
+
+    /** Areas (e.g. widgets) that handle their own long-press, so they don't count as empty space. */
+    internal val blockers = mutableStateMapOf<String, Rect>()
     internal var containerOrigin = Offset.Zero
 
     var draggingKey by mutableStateOf<String?>(null)
@@ -134,8 +138,11 @@ fun Modifier.reorderContainer(
             // Observe in the Initial pass and consume nothing until a drag actually starts,
             // so taps, long-press menus and scrolling behave exactly as without reordering.
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val key = state.keyAt(state.containerOrigin + down.position)
-            if (key == null && onEmptyLongPress == null) return@awaitEachGesture
+            val downWindow = state.containerOrigin + down.position
+            val key = state.keyAt(downWindow)
+            if (key == null && (onEmptyLongPress == null || state.blockers.values.any { it.contains(downWindow) })) {
+                return@awaitEachGesture
+            }
 
             val heldStill = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                 while (true) {
@@ -188,3 +195,10 @@ fun Modifier.reorderItem(state: ReorderState, key: String): Modifier = this
         scaleY = if (lifted) 1.12f else 1f
         alpha = if (lifted) 0.92f else 1f
     }
+
+/** Marks an area inside the container that isn't reorderable and isn't empty space (e.g. a widget). */
+@Composable
+fun Modifier.reorderBlocker(state: ReorderState, key: String): Modifier {
+    DisposableEffect(state, key) { onDispose { state.blockers.remove(key) } }
+    return onGloballyPositioned { state.blockers[key] = Rect(it.positionInWindow(), it.size.toSize()) }
+}

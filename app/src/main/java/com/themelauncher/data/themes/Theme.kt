@@ -2,6 +2,7 @@ package com.themelauncher.data.themes
 
 import android.content.pm.ApplicationInfo
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.rules.ThemeRule
 
 /** Icons a theme can use. Stored by name; the UI maps each to a Material icon. */
 enum class ThemeIconKey {
@@ -13,6 +14,20 @@ enum class ThemeIconKey {
     }
 }
 
+/** What happens to sound and Do Not Disturb while a theme is active. */
+enum class SoundProfile(val label: String, val needsPolicyAccess: Boolean) {
+    Unchanged("Don't change", false),
+    Normal("Sound on", false),
+    Vibrate("Vibrate", false),
+    Silent("Silent", true),
+    DndPriority("Do Not Disturb: priority only", true),
+    DndAlarms("Do Not Disturb: alarms only", true);
+
+    companion object {
+        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: Unchanged
+    }
+}
+
 data class Theme(
     val id: Long,
     val name: String,
@@ -21,6 +36,10 @@ data class Theme(
     val accentColor: Int,
     /** Assigned app keys in display order. May include apps that are currently unavailable. */
     val appKeys: List<String>,
+    val wallpaperPath: String? = null,
+    val soundProfile: SoundProfile = SoundProfile.Unchanged,
+    val ownDock: Boolean = false,
+    val rules: List<ThemeRule> = emptyList(),
 )
 
 /** A theme that hasn't been saved yet (editor and onboarding). */
@@ -30,7 +49,13 @@ data class ThemeDraft(
     val accentColor: Int,
     /** In display order. */
     val appKeys: List<String> = emptyList(),
+    val wallpaperPath: String? = null,
+    val soundProfile: SoundProfile = SoundProfile.Unchanged,
+    val ownDock: Boolean = false,
+    val rules: List<ThemeRule> = emptyList(),
 )
+
+fun Theme.toDraft() = ThemeDraft(name, icon, accentColor, appKeys, wallpaperPath, soundProfile, ownDock, rules)
 
 data class ThemePreset(
     val name: String,

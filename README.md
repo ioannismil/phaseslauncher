@@ -37,7 +37,10 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 | Anywhere on home | Swipe up / swipe down | App drawer / notification shade |
 | App (grid, dock, drawer) | Long-press | App shortcuts (e.g. New tab) + app menu (drawer: hide, uninstall) |
 | App (grid, dock) | Long-press, then drag | Reorder |
-| Empty space | Long-press | New theme, wallpaper, launcher settings |
+| Empty space | Long-press | New theme, add widget, wallpaper, launcher settings |
+| Empty space | Double-tap | Lock the screen (optional; needs the accessibility service) |
+| Widget | Long-press | Resize, move up/down, remove |
+| App (grid, dock, drawer) | Long-press → Customize… | Rename, or pick an icon from an icon pack |
 | Drawer search bar | Gear | Launcher settings (bar side, themes, default home, setup) |
 
 ## Launcher settings
@@ -50,10 +53,24 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 
 Work profile and Private Space (Android 15+) apps get their own drawer tabs, with pause/resume and lock/unlock.
 
+## Per-theme options (theme editor)
+
+- **Widgets:** each theme has its own widgets, shown above its apps.
+- **Wallpaper:** applied when you switch to the theme. Themes without one keep whatever wallpaper is set (Android doesn't let launchers read and restore your previous wallpaper).
+- **Own dock:** the theme gets its own favorites instead of the shared dock.
+- **Sound:** Sound on, Vibrate, Silent, or Do Not Disturb (priority / alarms only). Switching to a theme that doesn't change sound restores your own settings. Silent and DND need Do Not Disturb access.
+- **Switch automatically:** on a schedule, when a Bluetooth device connects, or when a game controller connects (priority: controller, Bluetooth, schedule). When the condition ends, it switches back to the theme you were on.
+
+## Search
+
+The drawer shows suggested apps (from what you open most and most recently). Searching also finds contacts (optional permission), system settings pages, and offers a web search; Go opens the top app or searches the web.
+
 ## Code map
 
 - `data/apps` — installed apps and profiles via `LauncherApps` (+ change callback), icon cache, search, app shortcuts
-- `data/notifications` — notification dots listener; `data/backup` — JSON export/import; `data/system` — notification shade
+- `data/notifications` — notification dots listener; `data/backup` — JSON export/import; `data/system` — notification shade, lock-screen accessibility service
+- `data/widgets` — app widget host; `data/icons` — icon packs, custom names/icons; `data/search` — contacts, settings, web
+- `data/rules` — automatic switching rules and engine; `data/themes/ThemeEffects` — per-theme wallpaper and sound
 - `data/db`, `data/themes`, `data/settings` — Room (themes, assignments, favorites), repositories, DataStore
 - `LauncherViewModel` — combines everything into `HomeState` / `DrawerState`
 - `ui/home`, `ui/drawer`, `ui/editor`, `ui/onboarding` — screens; `ui/components/Reorder.kt` — drag-to-reorder

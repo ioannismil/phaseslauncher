@@ -1,7 +1,10 @@
 package com.themelauncher.ui.settings
 
+import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,22 +26,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.SwipeDown
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -51,6 +59,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -63,6 +72,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,15 +81,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.icons.IconPackInfo
 import com.themelauncher.data.notifications.NotificationDotsRepository
 import com.themelauncher.data.settings.IconSize
 import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.settings.SwitcherSide
+import com.themelauncher.data.system.LockScreenService
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.ui.onboarding.rememberDefaultHomeState
 import com.themelauncher.ui.theme.contentColorOn
@@ -103,6 +117,8 @@ fun SettingsScreen(
     onImport: (Uri) -> Unit,
     onRunSetup: () -> Unit,
     onClose: () -> Unit,
+    loadIconPacks: suspend () -> List<IconPackInfo>,
+    onAddWidget: () -> Unit,
 ) {
     val context = LocalContext.current
     val defaultHome = rememberDefaultHomeState()
@@ -113,6 +129,14 @@ fun SettingsScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasDotAccess = notificationDots.hasAccess() }
 
     var showHiddenApps by remember { mutableStateOf(false) }
+    var showIconPacks by remember { mutableStateOf(false) }
+    var explainLock by remember { mutableStateOf(false) }
+    val iconPacks by produceState(emptyList<IconPackInfo>()) { value = loadIconPacks() }
+    var lockServiceOn by remember { mutableStateOf(LockScreenService.isEnabled(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { lockServiceOn = LockScreenService.isEnabled(context) }
+    val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        onUpdatePrefs { it.copy(contactSearch = granted) }
+    }
     var pendingImport by remember { mutableStateOf<Uri?>(null) }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let(onExport)
@@ -212,6 +236,32 @@ fun SettingsScreen(
                 }
             }
             item {
+                Option(
+                    Icons.Outlined.Palette,
+                    "Icon pack",
+                    iconPacks.firstOrNull { it.packageName == prefs.iconPack }?.label
+                        ?: if (iconPacks.isEmpty()) "None installed. Get one from the Play Store." else "App icons (none)",
+                ) { showIconPacks = true }
+            }
+            item {
+                SwitchOption(
+                    icon = Icons.Outlined.TouchApp,
+                    title = "Double-tap to lock",
+                    subtitle = when {
+                        prefs.doubleTapToLock && !lockServiceOn -> "Needs the accessibility service \u2014 tap to turn it on"
+                        prefs.doubleTapToLock -> "Double-tap an empty part of the home screen"
+                        else -> "Off"
+                    },
+                    checked = prefs.doubleTapToLock,
+                    subtitleIsWarning = prefs.doubleTapToLock && !lockServiceOn,
+                    onClick = if (prefs.doubleTapToLock && !lockServiceOn) ({ explainLock = true }) else null,
+                ) { on ->
+                    onUpdatePrefs { it.copy(doubleTapToLock = on) }
+                    if (on && !lockServiceOn) explainLock = true
+                }
+            }
+            item { Option(Icons.Outlined.Widgets, "Add widget", "To the theme you're on", onClick = onAddWidget) }
+            item {
                 val needsAccess = prefs.notificationDots && !hasDotAccess
                 SwitchOption(
                     icon = Icons.Outlined.Badge,
@@ -269,6 +319,25 @@ fun SettingsScreen(
                 ) { showHiddenApps = true }
             }
 
+            item {
+                SwitchOption(
+                    icon = Icons.Outlined.Contacts,
+                    title = "Search contacts",
+                    subtitle = when {
+                        !prefs.contactSearch -> "Off"
+                        hasContactsPermission(context) -> "Matching contacts appear in drawer search"
+                        else -> "Needs permission to read contacts"
+                    },
+                    checked = prefs.contactSearch && hasContactsPermission(context),
+                ) { on ->
+                    if (on && !hasContactsPermission(context)) {
+                        contactsPermission.launch(Manifest.permission.READ_CONTACTS)
+                    } else {
+                        onUpdatePrefs { it.copy(contactSearch = on) }
+                    }
+                }
+            }
+
             item { SectionHeader("Backup") }
             item {
                 Option(Icons.Outlined.Upload, "Back up themes", "Save themes, dock and settings to a file") {
@@ -297,6 +366,63 @@ fun SettingsScreen(
                 onUpdatePrefs { it.copy(hiddenApps = keys) }
             },
             onDismiss = { showHiddenApps = false },
+        )
+    }
+
+    if (showIconPacks) {
+        AlertDialog(
+            onDismissRequest = { showIconPacks = false },
+            title = { Text("Icon pack") },
+            text = {
+                Column {
+                    val options = listOf<IconPackInfo?>(null) + iconPacks
+                    options.forEach { pack ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(prefs.iconPack == pack?.packageName, role = Role.RadioButton) {
+                                    onUpdatePrefs { it.copy(iconPack = pack?.packageName) }
+                                    showIconPacks = false
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = prefs.iconPack == pack?.packageName, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text(pack?.label ?: "App icons (none)")
+                        }
+                    }
+                    if (iconPacks.isEmpty()) {
+                        Text(
+                            "Icon packs made for Nova, ADW or Apex launchers work here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showIconPacks = false }) { Text("Close") } },
+        )
+    }
+
+    if (explainLock) {
+        AlertDialog(
+            onDismissRequest = { explainLock = false },
+            title = { Text("Turn on double-tap to lock") },
+            text = {
+                Text(
+                    "Android only lets apps lock the screen through an accessibility service. " +
+                        "On the next screen, open \u201cThemeLauncher: double-tap to lock\u201d and turn it on.\n\n" +
+                        "It is used only to lock the screen. It can't read the screen or what you type.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    explainLock = false
+                    LockScreenService.openSettings(context)
+                }) { Text("Open settings") }
+            },
+            dismissButton = { TextButton(onClick = { explainLock = false }) { Text("Not now") } },
         )
     }
 
@@ -412,3 +538,6 @@ private fun SwitchOption(
             .padding(horizontal = 8.dp),
     )
 }
+
+private fun hasContactsPermission(context: Context) =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
