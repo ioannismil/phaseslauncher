@@ -14,6 +14,13 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 .\gradlew.bat connectedDebugAndroidTest    # instrumented tests (uninstalls the app afterwards)
 ```
 
+### Performance
+
+- **Measure a release build** (R8 on, like the real thing; debug builds are several times slower): `.\gradlew.bat installRelease -PdebugSignedRelease` signs it with the debug key so it installs over a debug build.
+- **Baseline profile:** `app/src/main/baselineProfiles/baseline-prof.txt` lists the code that runs at startup and in the drawer, so it's compiled ahead of time. Regenerate it after big UI changes with `.\gradlew.bat :app:generateBaselineProfile` (device or emulator, Android 9+), then copy the `*-prof.txt` from `baselineprofile/build/outputs/connected_android_test_additional_output/` over it.
+- **Check it helps:** `.\gradlew.bat :baselineprofile:connectedBenchmarkReleaseAndroidTest` compares cold start and drawer frames with and without the profile (on an emulator add `-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR`; real phones give the meaningful numbers).
+- Debug builds run StrictMode and log disk/network work on the main thread and leaked resources.
+
 ## Make it the default home app
 
 - **First launch:** setup ends with a "Set as default home app" button (system dialog on Android 10+).

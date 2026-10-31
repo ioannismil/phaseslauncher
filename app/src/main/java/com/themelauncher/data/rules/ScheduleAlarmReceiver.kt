@@ -24,6 +24,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
     }
 
     private companion object {
-        const val GRACE_MS = 3_000L
+        // Covers the auto switcher's start-up wait before a theme switches back (alarms are background
+        // broadcasts, which may take up to a minute).
+        const val GRACE_MS = 16_000L
     }
 }

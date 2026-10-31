@@ -34,6 +34,7 @@ import com.themelauncher.data.settings.SettingsRepository
 import com.themelauncher.data.themes.Theme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +44,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -98,9 +102,9 @@ class AutoSwitcher(
     private val heldSince = HashMap<Long, Long>()
 
     /** A prompt the user turned down; not asked again until the rules want something else. */
-    private var declined: Long? = null
+    @Volatile private var declined: Long? = null
 
-    private var latestThemes: List<Theme> = emptyList()
+    @Volatile private var latestThemes: List<Theme> = emptyList()
     private var scope: CoroutineScope? = null
 
     private val minuteTicks: Flow<LocalDateTime> = flow {
@@ -111,6 +115,7 @@ class AutoSwitcher(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun start(scope: CoroutineScope, themes: Flow<List<Theme>>) {
         this.scope = scope
         watchBluetooth()
@@ -118,15 +123,24 @@ class AutoSwitcher(
         watchWifi()
         watchHeadphones()
         watchCharging()
-        calendar.start(scope)
-        // Location is only watched while some theme has a place rule.
+        // Location and the calendar are only watched while some theme has such a rule.
         scope.launch(Dispatchers.Main) {
             themes.map { all -> all.any { t -> t.activeRules.any { it is ThemeRule.Location } } }
                 .distinctUntilChanged()
                 .collect(location::setActive)
         }
         scope.launch {
-            combine(themes, minuteTicks, conditions) { all, now, conditions ->
+            themes.map { all -> all.any { t -> t.activeRules.any { it is ThemeRule.Calendar } } }
+                .distinctUntilChanged()
+                .collect { calendar.setActive(scope, it) }
+        }
+        val started = System.currentTimeMillis()
+        // The clock only ticks while something depends on it: schedules, calendar events or a delay.
+        val clock = themes.map { all -> all.any { it.needsClock() } }.distinctUntilChanged().flatMapLatest { needed ->
+            if (needed) minuteTicks else flowOf(LocalDateTime.now())
+        }
+        scope.launch {
+            combine(themes, clock, conditions) { all, now, conditions ->
                 latestThemes = all
                 // The minute ticks stop if Android stops the launcher; an alarm restarts it for the next change.
                 scheduleWakeUp(all, now, conditions.events)
@@ -134,12 +148,26 @@ class AutoSwitcher(
             }
                 // Only the theme counts, not which of its rules explains it, so a change of reason doesn't re-trigger.
                 .distinctUntilChanged { a, b -> a?.themeId == b?.themeId }
+                // "Nothing applies" waits a moment: right after start the connections and the calendar are
+                // still being read, and a network or device can drop for a few seconds. Anything that
+                // applies again meanwhile cancels the wait.
+                .transformLatest { target ->
+                    if (target == null) {
+                        val sinceStart = System.currentTimeMillis() - started
+                        delay(if (sinceStart < STARTUP_GRACE_MS) STARTUP_GRACE_MS - sinceStart else END_GRACE_MS)
+                    }
+                    emit(target)
+                }
+                .distinctUntilChanged { a, b -> a?.themeId == b?.themeId }
                 .collect { target ->
                     _ruleTheme.value = target?.themeId
                     onRuleThemeChanged(target)
                 }
         }
     }
+
+    private fun Theme.needsClock(): Boolean =
+        automation.delayMinutes > 0 || activeRules.any { it is ThemeRule.Schedule || it is ThemeRule.Calendar }
 
     /** The user said yes to [prompt]. */
     fun acceptPrompt() {
@@ -415,6 +443,12 @@ class AutoSwitcher(
     private companion object {
         const val TAG = "AutoSwitcher"
         const val ALARM_WINDOW_MS = 60_000L
+
+        /** How long after start a "nothing applies" waits for the connections to be read. */
+        const val STARTUP_GRACE_MS = 12_000L
+
+        /** How long conditions must stay off before switching back. */
+        const val END_GRACE_MS = 20_000L
 
         val HEADPHONE_TYPES = buildSet {
             add(AudioDeviceInfo.TYPE_WIRED_HEADSET)

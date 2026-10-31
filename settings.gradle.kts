@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ThemeLauncher"
 include(":app")
+include(":baselineprofile")

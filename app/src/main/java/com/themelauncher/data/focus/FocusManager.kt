@@ -107,13 +107,21 @@ class FocusManager(private val context: Context) {
         allowances[block.app.key] = System.currentTimeMillis() + block.theme.focus.allowMinutes * 60_000L
     }
 
-    /** Minutes each package spent in the foreground today. Needs usage access. */
+    @Volatile private var usageCache: Pair<Long, Map<String, Int>>? = null
+
+    /** Minutes each package spent in the foreground today. Needs usage access. Cached briefly: it's a slow query. */
     suspend fun todayUsageMinutes(): Map<String, Int> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        usageCache?.let { (at, usage) -> if (now - at < USAGE_CACHE_MS) return@withContext usage }
         val manager = context.getSystemService(UsageStatsManager::class.java) ?: return@withContext emptyMap()
         val start = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         runCatching {
-            manager.queryAndAggregateUsageStats(start, System.currentTimeMillis())
+            manager.queryAndAggregateUsageStats(start, now)
                 .mapValues { (_, stats) -> (stats.totalTimeInForeground / 60_000L).toInt() }
-        }.getOrDefault(emptyMap())
+        }.getOrDefault(emptyMap()).also { usageCache = now to it }
+    }
+
+    private companion object {
+        const val USAGE_CACHE_MS = 30_000L
     }
 }

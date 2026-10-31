@@ -53,13 +53,19 @@ class HistoryRepository(private val dao: HistoryDao) {
     fun switches(now: Long = System.currentTimeMillis()): Flow<List<ThemeSwitchEntity>> =
         dao.observeSwitches(now - SuggestionEngine.SCHEDULE_LOOKBACK_DAYS * DAY_MS)
 
-    suspend fun recordLaunch(appKey: String, themeId: Long?, now: Long = System.currentTimeMillis()) =
+    suspend fun recordLaunch(appKey: String, themeId: Long?, now: Long = System.currentTimeMillis()) {
         dao.insertLaunch(LaunchEventEntity(appKey = appKey, themeId = themeId, time = now))
+        // The launcher's process can live for weeks; trim old history now and then, not only at start.
+        if (now - lastPrune > DAY_MS) prune(now)
+    }
+
+    @Volatile private var lastPrune = 0L
 
     suspend fun recordManualSwitch(themeId: Long, now: Long = System.currentTimeMillis()) =
         dao.insertSwitch(ThemeSwitchEntity(themeId = themeId, time = now))
 
     suspend fun prune(now: Long = System.currentTimeMillis()) {
+        lastPrune = now
         dao.pruneLaunches(now - KEEP_DAYS * DAY_MS)
         dao.pruneSwitches(now - KEEP_DAYS * DAY_MS)
     }
@@ -82,6 +88,7 @@ object SuggestionEngine {
 
     /** Switches within this many minutes of each other count as "around the same time". */
     private const val WINDOW_MINUTES = 60
+    private const val DAY_MS = 24 * 60 * 60 * 1000L
 
     fun compute(
         themes: List<Theme>,
@@ -93,9 +100,13 @@ object SuggestionEngine {
         /** Apps in the dock shown with a theme; they're always at hand, so never suggested. */
         dockOf: (Theme) -> Set<String>,
         zone: ZoneId = ZoneId.systemDefault(),
+        now: Long = System.currentTimeMillis(),
     ): List<Suggestion> = buildList {
-        if (settings.apps) addAll(appSuggestions(themes, launches, settings, appsOf, dockOf))
-        if (settings.schedules) addAll(scheduleSuggestions(themes, switches, settings, zone))
+        // The history may reach further back than the windows; only recent behaviour counts.
+        val recentLaunches = launches.filter { it.time >= now - LOOKBACK_DAYS * DAY_MS }
+        val recentSwitches = switches.filter { it.time >= now - SCHEDULE_LOOKBACK_DAYS * DAY_MS }
+        if (settings.apps) addAll(appSuggestions(themes, recentLaunches, settings, appsOf, dockOf))
+        if (settings.schedules) addAll(scheduleSuggestions(themes, recentSwitches, settings, zone))
     }
 
     private fun appSuggestions(

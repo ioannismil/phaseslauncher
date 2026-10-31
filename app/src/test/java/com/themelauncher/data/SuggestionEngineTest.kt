@@ -35,7 +35,7 @@ class SuggestionEngineTest {
         switches: List<ThemeSwitchEntity> = emptyList(),
         settings: SuggestionSettings = SuggestionSettings(),
         themes: List<Theme> = this.themes,
-    ) = SuggestionEngine.compute(themes, launches, switches, settings, { it.appKeys.toSet() }, { setOf("phone/.Main") }, zone)
+    ) = SuggestionEngine.compute(themes, launches, switches, settings, { it.appKeys.toSet() }, { setOf("phone/.Main") }, zone, now = at(4, 12))
 
     @Test
     fun anAppOpenedOftenOnAThemeIsSuggestedForIt() {
@@ -85,6 +85,12 @@ class SuggestionEngineTest {
         assertTrue(compute(switches = switches, themes = listOf(scheduled, social)).isEmpty())
         // Two days isn't a pattern yet.
         assertTrue(compute(switches = switches.take(2)).isEmpty())
+    }
+
+    @Test
+    fun oldHistoryDoesNotCount() {
+        val launches = List(6) { LaunchEventEntity(appKey = "slack/.Main", themeId = 1, time = at(-20, 9)) }
+        assertTrue(compute(launches).isEmpty())
     }
 
     @Test

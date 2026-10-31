@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -113,11 +112,12 @@ fun HomeScreen(
                 // Neither clock nor label: just clear the status bar.
                 Spacer(Modifier.height(8.dp))
             }
+            // Keeps the last banner to show while it animates away (a plain holder, not state: it
+            // only changes along with [banner], which already recomposes).
+            val lastBanner = remember { arrayOfNulls<HomeBanner>(1) }
+            if (banner != null) lastBanner[0] = banner
             AnimatedVisibility(visible = banner != null) {
-                // Keeps showing the last banner while it animates away.
-                val shown = remember { mutableStateOf(banner) }
-                if (banner != null) shown.value = banner
-                shown.value?.let { b ->
+                lastBanner[0]?.let { b ->
                     HomeBannerCard(
                         banner = b,
                         theme = state.themes.firstOrNull { it.id == b.themeId },

@@ -8,6 +8,8 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
+import android.os.Bundle
+import android.os.CancellationSignal
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -33,7 +35,20 @@ class LocationWatcher(private val context: Context) {
 
     private var listening = false
 
-    private val listener = LocationListener { location -> _fix.value = location.toFix() }
+    // Every method is overridden: before Android 11 they have no default implementations, and a
+    // provider being switched on or off would otherwise crash the launcher.
+    private val listener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            _fix.value = location.toFix()
+        }
+
+        override fun onProviderEnabled(provider: String) = Unit
+
+        override fun onProviderDisabled(provider: String) = Unit
+
+        @Deprecated("Deprecated in Java")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+    }
 
     fun hasPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -82,8 +97,9 @@ class LocationWatcher(private val context: Context) {
             val provider = preferredProvider(manager.getProviders(true)) ?: return lastKnown()
             val fresh = withTimeoutOrNull(CURRENT_TIMEOUT_MS) {
                 suspendCancellableCoroutine<Location?> { cont ->
-                    val executor = Executor { it.run() }
-                    runCatching { manager.getCurrentLocation(provider, null, executor) { cont.resume(it) } }
+                    val cancel = CancellationSignal()
+                    cont.invokeOnCancellation { cancel.cancel() }
+                    runCatching { manager.getCurrentLocation(provider, cancel, Executor { it.run() }) { cont.resume(it) } }
                         .onFailure { cont.resume(null) }
                 }
             }

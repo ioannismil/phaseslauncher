@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,23 +33,31 @@ class CalendarWatcher(private val context: Context) {
 
     private var scope: CoroutineScope? = null
     private var observing = false
+    private var polling: Job? = null
 
     fun hasPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
-    fun start(scope: CoroutineScope) {
+    /** Reads (and keeps re-reading) events only while some theme has a calendar rule. */
+    fun setActive(scope: CoroutineScope, active: Boolean) {
         this.scope = scope
-        scope.launch(Dispatchers.IO) {
-            while (true) {
-                refreshNow()
-                delay(REFRESH_MS)
+        polling?.cancel()
+        polling = if (active) {
+            scope.launch(Dispatchers.IO) {
+                while (true) {
+                    refreshNow()
+                    delay(REFRESH_MS)
+                }
             }
+        } else {
+            _events.value = emptyList()
+            null
         }
     }
 
     /** Call after the permission is granted, or when a calendar rule is added. */
     fun refresh() {
-        scope?.launch(Dispatchers.IO) { refreshNow() }
+        if (polling?.isActive == true) scope?.launch(Dispatchers.IO) { refreshNow() }
     }
 
     fun calendars(): List<CalendarInfo> {

@@ -1,6 +1,8 @@
 package com.themelauncher
 
 import android.app.Application
+import android.content.pm.ApplicationInfo
+import android.os.StrictMode
 import android.content.Context
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.apps.AppsRepository
@@ -50,6 +52,11 @@ class ThemeLauncherApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Debug builds log disk and network work on the main thread, and leaked resources.
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build())
+            StrictMode.setVmPolicy(StrictMode.VmPolicy.Builder().detectAll().penaltyLog().build())
+        }
         container = AppContainer(this)
     }
 }
