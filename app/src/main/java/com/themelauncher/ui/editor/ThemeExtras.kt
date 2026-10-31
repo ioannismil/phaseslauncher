@@ -1,5 +1,7 @@
 package com.themelauncher.ui.editor
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -31,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -40,6 +43,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -52,15 +56,24 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.focus.ThemeFocus
 import com.themelauncher.data.rules.BluetoothDeviceInfo
-import com.themelauncher.data.rules.ThemeRule
+import com.themelauncher.data.rules.CalendarInfo
+import com.themelauncher.data.rules.GeoFix
+import com.themelauncher.data.rules.RuleSetting
+import com.themelauncher.data.rules.ThemeAutomation
 import com.themelauncher.data.themes.SoundProfile
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
+import com.themelauncher.data.icons.IconPackInfo
+import com.themelauncher.data.settings.LauncherPrefs
+import com.themelauncher.data.themes.ThemeLook
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.DayOfWeek
-import java.time.format.TextStyle
-import java.util.Locale
 
 /** System-dependent bits the editor needs, supplied by the screen. */
 class ThemeEditorEnvironment(
@@ -69,10 +82,24 @@ class ThemeEditorEnvironment(
     val requestPolicyAccess: () -> Unit,
     val hasBluetoothPermission: () -> Boolean,
     val pairedDevices: () -> List<BluetoothDeviceInfo>,
+    val hasLocationPermission: () -> Boolean,
+    /** "Allow all the time", so place rules work while another app is open. */
+    val hasBackgroundLocation: () -> Boolean,
+    /** The connected Wi-Fi network's name, when Android reveals it. */
+    val currentWifiSsid: () -> String?,
+    val currentLocation: suspend () -> GeoFix?,
+    val onLocationGranted: () -> Unit,
+    val hasCalendarPermission: () -> Boolean,
+    val calendars: () -> List<CalendarInfo>,
+    val onCalendarGranted: () -> Unit,
+    val hasNotificationAccess: () -> Boolean,
+    val requestNotificationAccess: () -> Unit,
+    val hasUsageAccess: () -> Boolean,
+    val requestUsageAccess: () -> Unit,
+    val loadIconPacks: suspend () -> List<IconPackInfo>,
 )
 
-/** Wallpaper, dock, sound and automatic-switching options of a theme. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Wallpaper, look, dock, sound, automatic-switching and focus options of a theme. */
 @Composable
 fun ThemeExtras(
     env: ThemeEditorEnvironment,
@@ -82,8 +109,17 @@ fun ThemeExtras(
     onOwnDockChange: (Boolean) -> Unit,
     soundProfile: SoundProfile,
     onSoundProfileChange: (SoundProfile) -> Unit,
-    rules: List<ThemeRule>,
-    onRulesChange: (List<ThemeRule>) -> Unit,
+    rules: List<RuleSetting>,
+    onRulesChange: (List<RuleSetting>) -> Unit,
+    automation: ThemeAutomation,
+    onAutomationChange: (ThemeAutomation) -> Unit,
+    focus: ThemeFocus,
+    onFocusChange: (ThemeFocus) -> Unit,
+    allApps: List<AppInfo>,
+    iconPack: String?,
+    onIconPackChange: (String?) -> Unit,
+    gridLayout: String?,
+    onGridLayoutChange: (String?) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -93,34 +129,37 @@ fun ThemeExtras(
     var showSoundPicker by remember { mutableStateOf(false) }
 
     Column(Modifier.padding(horizontal = 24.dp)) {
-        SectionTitle("Wallpaper")
+        SectionTitle(stringResource(R.string.wallpaper))
         Row(verticalAlignment = Alignment.CenterVertically) {
             WallpaperThumb(wallpaperPath)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (wallpaperPath == null) "Keeps the current wallpaper" else "Applied when you switch to this theme",
+                    if (wallpaperPath == null) stringResource(R.string.keeps_the_current_wallpaper) else stringResource(R.string.applied_when_you_switch_to_this_theme),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row {
                     TextButton(onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                        Text(if (wallpaperPath == null) "Choose image" else "Change")
+                        Text(if (wallpaperPath == null) stringResource(R.string.choose_image) else stringResource(R.string.change))
                     }
-                    if (wallpaperPath != null) TextButton(onClick = { onWallpaperChange(null) }) { Text("Remove") }
+                    if (wallpaperPath != null) TextButton(onClick = { onWallpaperChange(null) }) { Text(stringResource(R.string.remove)) }
                 }
             }
         }
 
-        SectionTitle("Dock")
+        SectionTitle(stringResource(R.string.look))
+        ThemeLookOptions(env, iconPack, onIconPackChange, gridLayout, onGridLayoutChange)
+
+        SectionTitle(stringResource(R.string.dock))
         ToggleRow(
-            title = "Own dock",
-            subtitle = if (ownDock) "This theme has its own favorites" else "Uses the dock shared by all themes",
+            title = stringResource(R.string.own_dock),
+            subtitle = if (ownDock) stringResource(R.string.this_theme_has_its_own_favorites) else stringResource(R.string.uses_the_dock_shared_by_all_themes),
             checked = ownDock,
             onCheckedChange = onOwnDockChange,
         )
 
-        SectionTitle("Sound")
+        SectionTitle(stringResource(R.string.sound))
         Row(
             Modifier
                 .fillMaxWidth()
@@ -130,31 +169,34 @@ fun ThemeExtras(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("When this theme is on", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.when_this_theme_is_on), style = MaterialTheme.typography.bodyLarge)
                 Text(soundProfile.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
         }
         if (soundProfile.needsPolicyAccess && !policyAccess) {
             Text(
-                "Needs Do Not Disturb access to work.",
+                stringResource(R.string.needs_do_not_disturb_access_to_work),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
             TextButton(onClick = {
                 env.requestPolicyAccess()
                 policyAccess = env.hasPolicyAccess()
-            }) { Text("Allow access") }
+            }) { Text(stringResource(R.string.allow_access)) }
         }
 
-        SectionTitle("Switch automatically")
-        AutoSwitchRules(env, rules, onRulesChange)
+        SectionTitle(stringResource(R.string.switch_automatically))
+        AutomationSection(env, rules, onRulesChange, automation, onAutomationChange)
+
+        SectionTitle("Focus")
+        FocusSection(env, focus, onFocusChange, allApps)
         Spacer(Modifier.height(8.dp))
     }
 
     if (showSoundPicker) {
         AlertDialog(
             onDismissRequest = { showSoundPicker = false },
-            title = { Text("Sound when this theme is on") },
+            title = { Text(stringResource(R.string.sound_when_this_theme_is_on)) },
             text = {
                 Column {
                     SoundProfile.entries.forEach { profile ->
@@ -176,137 +218,123 @@ fun ThemeExtras(
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Switching to a theme that doesn't change sound puts back your own settings.",
+                        stringResource(R.string.switching_to_a_theme_that_doesn_t_change_sound_p),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { showSoundPicker = false }) { Text("Close") } },
+            confirmButton = { TextButton(onClick = { showSoundPicker = false }) { Text(stringResource(R.string.close)) } },
         )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+/** The theme's own icon pack and home grid, or the launcher settings. */
 @Composable
-private fun AutoSwitchRules(env: ThemeEditorEnvironment, rules: List<ThemeRule>, onRulesChange: (List<ThemeRule>) -> Unit) {
-    val schedule = rules.filterIsInstance<ThemeRule.Schedule>().firstOrNull()
-    val bluetooth = rules.filterIsInstance<ThemeRule.Bluetooth>().firstOrNull()
-    val controller = ThemeRule.Controller in rules
-    fun replace(type: Class<out ThemeRule>, rule: ThemeRule?) =
-        onRulesChange(rules.filterNot { type.isInstance(it) } + listOfNotNull(rule))
+private fun ThemeLookOptions(
+    env: ThemeEditorEnvironment,
+    iconPack: String?,
+    onIconPackChange: (String?) -> Unit,
+    gridLayout: String?,
+    onGridLayoutChange: (String?) -> Unit,
+) {
+    val packs by produceState(emptyList<IconPackInfo>()) { value = env.loadIconPacks() }
+    var pickingPack by remember { mutableStateOf(false) }
+    var pickingGrid by remember { mutableStateOf(false) }
 
-    var editingTime by remember { mutableStateOf<Boolean?>(null) } // true = start, false = end
-    var pickingDevice by remember { mutableStateOf(false) }
-    val bluetoothPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) pickingDevice = true
+    fun packLabel(pack: String?) = when (pack) {
+        null -> "Same as launcher settings"
+        ThemeLook.NO_ICON_PACK -> "App icons"
+        else -> packs.firstOrNull { it.packageName == pack }?.label ?: "Icon pack (not installed)"
     }
 
-    Text(
-        "Switches to this theme while a condition applies, then back to the theme you were on.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-
-    // Schedule
-    ToggleRow(
-        title = "On a schedule",
-        subtitle = schedule?.let { describe(it) } ?: "e.g. work hours",
-        checked = schedule != null,
-        onCheckedChange = { on -> replace(ThemeRule.Schedule::class.java, if (on) ThemeRule.WORK_HOURS else null) },
-    )
-    if (schedule != null) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            DayOfWeek.entries.forEach { day ->
-                FilterChip(
-                    selected = day in schedule.days,
-                    onClick = {
-                        val days = if (day in schedule.days) schedule.days - day else schedule.days + day
-                        if (days.isNotEmpty()) replace(ThemeRule.Schedule::class.java, schedule.copy(days = days))
-                    },
-                    label = { Text(day.getDisplayName(TextStyle.NARROW, Locale.getDefault())) },
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { editingTime = true }) { Text("From ${formatMinute(schedule.startMinute)}") }
-            OutlinedButton(onClick = { editingTime = false }) { Text("To ${formatMinute(schedule.endMinute)}") }
-        }
+    fun gridLabel(layout: String?) = when (layout) {
+        null -> "Same as launcher settings"
+        ThemeLook.GRID_FIT -> "Fit icons to the screen"
+        else -> "$layout columns"
     }
 
-    // Bluetooth
-    ToggleRow(
-        title = "When a Bluetooth device connects",
-        subtitle = bluetooth?.name ?: "e.g. your car or headphones",
-        checked = bluetooth != null,
-        onCheckedChange = { on ->
-            when {
-                !on -> replace(ThemeRule.Bluetooth::class.java, null)
-                env.hasBluetoothPermission() -> pickingDevice = true
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
-            }
-        },
-    )
+    ValueRow(stringResource(R.string.icon_pack), packLabel(iconPack)) { pickingPack = true }
+    ValueRow(stringResource(R.string.home_grid), gridLabel(gridLayout)) { pickingGrid = true }
 
-    // Controller
-    ToggleRow(
-        title = "When a game controller connects",
-        subtitle = "Any Bluetooth or USB gamepad",
-        checked = controller,
-        onCheckedChange = { on -> replace(ThemeRule.Controller::class.java, if (on) ThemeRule.Controller else null) },
-    )
-
-    editingTime?.let { isStart ->
-        val minute = if (isStart) schedule!!.startMinute else schedule!!.endMinute
-        val state = rememberTimePickerState(initialHour = minute / 60, initialMinute = minute % 60)
-        AlertDialog(
-            onDismissRequest = { editingTime = null },
-            title = { Text(if (isStart) "Start time" else "End time") },
-            text = { TimePicker(state = state) },
-            confirmButton = {
-                TextButton(onClick = {
-                    val picked = state.hour * 60 + state.minute
-                    replace(
-                        ThemeRule.Schedule::class.java,
-                        if (isStart) schedule.copy(startMinute = picked) else schedule.copy(endMinute = picked),
-                    )
-                    editingTime = null
-                }) { Text("OK") }
+    if (pickingPack) {
+        ChoiceDialog(
+            title = stringResource(R.string.icon_pack_for_this_theme),
+            options = listOf(null, ThemeLook.NO_ICON_PACK) + packs.map { it.packageName },
+            selected = iconPack,
+            label = ::packLabel,
+            onSelect = {
+                pickingPack = false
+                onIconPackChange(it)
             },
-            dismissButton = { TextButton(onClick = { editingTime = null }) { Text("Cancel") } },
+            onDismiss = { pickingPack = false },
         )
     }
+    if (pickingGrid) {
+        ChoiceDialog(
+            title = stringResource(R.string.home_grid_for_this_theme),
+            options = listOf(null, ThemeLook.GRID_FIT) + LauncherPrefs.COLUMN_RANGE.map { it.toString() },
+            selected = gridLayout,
+            label = ::gridLabel,
+            onSelect = {
+                pickingGrid = false
+                onGridLayoutChange(it)
+            },
+            onDismiss = { pickingGrid = false },
+        )
+    }
+}
 
-    if (pickingDevice) {
-        val devices = remember { env.pairedDevices() }
-        AlertDialog(
-            onDismissRequest = { pickingDevice = false },
-            title = { Text("Choose a device") },
-            text = {
-                Column {
-                    if (devices.isEmpty()) Text("No paired Bluetooth devices. Pair one in Settings first.")
-                    devices.forEach { device ->
-                        Text(
-                            device.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    replace(ThemeRule.Bluetooth::class.java, ThemeRule.Bluetooth(device.address, device.name))
-                                    pickingDevice = false
-                                }
-                                .padding(vertical = 12.dp),
-                        )
+@Composable
+internal fun ValueRow(title: String, value: String, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+internal fun <T> ChoiceDialog(
+    title: String,
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
+                options.forEach { option ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .selectable(option == selected, role = Role.RadioButton) { onSelect(option) },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = option == selected, onClick = null)
+                        Spacer(Modifier.width(16.dp))
+                        Text(label(option))
                     }
                 }
-            },
-            confirmButton = { TextButton(onClick = { pickingDevice = false }) { Text("Cancel") } },
-        )
-    }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable
-private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun ToggleRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -340,7 +368,7 @@ private fun WallpaperThumb(path: String?) {
     ) {
         val b = bitmap
         if (b != null) {
-            Image(b.asImageBitmap(), contentDescription = "Theme wallpaper", contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+            Image(b.asImageBitmap(), contentDescription = stringResource(R.string.theme_wallpaper), contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         } else {
             Icon(Icons.Outlined.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -357,9 +385,3 @@ private fun SectionTitle(text: String) {
     )
 }
 
-private fun formatMinute(minute: Int) = "%02d:%02d".format(minute / 60, minute % 60)
-
-private fun describe(schedule: ThemeRule.Schedule): String {
-    val days = DayOfWeek.entries.filter { it in schedule.days }.joinToString(" ") { it.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
-    return "$days, ${formatMinute(schedule.startMinute)}–${formatMinute(schedule.endMinute)}"
-}

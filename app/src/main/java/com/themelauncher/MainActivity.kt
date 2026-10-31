@@ -9,9 +9,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.themelauncher.ui.LauncherScreen
 import com.themelauncher.ui.components.LocalIconCache
 import com.themelauncher.ui.theme.ThemeLauncherTheme
+import com.themelauncher.ui.theme.isDark
 import com.themelauncher.ui.widgets.WidgetAddFlow
 
 class MainActivity : ComponentActivity() {
@@ -36,7 +40,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            ThemeLauncherTheme {
+            val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+            val darkTheme = prefs.appearance.isDark()
+            // Themed icons are light on dark in the dark theme, so they follow the chosen appearance.
+            SideEffect { appContainer.iconCache.setDarkTheme(darkTheme) }
+            ThemeLauncherTheme(darkTheme = darkTheme) {
                 CompositionLocalProvider(LocalIconCache provides appContainer.iconCache) {
                     LauncherScreen(viewModel, startWidgetAdd = widgetAddFlow::start)
                 }
@@ -48,6 +56,11 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         // Widgets only update while their host is listening.
         runCatching { appContainer.widgetRepository.host.startListening() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.onResumed()
     }
 
     override fun onNewIntent(intent: Intent) {

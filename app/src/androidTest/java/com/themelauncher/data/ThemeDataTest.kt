@@ -6,6 +6,13 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.themelauncher.data.db.FavoriteEntity
 import com.themelauncher.data.db.LauncherDatabase
+import com.themelauncher.data.focus.NotificationFilter
+import com.themelauncher.data.focus.ThemeFocus
+import com.themelauncher.data.rules.AutoPriority
+import com.themelauncher.data.rules.RuleMatch
+import com.themelauncher.data.rules.RuleSetting
+import com.themelauncher.data.rules.ThemeAutomation
+import com.themelauncher.data.items.FolderRepository
 import com.themelauncher.data.rules.ThemeRule
 import com.themelauncher.data.themes.AddFavoriteResult
 import com.themelauncher.data.themes.FavoritesRepository
@@ -112,7 +119,8 @@ class ThemeDataTest {
         val t = themes.createTheme("T", ThemeIconKey.Star, 1, listOf("kept/.A", "gone/.A", "gone/.B"))
         favorites.setFavorites(listOf("gone/.A", "kept/.A"))
         val installed = setOf("kept/.A")
-        val cleaner = UninstalledAppCleaner({ it in installed }, db)
+        val packages = installed.map { it.substringBefore('/') }.toSet()
+        val cleaner = UninstalledAppCleaner({ it in installed }, { pkg, _ -> pkg in packages }, db, FolderRepository(db))
 
         assertEquals(emptyList<String>(), cleaner.prune("kept"))
         val removed = cleaner.prune()
@@ -140,14 +148,29 @@ class ThemeDataTest {
 
     @Test
     fun themeExtrasAndRulesRoundTrip() = runTest {
-        val rules = listOf(ThemeRule.WORK_HOURS, ThemeRule.Controller, ThemeRule.Bluetooth("AA:BB", "Car"))
+        val rules = listOf(
+            RuleSetting(ThemeRule.WORK_HOURS),
+            RuleSetting(ThemeRule.Controller, enabled = false),
+            RuleSetting(ThemeRule.Bluetooth("AA:BB", "Car")),
+            RuleSetting(ThemeRule.Location("Gym", 51.5, -0.12, 200)),
+            RuleSetting(ThemeRule.Calendar(keywords = listOf("focus"), minutesBefore = 5)),
+        )
+        val automation = ThemeAutomation(priority = AutoPriority.High, match = RuleMatch.All, askFirst = true, delayMinutes = 5)
+        val focus = ThemeFocus(blockedApps = setOf("b/.B"), notificationFilter = NotificationFilter.ThemeApps, appLimits = mapOf("c/.C" to 30))
         val id = themes.createTheme(
-            ThemeDraft("Work", ThemeIconKey.Work, 2, listOf("a/.A"), "/w.img", SoundProfile.DndPriority, ownDock = true, rules = rules),
+            ThemeDraft(
+                "Work", ThemeIconKey.Work, 2, listOf("a/.A"), "/w.img", SoundProfile.DndPriority, ownDock = true,
+                rules = rules, automation = automation, focus = focus,
+            ),
         )
         val saved = themes.themes.first().single { it.id == id }
         assertEquals(SoundProfile.DndPriority, saved.soundProfile)
         assertEquals("/w.img", saved.wallpaperPath)
         assertTrue(saved.ownDock)
-        assertEquals(rules.toSet(), saved.rules.toSet())
+        assertEquals(rules, saved.rules)
+        assertEquals(automation, saved.automation)
+        assertEquals(focus, saved.focus)
+        // The disabled controller rule is kept but doesn't count.
+        assertTrue(ThemeRule.Controller !in saved.activeRules)
     }
 }

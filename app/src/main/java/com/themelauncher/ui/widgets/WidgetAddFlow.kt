@@ -1,5 +1,7 @@
 package com.themelauncher.ui.widgets
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo

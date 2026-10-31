@@ -1,5 +1,7 @@
 package com.themelauncher.ui.onboarding
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -80,22 +82,34 @@ import com.themelauncher.data.apps.filterApps
 import com.themelauncher.data.themes.ThemeDefaults
 import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.data.themes.ThemeIconKey
+import com.themelauncher.data.importer.LauncherLayout
+import com.themelauncher.data.importer.LayoutImportOptions
+import com.themelauncher.data.rules.RuleMatch
+import com.themelauncher.data.rules.RuleText
+import com.themelauncher.ui.editor.ThemeEditorEnvironment
+import com.themelauncher.ui.editor.ThemeEditorSheet
+import com.themelauncher.ui.importer.LauncherImportDialog
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.themelauncher.ui.components.AppIcon
 import com.themelauncher.ui.theme.contentColorOn
 import com.themelauncher.ui.theme.imageVector
 
 private enum class Step { Welcome, Favorites, Themes, DefaultHome }
 
-/** A theme the user may create during setup: a preset (renamable) or a custom one. */
-private class ThemeChoice(
-    name: String,
-    val icon: ThemeIconKey,
-    val accentColor: Int,
-    val suggested: List<AppInfo>,
-    selected: Boolean,
-) {
-    var name by mutableStateOf(name)
+/** A theme the user may create during setup: a preset (renamable, fully customizable) or a custom one. */
+private class ThemeChoice(draft: ThemeDraft, selected: Boolean) {
+    var draft by mutableStateOf(draft)
     var selected by mutableStateOf(selected)
+    var name: String
+        get() = draft.name
+        set(value) {
+            draft = draft.copy(name = value)
+        }
 }
 
 /**
@@ -109,14 +123,29 @@ fun OnboardingScreen(
     onComplete: (favoriteKeys: List<String>, themes: List<ThemeDraft>) -> Unit,
     onSkip: () -> Unit,
     onFinished: () -> Unit,
+    editorEnv: ThemeEditorEnvironment,
+    readLauncherBackup: suspend (Uri) -> Result<LauncherLayout>,
+    onImportLayout: (LauncherLayout, LayoutImportOptions) -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(Step.Welcome) }
     val favorites = remember { initialFavorites.toMutableStateList() }
     val choices = remember(allApps.isEmpty()) {
-        ThemeDefaults.Presets.map { preset ->
+        ThemeDefaults.Presets.mapNotNull { preset ->
             val suggested = preset.suggest(allApps)
-            ThemeChoice(preset.name, preset.icon, preset.accentColor, suggested, selected = suggested.isNotEmpty())
+            if (suggested.isEmpty() && !preset.alwaysOffer) return@mapNotNull null
+            ThemeChoice(preset.toDraft(suggested.map { it.key }), selected = suggested.isNotEmpty() && !preset.alwaysOffer)
         }.toMutableStateList()
+    }
+    var customizing by remember { mutableStateOf<ThemeChoice?>(null) }
+    val scope = rememberCoroutineScope()
+    var importedLayout by remember { mutableStateOf<LauncherLayout?>(null) }
+    var importError by remember { mutableStateOf<String?>(null) }
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                readLauncherBackup(uri).onSuccess { importedLayout = it }.onFailure { importError = it.message }
+            }
+        }
     }
 
     // Back steps backwards; once themes are created there's nothing to undo.
@@ -149,10 +178,18 @@ fun OnboardingScreen(
                 when (current) {
                     Step.Welcome -> WelcomeStep()
                     Step.Favorites -> FavoritesStep(allApps, favorites)
-                    Step.Themes -> ThemesStep(choices, onAddCustom = {
-                        val color = ThemeDefaults.AccentColors[(choices.size * 3) % ThemeDefaults.AccentColors.size]
-                        choices += ThemeChoice("My theme", ThemeIconKey.Star, color, emptyList(), selected = true)
-                    })
+                    Step.Themes -> ThemesStep(
+                        choices = choices,
+                        apps = allApps,
+                        onAddCustom = {
+                            val color = ThemeDefaults.AccentColors[(choices.size * 3) % ThemeDefaults.AccentColors.size]
+                            val choice = ThemeChoice(ThemeDraft("My theme", ThemeIconKey.Star, color), selected = true)
+                            choices += choice
+                            customizing = choice
+                        },
+                        onCustomize = { customizing = it },
+                        onImport = { pickBackup.launch(arrayOf("*/*")) },
+                    )
                     Step.DefaultHome -> DefaultHomeStep()
                 }
             }
@@ -163,38 +200,75 @@ fun OnboardingScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 when (step) {
-                    Step.Welcome -> TextButton(onClick = onSkip) { Text("Skip setup") }
-                    Step.Favorites, Step.Themes -> TextButton(onClick = { step = Step.entries[step.ordinal - 1] }) { Text("Back") }
+                    Step.Welcome -> TextButton(onClick = onSkip) { Text(stringResource(R.string.skip_setup)) }
+                    Step.Favorites, Step.Themes -> TextButton(onClick = { step = Step.entries[step.ordinal - 1] }) { Text(stringResource(R.string.back)) }
                     Step.DefaultHome -> Unit
                 }
                 Spacer(Modifier.weight(1f))
                 when (step) {
-                    Step.Welcome -> Button(onClick = { step = Step.Favorites }) { Text("Get started") }
+                    Step.Welcome -> Button(onClick = { step = Step.Favorites }) { Text(stringResource(R.string.get_started)) }
                     Step.Favorites -> Button(onClick = { step = Step.Themes }) {
-                        Text(if (favorites.isEmpty()) "Skip" else "Next")
+                        Text(if (favorites.isEmpty()) stringResource(R.string.skip) else stringResource(R.string.next))
                     }
                     Step.Themes -> {
                         val count = choices.count { it.selected && it.name.isNotBlank() }
                         Button(onClick = {
-                            val drafts = choices.filter { it.selected && it.name.isNotBlank() }.map {
-                                ThemeDraft(it.name.trim(), it.icon, it.accentColor, it.suggested.map { app -> app.key })
-                            }
+                            val drafts = choices.filter { it.selected && it.name.isNotBlank() }.map { it.draft.copy(name = it.name.trim()) }
                             onComplete(favorites.toList(), drafts)
                             step = Step.DefaultHome
                         }) {
                             Text(
                                 when (count) {
-                                    0 -> "Skip"
-                                    1 -> "Create theme"
+                                    0 -> stringResource(R.string.skip)
+                                    1 -> stringResource(R.string.create_theme)
                                     else -> "Create $count themes"
                                 },
                             )
                         }
                     }
-                    Step.DefaultHome -> Button(onClick = onFinished) { Text("Finish") }
+                    Step.DefaultHome -> Button(onClick = onFinished) { Text(stringResource(R.string.finish)) }
                 }
             }
         }
+    }
+
+    customizing?.let { choice ->
+        ThemeEditorSheet(
+            initial = choice.draft,
+            allApps = allApps,
+            env = editorEnv,
+            title = "Customize ${choice.name}",
+            saveLabel = stringResource(R.string.save),
+            onSave = { draft ->
+                choice.draft = draft
+                choice.selected = true
+                customizing = null
+            },
+            onDismiss = { customizing = null },
+        )
+    }
+
+    importedLayout?.let { layout ->
+        LauncherImportDialog(
+            layout = layout,
+            onImport = { options ->
+                importedLayout = null
+                // The backup's dock replaces the favorites picked here, if it brings one.
+                onComplete(if (options.importDock && layout.dock.isNotEmpty()) emptyList() else favorites.toList(), emptyList())
+                onImportLayout(layout, options)
+                step = Step.DefaultHome
+            },
+            onDismiss = { importedLayout = null },
+        )
+    }
+
+    importError?.let { error ->
+        AlertDialog(
+            onDismissRequest = { importError = null },
+            title = { Text("Couldn't import") },
+            text = { Text(error) },
+            confirmButton = { TextButton(onClick = { importError = null }) { Text("OK") } },
+        )
     }
 }
 
@@ -207,7 +281,7 @@ private fun WelcomeStep() {
     ) {
         // A miniature of the theme switcher: three themes, one active.
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            ThemeDefaults.Presets.forEachIndexed { index, preset ->
+            ThemeDefaults.Presets.take(3).forEachIndexed { index, preset ->
                 val active = index == 1
                 Box(
                     Modifier
@@ -225,11 +299,11 @@ private fun WelcomeStep() {
             }
         }
         Spacer(Modifier.height(32.dp))
-        Text("Welcome to ThemeLauncher", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.welcome_to_themelauncher), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
         Text(
-            "Group your apps into themes like Gaming or Work and switch between them with one tap. " +
-                "Your favorites stay in the dock on every theme.",
+            stringResource(R.string.group_your_apps_into_themes_like_gaming_or_work) +
+                stringResource(R.string.your_favorites_stay_in_the_dock_on_every_theme),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -246,7 +320,7 @@ private fun FavoritesStep(allApps: List<AppInfo>, favorites: MutableList<String>
 
     Column(Modifier.fillMaxSize()) {
         StepHeader(
-            title = "Pick your favorites",
+            title = stringResource(R.string.pick_your_favorites),
             body = "Up to ${ThemeDefaults.MAX_FAVORITES} apps for the dock. They stay put whichever theme you're on.",
         )
         // The dock as it will look, in order. Tap an icon to remove it.
@@ -302,29 +376,41 @@ private fun FavoritesStep(allApps: List<AppInfo>, favorites: MutableList<String>
 }
 
 @Composable
-private fun ThemesStep(choices: MutableList<ThemeChoice>, onAddCustom: () -> Unit) {
+private fun ThemesStep(
+    choices: MutableList<ThemeChoice>,
+    apps: List<AppInfo>,
+    onAddCustom: () -> Unit,
+    onCustomize: (ThemeChoice) -> Unit,
+    onImport: () -> Unit,
+) {
+    val byKey = remember(apps) { apps.associateBy { it.key } }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
         item {
             StepHeader(
-                title = "Create your themes",
-                body = "Start from these suggestions; rename them or untick the ones you don't need. " +
-                    "You can change everything later by long-pressing a theme.",
+                title = stringResource(R.string.create_your_themes),
+                body = stringResource(R.string.start_from_these_suggestions_rename_them_or_unti) +
+                    stringResource(R.string.you_can_change_everything_later_by_long_pressing),
             )
+            TextButton(onClick = onImport, modifier = Modifier.padding(horizontal = 16.dp)) {
+                Text("Coming from Nova or another launcher? Import its home screen")
+            }
         }
-        itemsIndexed(choices) { _, choice -> ThemeChoiceCard(choice) }
+        itemsIndexed(choices) { _, choice -> ThemeChoiceCard(choice, byKey) { onCustomize(choice) } }
         item {
             TextButton(onClick = onAddCustom, modifier = Modifier.padding(horizontal = 16.dp)) {
                 Icon(Icons.Rounded.Add, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
-                Text("Add another theme")
+                Text(stringResource(R.string.add_another_theme))
             }
         }
     }
 }
 
 @Composable
-private fun ThemeChoiceCard(choice: ThemeChoice) {
-    val accent = Color(choice.accentColor)
+private fun ThemeChoiceCard(choice: ThemeChoice, apps: Map<String, AppInfo>, onCustomize: () -> Unit) {
+    val draft = choice.draft
+    val accent = Color(draft.accentColor)
+    val suggested = remember(draft.appKeys, apps) { draft.appKeys.mapNotNull(apps::get) }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(
@@ -338,7 +424,7 @@ private fun ThemeChoiceCard(choice: ThemeChoice) {
                     Modifier.size(40.dp).clip(CircleShape).background(accent),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(choice.icon.imageVector, contentDescription = null, tint = contentColorOn(accent))
+                    Icon(draft.icon.imageVector, contentDescription = null, tint = contentColorOn(accent))
                 }
                 Spacer(Modifier.size(12.dp))
                 TextField(
@@ -354,27 +440,43 @@ private fun ThemeChoiceCard(choice: ThemeChoice) {
                     modifier = Modifier.weight(1f),
                 )
             }
-            if (choice.suggested.isNotEmpty()) {
+            if (suggested.isNotEmpty()) {
                 LazyRow(
                     contentPadding = PaddingValues(start = 48.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(top = 8.dp),
                 ) {
-                    items(choice.suggested, key = { it.key }) { AppIcon(it, size = 32.dp) }
+                    items(suggested, key = { it.key }) { AppIcon(it, size = 32.dp) }
                 }
                 Text(
-                    text = if (choice.suggested.size == 1) "1 suggested app" else "${choice.suggested.size} suggested apps",
+                    text = if (suggested.size == 1) stringResource(R.string.t_1_suggested_app) else "${suggested.size} suggested apps",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 48.dp, top = 6.dp),
                 )
             } else {
                 Text(
-                    text = "No matching apps found — you can add some later",
+                    text = stringResource(R.string.no_matching_apps_found_you_can_add_some_later),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 48.dp, top = 4.dp),
                 )
+            }
+            val enabledRules = draft.rules.filter { it.enabled }
+            Text(
+                text = if (enabledRules.isEmpty()) {
+                    "Switch by hand"
+                } else {
+                    "Switches: " + enabledRules.joinToString(if (draft.automation.match == RuleMatch.All) " and " else " or ") {
+                        RuleText.describe(it.rule)
+                    }
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 48.dp, top = 6.dp),
+            )
+            TextButton(onClick = onCustomize, modifier = Modifier.padding(start = 36.dp)) {
+                Text("Customize apps, switching and focus")
             }
         }
     }
@@ -397,26 +499,26 @@ private fun DefaultHomeStep() {
         )
         Spacer(Modifier.height(24.dp))
         if (defaultHome.isDefault) {
-            Text("You're all set", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.you_re_all_set), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             Spacer(Modifier.height(12.dp))
             Text(
-                "ThemeLauncher is your home app. Press Home any time to come back here.",
+                stringResource(R.string.themelauncher_is_your_home_app_press_home_any_ti),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         } else {
-            Text("Make it your home screen", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.make_it_your_home_screen), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             Spacer(Modifier.height(12.dp))
             Text(
-                "Set ThemeLauncher as your default home app so the Home button brings you here.",
+                stringResource(R.string.set_themelauncher_as_your_default_home_app_so_th),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(24.dp))
-            Button(onClick = defaultHome.request) { Text("Set as default home app") }
-            TextButton(onClick = { openHomeSettings(context) }) { Text("Open system settings instead") }
+            Button(onClick = defaultHome.request) { Text(stringResource(R.string.set_as_default_home_app)) }
+            TextButton(onClick = { openHomeSettings(context) }) { Text(stringResource(R.string.open_system_settings_instead)) }
         }
     }
 }
@@ -436,7 +538,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, modifier
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text("Search apps") },
+        placeholder = { Text(stringResource(R.string.search_apps)) },
         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
         singleLine = true,
         shape = CircleShape,

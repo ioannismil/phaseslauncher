@@ -1,5 +1,7 @@
 package com.themelauncher.ui.home
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.Rect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -19,12 +21,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.ui.components.AppAction
 import com.themelauncher.ui.components.AppMenuState
 import com.themelauncher.ui.components.AppTileWithMenu
+import com.themelauncher.ui.components.LocalExternalDrag
 import com.themelauncher.ui.components.rememberReorderState
 import com.themelauncher.ui.components.reorderContainer
 import com.themelauncher.ui.components.reorderItem
@@ -44,8 +49,11 @@ fun FavoritesDock(
     val wallpaper = LocalWallpaperContent.current
     val menuState = remember { AppMenuState() }
     val reorder = rememberReorderState(favorites.map { it.key }, onReorder)
+    val externalDrag = LocalExternalDrag.current
     Box(
         modifier = modifier
+            // Apps carried from the drawer can be dropped here.
+            .onGloballyPositioned { externalDrag?.dockBounds = it.boundsInWindow() }
             .fillMaxWidth()
             .heightIn(min = 80.dp)
             .clip(RoundedCornerShape(28.dp))
@@ -57,7 +65,7 @@ fun FavoritesDock(
     ) {
         if (favorites.isEmpty()) {
             Text(
-                text = "Your dock is empty. Long-press an app in the drawer to add favorites.",
+                text = stringResource(R.string.your_dock_is_empty_long_press_an_app_in_the_draw),
                 style = MaterialTheme.typography.bodySmall.onWallpaper(wallpaper),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),

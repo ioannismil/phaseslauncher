@@ -1,5 +1,7 @@
 package com.themelauncher.ui.editor
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +25,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
@@ -59,12 +62,16 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.items.ItemKeys
 import com.themelauncher.data.apps.filterApps
 import com.themelauncher.data.themes.ThemeDefaults
 import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.data.themes.ThemeIconKey
 import com.themelauncher.data.themes.ThemePreset
 import com.themelauncher.data.themes.SoundProfile
+import com.themelauncher.data.focus.ThemeFocus
+import com.themelauncher.data.rules.RuleSetting
+import com.themelauncher.data.rules.ThemeAutomation
 import com.themelauncher.ui.components.AppIcon
 import com.themelauncher.ui.theme.contentColorOn
 import com.themelauncher.ui.theme.imageVector
@@ -83,6 +90,15 @@ fun ThemeEditorSheet(
     onDismiss: () -> Unit,
     /** Accents already taken by other themes; a new theme starts on the first free one. */
     usedColors: Set<Int> = emptySet(),
+    /** Apps in this theme's folders, with the folder's name. They show as selected. */
+    folderMembers: Map<String, String> = emptyMap(),
+    /** Folder apps that were unchecked, to take out of their folders. */
+    onFolderAppsRemoved: (Set<String>) -> Unit = {},
+    /** Shares the saved theme; null for a new one. */
+    onShare: (() -> Unit)? = null,
+    /** Title override, e.g. while customizing a suggested theme during setup. */
+    title: String? = null,
+    saveLabel: String? = null,
 ) {
     val isNew = initial == null
     var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
@@ -94,12 +110,16 @@ fun ThemeEditorSheet(
                 ?: ThemeDefaults.AccentColors[usedColors.size % ThemeDefaults.AccentColors.size],
         )
     }
-    val selected = rememberSaveable(saver = stringListSaver) { initial?.appKeys.orEmpty().toMutableStateList() }
+    val selected = rememberSaveable(saver = stringListSaver) { (initial?.appKeys.orEmpty() + folderMembers.keys).toMutableStateList() }
     var query by rememberSaveable { mutableStateOf("") }
     var wallpaperPath by rememberSaveable { mutableStateOf(initial?.wallpaperPath) }
     var ownDock by rememberSaveable { mutableStateOf(initial?.ownDock ?: false) }
     var soundProfile by rememberSaveable { mutableStateOf(initial?.soundProfile ?: SoundProfile.Unchanged) }
     var rules by remember { mutableStateOf(initial?.rules.orEmpty()) }
+    var automation by remember { mutableStateOf(initial?.automation ?: ThemeAutomation()) }
+    var focus by remember { mutableStateOf(initial?.focus ?: ThemeFocus()) }
+    var iconPack by rememberSaveable { mutableStateOf(initial?.iconPack) }
+    var gridLayout by rememberSaveable { mutableStateOf(initial?.gridLayout) }
 
     val visibleApps = remember(allApps, query) { filterApps(allApps, query) }
 
@@ -107,8 +127,10 @@ fun ThemeEditorSheet(
         // Keep the existing order and append newly checked apps alphabetically.
         val chosen = selected.toSet()
         val kept = initial?.appKeys.orEmpty().filter { it in chosen }
-        val added = allApps.map { it.key }.filter { it in chosen && it !in kept }
-        onSave(ThemeDraft(name.trim(), icon, color, kept + added, wallpaperPath, soundProfile, ownDock, rules))
+        val added = allApps.map { it.key }.filter { it in chosen && it !in kept && it !in folderMembers }
+        val removedFromFolders = folderMembers.keys - chosen
+        if (removedFromFolders.isNotEmpty()) onFolderAppsRemoved(removedFromFolders)
+        onSave(ThemeDraft(name.trim(), icon, color, kept + added, wallpaperPath, soundProfile, ownDock, rules, iconPack, gridLayout, automation, focus))
     }
 
     ModalBottomSheet(
@@ -125,6 +147,8 @@ fun ThemeEditorSheet(
                 item(key = "details") {
                     ThemeDetails(
                         isNew = isNew,
+                        title = title,
+                        onShare = onShare,
                         name = name,
                         onNameChange = { name = it.take(MAX_NAME_LENGTH) },
                         icon = icon,
@@ -135,6 +159,11 @@ fun ThemeEditorSheet(
                             name = preset.name
                             icon = preset.icon
                             color = preset.accentColor
+                            // The preset's starting rules, sound and matching apps; all can be changed below.
+                            rules = preset.rules.map { RuleSetting(it) }
+                            automation = preset.automation
+                            soundProfile = preset.soundProfile
+                            if (selected.isEmpty()) selected.addAll(preset.suggest(allApps).map { it.key })
                         },
                     )
                 }
@@ -149,21 +178,32 @@ fun ThemeEditorSheet(
                         onSoundProfileChange = { soundProfile = it },
                         rules = rules,
                         onRulesChange = { rules = it },
+                        automation = automation,
+                        onAutomationChange = { automation = it },
+                        focus = focus,
+                        onFocusChange = { focus = it },
+                        allApps = allApps,
+                        iconPack = iconPack,
+                        onIconPackChange = { iconPack = it },
+                        gridLayout = gridLayout,
+                        onGridLayoutChange = { gridLayout = it },
                     )
                 }
                 item(key = "appsHeader") {
                     Column(Modifier.padding(horizontal = 24.dp)) {
+                        // Folders and pinned shortcuts are kept but not counted; only apps are listed here.
+                        val appCount = selected.count(ItemKeys::isApp)
                         SectionTitle(
-                            when (selected.size) {
-                                0 -> "Apps"
-                                1 -> "Apps · 1 selected"
-                                else -> "Apps · ${selected.size} selected"
+                            when (appCount) {
+                                0 -> stringResource(R.string.apps)
+                                1 -> stringResource(R.string.apps_1_selected)
+                                else -> "Apps · $appCount selected"
                             },
                         )
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
-                            placeholder = { Text("Search apps") },
+                            placeholder = { Text(stringResource(R.string.search_apps)) },
                             leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                             singleLine = true,
                             shape = CircleShape,
@@ -175,6 +215,7 @@ fun ThemeEditorSheet(
                 items(visibleApps, key = { it.key }) { app ->
                     AppCheckRow(
                         app = app,
+                        folder = folderMembers[app.key],
                         checked = app.key in selected,
                         onCheckedChange = { if (it) selected += app.key else selected -= app.key },
                     )
@@ -188,9 +229,11 @@ fun ThemeEditorSheet(
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 Spacer(Modifier.size(8.dp))
-                Button(onClick = ::save, enabled = name.isNotBlank()) { Text(if (isNew) "Create" else "Save") }
+                Button(onClick = ::save, enabled = name.isNotBlank()) {
+                    Text(saveLabel ?: if (isNew) stringResource(R.string.create) else stringResource(R.string.save))
+                }
             }
         }
     }
@@ -200,6 +243,8 @@ fun ThemeEditorSheet(
 @Composable
 private fun ThemeDetails(
     isNew: Boolean,
+    title: String?,
+    onShare: (() -> Unit)?,
     name: String,
     onNameChange: (String) -> Unit,
     icon: ThemeIconKey,
@@ -209,7 +254,20 @@ private fun ThemeDetails(
     onPreset: (ThemePreset) -> Unit,
 ) {
     Column(Modifier.padding(horizontal = 24.dp)) {
-        Text(if (isNew) "New theme" else "Edit theme", style = MaterialTheme.typography.headlineSmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                title ?: if (isNew) stringResource(R.string.new_theme) else stringResource(R.string.edit_theme),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.weight(1f),
+            )
+            if (onShare != null) {
+                TextButton(onClick = onShare) {
+                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text("Share")
+                }
+            }
+        }
         Spacer(Modifier.height(16.dp))
 
         if (isNew) {
@@ -228,13 +286,13 @@ private fun ThemeDetails(
         OutlinedTextField(
             value = name,
             onValueChange = onNameChange,
-            label = { Text("Name") },
+            label = { Text(stringResource(R.string.name)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
             modifier = Modifier.fillMaxWidth(),
         )
 
-        SectionTitle("Icon")
+        SectionTitle(stringResource(R.string.icon))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -262,7 +320,7 @@ private fun ThemeDetails(
             }
         }
 
-        SectionTitle("Color")
+        SectionTitle(stringResource(R.string.color))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -291,7 +349,7 @@ private fun ThemeDetails(
 }
 
 @Composable
-private fun AppCheckRow(app: AppInfo, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun AppCheckRow(app: AppInfo, folder: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -301,13 +359,23 @@ private fun AppCheckRow(app: AppInfo, checked: Boolean, onCheckedChange: (Boolea
     ) {
         AppIcon(app, size = 36.dp)
         Spacer(Modifier.size(16.dp))
-        Text(
-            text = app.label,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = app.label,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (folder != null) {
+                Text(
+                    "In folder \u201c$folder\u201d",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Checkbox(checked = checked, onCheckedChange = null)
     }
 }

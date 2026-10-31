@@ -1,5 +1,7 @@
 package com.themelauncher.ui.widgets
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -74,7 +76,7 @@ fun HomeWidget(widget: ThemeWidget, canMoveUp: Boolean, canMoveDown: Boolean, mo
             WidgetSize.entries.forEach { size ->
                 DropdownMenuItem(
                     text = { Text(size.label) },
-                    leadingIcon = { if (size.heightDp == widget.heightDp) Icon(Icons.Rounded.Check, contentDescription = "Current size") },
+                    leadingIcon = { if (size.heightDp == widget.heightDp) Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.current_size)) },
                     onClick = {
                         menuOpen = false
                         host.onResize(widget, size.heightDp)
@@ -84,20 +86,20 @@ fun HomeWidget(widget: ThemeWidget, canMoveUp: Boolean, canMoveDown: Boolean, mo
             HorizontalDivider()
             if (canMoveUp) {
                 DropdownMenuItem(
-                    text = { Text("Move up") },
+                    text = { Text(stringResource(R.string.move_up)) },
                     leadingIcon = { Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = null) },
                     onClick = { menuOpen = false; host.onMove(widget, -1) },
                 )
             }
             if (canMoveDown) {
                 DropdownMenuItem(
-                    text = { Text("Move down") },
+                    text = { Text(stringResource(R.string.move_down)) },
                     leadingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null) },
                     onClick = { menuOpen = false; host.onMove(widget, 1) },
                 )
             }
             DropdownMenuItem(
-                text = { Text("Remove widget") },
+                text = { Text(stringResource(R.string.remove_widget)) },
                 leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
                 onClick = { menuOpen = false; host.onRemove(widget) },
             )

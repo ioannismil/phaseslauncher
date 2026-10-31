@@ -24,7 +24,6 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Drag-to-reorder for a set of items identified by string keys, in any layout (lazy grid or row).
@@ -32,11 +31,21 @@ import kotlinx.coroutines.withTimeoutOrNull
  * The gesture is long-press-then-move, so it coexists with an item's own tap and long-press
  * menu: a long press without moving still opens the menu; moving after the long press closes
  * it and picks the item up. The new order is shown immediately and handed to [onCommit] on drop.
+ *
+ * With merging on ([onMerge] set), holding the dragged item over the middle of another one for a
+ * moment marks that one as a merge target (it grows), and dropping there calls [onMerge] instead
+ * (e.g. to make a folder). Reordering then waits for the finger to rest briefly on an item's edge,
+ * so the finger can travel to an item's middle without shuffling everything on the way.
  */
 @Stable
 class ReorderState internal constructor() {
     internal var onCommit: (List<String>) -> Unit = {}
     internal var onMove: () -> Unit = {}
+
+    /** Called on a drop onto a merge target with the order at that moment, the dragged key and the target key. */
+    internal var onMerge: ((List<String>, String, String) -> Unit)? = null
+    internal var canMerge: (dragged: String, target: String) -> Boolean = { _, _ -> true }
+    internal var onMergeReady: () -> Unit = {}
     internal var sourceKeys: List<String> = emptyList()
 
     /** Item bounds in window coordinates, excluding the drag translation. */
@@ -46,8 +55,20 @@ class ReorderState internal constructor() {
     internal val blockers = mutableStateMapOf<String, Rect>()
     internal var containerOrigin = Offset.Zero
 
+    /** How the layout reads: rows stacked bottom-up, and/or items running right to left. */
+    var rowsUpward = false
+    var rightToLeft = false
+
     var draggingKey by mutableStateOf<String?>(null)
         private set
+
+    /** The item the dragged one would be merged into if dropped now. */
+    var mergeTargetKey by mutableStateOf<String?>(null)
+        private set
+
+    private var hoverKey: String? = null
+    private var hoverInMiddle = false
+    private var hoverSince = 0L
 
     /** Order shown while dragging, and after a drop until the source list catches up. */
     private var order by mutableStateOf<List<String>?>(null)
@@ -71,6 +92,29 @@ class ReorderState internal constructor() {
 
     internal fun keyAt(window: Offset): String? = bounds.entries.firstOrNull { it.value.contains(window) }?.key
 
+    /** The item whose middle (its icon, roughly) is under [window], if any. */
+    fun keyInMiddleAt(window: Offset): String? = bounds.entries.firstOrNull { (_, r) -> r.contains(window) && isInMiddle(r, window) }?.key
+
+    /** Where an item dropped at [window] goes in [keys] (reading order), excluding [except]. */
+    fun dropIndex(window: Offset, keys: List<String>, except: String? = null): Int {
+        val placed = keys.filter { it != except }
+        val index = placed.indexOfFirst { key ->
+            val r = bounds[key] ?: return@indexOfFirst false
+            // Before an item on an earlier row, or before an item on this row whose middle is past the finger.
+            val earlierRow = if (rowsUpward) window.y > r.bottom else window.y < r.top
+            val sameRow = window.y >= r.top && window.y <= r.bottom
+            val beforeMiddle = if (rightToLeft) window.x > r.center.x else window.x < r.center.x
+            earlierRow || (sameRow && beforeMiddle)
+        }
+        return if (index < 0) placed.size else index
+    }
+
+    private fun isInMiddle(r: Rect, window: Offset): Boolean {
+        // The icon sits in the upper part of a tile, above its label.
+        val middle = Offset(r.center.x, r.top + r.height * 0.42f)
+        return (window - middle).getDistance() < minOf(r.width, r.height) * MIDDLE_FRACTION
+    }
+
     internal fun start(key: String, window: Offset) {
         val itemBounds = bounds[key] ?: return
         startOrder = order ?: sourceKeys
@@ -81,7 +125,7 @@ class ReorderState internal constructor() {
         grab = window - itemBounds.topLeft
     }
 
-    internal fun dragTo(window: Offset) {
+    internal fun dragTo(window: Offset, now: Long = nowMillis()) {
         pointer = window
         val dragging = draggingKey ?: return
         // The item we just swapped with animates through the finger on its way to its new slot;
@@ -89,7 +133,47 @@ class ReorderState internal constructor() {
         lastSwapped?.let { if (bounds[it]?.contains(window) != true) lastSwapped = null }
         val target = bounds.entries
             .firstOrNull { it.key != dragging && it.key != lastSwapped && it.value.contains(window) }
-            ?.key ?: return
+            ?.key
+        if (onMerge == null) {
+            if (target != null) swap(dragging, target)
+            return
+        }
+        if (target == null) {
+            clearHover()
+            return
+        }
+        val inMiddle = isInMiddle(bounds.getValue(target), window) && canMerge(dragging, target)
+        if (target != hoverKey || inMiddle != hoverInMiddle) {
+            mergeTargetKey = null
+            hoverKey = target
+            hoverInMiddle = inMiddle
+            hoverSince = now
+        }
+        tick(now)
+    }
+
+    /** Re-checks a resting finger: merges and dwell-reorders happen while it doesn't move. */
+    internal fun tick(now: Long = nowMillis()) {
+        val dragging = draggingKey ?: return
+        val target = hoverKey ?: return
+        val held = now - hoverSince
+        if (hoverInMiddle) {
+            if (held >= MERGE_DWELL_MS && mergeTargetKey != target) {
+                mergeTargetKey = target
+                onMergeReady()
+            }
+        } else if (held >= SWAP_DWELL_MS) {
+            swap(dragging, target)
+            clearHover()
+        }
+    }
+
+    private fun clearHover() {
+        hoverKey = null
+        mergeTargetKey = null
+    }
+
+    private fun swap(dragging: String, target: String) {
         val list = order?.toMutableList() ?: return
         val from = list.indexOf(dragging)
         val to = list.indexOf(target)
@@ -102,7 +186,16 @@ class ReorderState internal constructor() {
 
     internal fun end() {
         val result = order
+        val dragged = draggingKey
+        val mergeInto = mergeTargetKey
         draggingKey = null
+        clearHover()
+        val merge = onMerge
+        if (merge != null && dragged != null && mergeInto != null) {
+            // The dragged item leaves the list; keep the current order until the source catches up.
+            merge(result ?: sourceKeys, dragged, mergeInto)
+            return
+        }
         if (result != null && result != startOrder) onCommit(result) else order = null
     }
 
@@ -114,12 +207,26 @@ class ReorderState internal constructor() {
     }
 }
 
+/**
+ * [onMerge] turns on merging (see [ReorderState]); [canMerge] says whether the dragged item may be
+ * merged into the target.
+ */
 @Composable
-fun rememberReorderState(keys: List<String>, onCommit: (List<String>) -> Unit): ReorderState {
+fun rememberReorderState(
+    keys: List<String>,
+    onCommit: (List<String>) -> Unit,
+    onMerge: ((order: List<String>, dragged: String, target: String) -> Unit)? = null,
+    canMerge: (dragged: String, target: String) -> Boolean = { _, _ -> true },
+): ReorderState {
     val state = remember { ReorderState() }
     val haptics = LocalHapticFeedback.current
     val currentOnCommit by rememberUpdatedState(onCommit)
+    val currentOnMerge by rememberUpdatedState(onMerge)
+    val currentCanMerge by rememberUpdatedState(canMerge)
     state.onCommit = { currentOnCommit(it) }
+    state.onMerge = if (onMerge != null) { order, dragged, target -> currentOnMerge?.invoke(order, dragged, target) } else null
+    state.canMerge = { dragged, target -> currentCanMerge(dragged, target) }
+    state.onMergeReady = { haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate) }
     state.onMove = { haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick) }
     LaunchedEffect(keys) { state.onSourceChanged(keys) }
     if (state.sourceKeys.isEmpty()) state.sourceKeys = keys
@@ -163,7 +270,13 @@ fun Modifier.reorderContainer(
 
             var dragging = false
             while (true) {
-                val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                // Wake up now and then while the finger rests, so dwell-based merging and reordering happen.
+                val event = withTimeoutOrNull(TICK_MS) { awaitPointerEvent(PointerEventPass.Initial) }
+                if (event == null) {
+                    if (dragging) state.tick()
+                    continue
+                }
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) {
                     if (dragging) change.consume()
                     break
@@ -191,10 +304,26 @@ fun Modifier.reorderItem(state: ReorderState, key: String): Modifier = this
         translationX = offset.x
         translationY = offset.y
         val lifted = state.draggingKey == key
-        scaleX = if (lifted) 1.12f else 1f
-        scaleY = if (lifted) 1.12f else 1f
+        val merging = state.mergeTargetKey != null
+        // The merge target swells to take the dragged item, which shrinks toward it.
+        val scale = when {
+            lifted && merging -> 0.85f
+            lifted -> 1.12f
+            state.mergeTargetKey == key -> 1.18f
+            else -> 1f
+        }
+        scaleX = scale
+        scaleY = scale
         alpha = if (lifted) 0.92f else 1f
     }
+
+/** Monotonic milliseconds; plain JVM so the state is unit-testable. */
+private fun nowMillis(): Long = System.nanoTime() / 1_000_000
+
+private const val MIDDLE_FRACTION = 0.3f
+private const val MERGE_DWELL_MS = 350L
+private const val SWAP_DWELL_MS = 160L
+private const val TICK_MS = 60L
 
 /** Marks an area inside the container that isn't reorderable and isn't empty space (e.g. a widget). */
 @Composable

@@ -1,5 +1,7 @@
 package com.themelauncher.ui.home
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.Rect
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -14,6 +16,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -30,22 +33,38 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.geometry.Rect as ComposeRect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.themelauncher.HomeState
-import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.items.FolderItem
+import com.themelauncher.data.items.HomeItem
+import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.data.widgets.ThemeWidget
 import com.themelauncher.ui.components.AppAction
 import com.themelauncher.ui.components.AppMenuState
-import com.themelauncher.ui.components.AppTileWithMenu
+import com.themelauncher.ui.components.HomeDrop
+import com.themelauncher.ui.components.LocalExternalDrag
+import com.themelauncher.ui.components.TilePadding
 import com.themelauncher.ui.components.rememberReorderState
 import com.themelauncher.ui.components.reorderBlocker
 import com.themelauncher.ui.components.reorderContainer
@@ -63,11 +82,13 @@ import com.themelauncher.ui.widgets.HomeWidget
 fun ThemeGrid(
     state: HomeState,
     swipeUpConnection: NestedScrollConnection,
-    onLaunch: (AppInfo, Rect?) -> Unit,
-    appActions: (AppInfo) -> List<AppAction>,
+    onOpenItem: (HomeItem, Rect?) -> Unit,
+    itemActions: (HomeItem) -> List<AppAction>,
     onCreateTheme: () -> Unit,
     onAddApps: (Theme) -> Unit,
     onReorder: (Theme, List<String>) -> Unit,
+    /** An item dragged onto another's middle: (theme, order, dragged key, target key). */
+    onMerge: (Theme, List<String>, String, String) -> Unit,
     onEmptyLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -91,26 +112,35 @@ fun ThemeGrid(
         val theme = themes.firstOrNull { it.id == themeId }
         when {
             theme == null -> EmptyMessage(
-                title = "Create your first theme",
-                body = "Themes group your apps by context, like Gaming or Work.",
-                button = "New theme",
+                title = stringResource(R.string.create_your_first_theme),
+                body = stringResource(R.string.themes_group_your_apps_by_context_like_gaming_or),
+                button = stringResource(R.string.new_theme),
                 onClick = onCreateTheme,
                 onLongPress = onEmptyLongPress,
             )
             else -> {
-                val apps = state.appsFor(theme)
+                val items = state.itemsFor(theme)
                 val widgets = state.widgetsFor(theme)
-                if (apps.isEmpty() && widgets.isEmpty() && !state.isLoading) {
+                if (items.isEmpty() && widgets.isEmpty() && !state.isLoading) {
                     EmptyMessage(
                         title = "No apps in ${theme.name} yet",
-                        body = "Pick apps for this theme, or long-press any app in the drawer.",
-                        button = "Add apps",
+                        body = stringResource(R.string.pick_apps_for_this_theme_or_long_press_any_app_i),
+                        button = stringResource(R.string.add_apps),
                         onClick = { onAddApps(theme) },
                         onLongPress = onEmptyLongPress,
                         theme = theme,
                     )
                 } else {
-                    AppGrid(apps, widgets, swipeUpConnection, onLaunch, appActions, onReorder = { onReorder(theme, it) }, onEmptyLongPress = onEmptyLongPress)
+                    ItemGrid(
+                        items = items,
+                        widgets = widgets,
+                        swipeUpConnection = swipeUpConnection,
+                        onOpenItem = onOpenItem,
+                        itemActions = itemActions,
+                        onReorder = { onReorder(theme, it) },
+                        onMerge = { order, dragged, target -> onMerge(theme, order, dragged, target) },
+                        onEmptyLongPress = onEmptyLongPress,
+                    )
                 }
             }
         }
@@ -118,57 +148,157 @@ fun ThemeGrid(
 }
 
 @Composable
-private fun AppGrid(
-    apps: List<AppInfo>,
+private fun ItemGrid(
+    items: List<HomeItem>,
     widgets: List<ThemeWidget>,
     swipeUpConnection: NestedScrollConnection,
-    onLaunch: (AppInfo, Rect?) -> Unit,
-    appActions: (AppInfo) -> List<AppAction>,
+    onOpenItem: (HomeItem, Rect?) -> Unit,
+    itemActions: (HomeItem) -> List<AppAction>,
     onReorder: (List<String>) -> Unit,
+    onMerge: (List<String>, String, String) -> Unit,
     onEmptyLongPress: () -> Unit,
 ) {
     val wallpaper = LocalWallpaperContent.current
     val labelStyle = MaterialTheme.typography.labelMedium.onWallpaper(wallpaper)
     val menuState = remember { AppMenuState() }
-    val reorder = rememberReorderState(apps.map { it.key }, onReorder)
-    Box(Modifier.fillMaxSize()) {
-        val layout = LocalHomeLayout.current
-        val columns = GridCells.Fixed(layout.columns)
-        LazyVerticalGrid(
-            columns = columns,
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(swipeUpConnection)
-                .reorderContainer(reorder, onDragStart = menuState::close, onEmptyLongPress = onEmptyLongPress),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            // The theme's widgets span the full width above its apps.
-            widgets.forEachIndexed { index, widget ->
-                item(key = "widget-${widget.appWidgetId}", span = { GridItemSpan(maxLineSpan) }) {
-                    HomeWidget(
-                        widget = widget,
-                        canMoveUp = index > 0,
-                        canMoveDown = index < widgets.lastIndex,
-                        modifier = Modifier.animateItem().reorderBlocker(reorder, "widget-${widget.appWidgetId}"),
-                    )
+    // Folders don't go into folders; anything else can be dropped onto an app or folder.
+    val folderKeys = items.filterIsInstance<FolderItem>().mapTo(HashSet()) { it.key }
+    val reorder = rememberReorderState(
+        keys = items.map { it.key },
+        onCommit = onReorder,
+        onMerge = onMerge,
+        canMerge = { dragged, _ -> dragged !in folderKeys },
+    )
+    val density = LocalDensity.current
+
+    // Apps carried from the drawer land between items, or onto one's middle.
+    val externalDrag = LocalExternalDrag.current
+    val currentKeys by rememberUpdatedState(items.map { it.key })
+    val gridBounds = remember { arrayOf(ComposeRect.Zero) }
+    if (externalDrag != null) {
+        DisposableEffect(externalDrag, reorder) {
+            val resolver: (Offset) -> HomeDrop? = { window ->
+                if (!gridBounds[0].contains(window)) {
+                    null
+                } else {
+                    reorder.keyInMiddleAt(window)?.let(HomeDrop::Into) ?: HomeDrop.At(reorder.dropIndex(window, currentKeys))
                 }
             }
-            items(reorder.arrange(apps) { it.key }, key = { it.key }) { app ->
-                AppTileWithMenu(
-                    app = app,
-                    labelStyle = labelStyle,
-                    onClick = { onLaunch(app, it) },
-                    actions = { appActions(app) },
-                    menuState = menuState,
-                    iconSize = layout.iconSize,
-                    showLabel = layout.showLabels,
-                    modifier = Modifier.animateItem().reorderItem(reorder, app.key),
-                )
+            externalDrag.gridDrop = resolver
+            onDispose { if (externalDrag.gridDrop === resolver) externalDrag.gridDrop = null }
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { gridBounds[0] = it.boundsInWindow() }) {
+        val layout = LocalHomeLayout.current
+        val fit = if (layout.autoFit) {
+            val labelHeight = if (!layout.showLabels) 0f else with(density) {
+                val line = if (labelStyle.lineHeight.isSp) labelStyle.lineHeight else labelStyle.fontSize * 1.4f
+                TilePadding.labelGap.value + line.toDp().value
+            }
+            // Widgets keep their height (plus their padding and the row gap); apps share the rest.
+            val widgetsHeight = widgets.sumOf { it.heightDp + WIDGET_CHROME_DP }
+            fitGrid(
+                count = items.size,
+                widthDp = maxWidth.value,
+                // A little slack so rounding never tips the grid into scrolling.
+                heightDp = maxHeight.value - widgetsHeight - 2f,
+                metrics = GridMetrics(
+                    gridPaddingHorizontal = GRID_PADDING_H * 2f,
+                    gridPaddingVertical = GRID_PADDING_V * 2f,
+                    rowSpacing = ROW_SPACING,
+                    tilePaddingHorizontal = TilePadding.horizontal.value * 2,
+                    tilePaddingVertical = TilePadding.vertical.value * 2,
+                    labelHeight = labelHeight,
+                ),
+                maxIconDp = LauncherPrefs.AUTO_FIT_MAX_ICON_DP,
+            )
+        } else {
+            null
+        }
+        val iconSize = fit?.iconSizeDp?.dp ?: layout.iconSize
+        val arrangement = layout.arrangement
+        reorder.rowsUpward = arrangement.fromBottom
+        reorder.rightToLeft = arrangement.rightToLeft
+        // Right-to-left fill is the grid laid out RTL; the tiles inside keep the app's own direction.
+        val contentDirection = LocalLayoutDirection.current
+        val gridDirection = if (arrangement.rightToLeft) {
+            if (contentDirection == LayoutDirection.Ltr) LayoutDirection.Rtl else LayoutDirection.Ltr
+        } else {
+            contentDirection
+        }
+        CompositionLocalProvider(LocalLayoutDirection provides gridDirection) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(fit?.columns ?: layout.columns),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(swipeUpConnection)
+                    .reorderContainer(reorder, onDragStart = menuState::close, onEmptyLongPress = onEmptyLongPress),
+                contentPadding = PaddingValues(horizontal = GRID_PADDING_H.dp, vertical = GRID_PADDING_V.dp),
+                // From the bottom, the first item sits at the bottom and rows stack upward.
+                reverseLayout = arrangement.fromBottom,
+                verticalArrangement = Arrangement.spacedBy(ROW_SPACING.dp, if (arrangement.fromBottom) Alignment.Bottom else Alignment.Top),
+            ) {
+                // The theme's widgets span the full width above its apps. Bottom-up, they come after
+                // the apps (and in reverse) so they still read top to bottom above them.
+                fun widgetItems() {
+                    val indexed = widgets.withIndex().toList()
+                    (if (arrangement.fromBottom) indexed.asReversed() else indexed).forEach { (index, widget) ->
+                        item(key = "widget-${widget.appWidgetId}", span = { GridItemSpan(maxLineSpan) }) {
+                            CompositionLocalProvider(LocalLayoutDirection provides contentDirection) {
+                                HomeWidget(
+                                    widget = widget,
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < widgets.lastIndex,
+                                    modifier = Modifier.animateItem().reorderBlocker(reorder, "widget-${widget.appWidgetId}"),
+                                )
+                            }
+                        }
+                    }
+                }
+                if (!arrangement.fromBottom) widgetItems()
+                val ordered = reorder.arrange(items) { it.key }
+                items(ordered, key = { it.key }) { item ->
+                    CompositionLocalProvider(LocalLayoutDirection provides contentDirection) {
+                        HomeItemTile(
+                            // Screen readers can't drag; these move the item one place instead.
+                            accessibilityActions = moveActions(ordered.map { it.key }, item.key, onReorder),
+                            item = item,
+                            labelStyle = labelStyle,
+                            onClick = { onOpenItem(item, it) },
+                            actions = { itemActions(item) },
+                            menuState = menuState,
+                            iconSize = iconSize,
+                            showLabel = layout.showLabels,
+                            // A light tonal tile, like the system launcher's folders, readable on any wallpaper.
+                            folderBackground = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                            modifier = Modifier.animateItem().reorderItem(reorder, item.key),
+                        )
+                    }
+                }
+                if (arrangement.fromBottom) widgetItems()
             }
         }
     }
 }
+
+private fun moveActions(keys: List<String>, key: String, onReorder: (List<String>) -> Unit): List<CustomAccessibilityAction> {
+    val index = keys.indexOf(key)
+    fun moveTo(target: Int) = CustomAccessibilityAction(if (target < index) "Move earlier" else "Move later") {
+        onReorder(keys.toMutableList().apply { add(target, removeAt(index)) })
+        true
+    }
+    return listOfNotNull(
+        moveTo(index - 1).takeIf { index > 0 },
+        moveTo(index + 1).takeIf { index < keys.lastIndex },
+    )
+}
+
+private const val GRID_PADDING_H = 12f
+private const val GRID_PADDING_V = 8f
+private const val ROW_SPACING = 4f
+
+/** [HomeWidget]'s vertical padding plus the grid's row gap. */
+private const val WIDGET_CHROME_DP = 8 + 4
 
 @Composable
 private fun EmptyMessage(

@@ -1,5 +1,7 @@
 package com.themelauncher.ui.settings
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,9 +63,9 @@ fun HiddenAppsSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxHeight().navigationBarsPadding().imePadding()) {
-            Text("Hidden apps", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
+            Text(stringResource(R.string.hidden_apps), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
             Text(
-                "Hidden apps don't appear in the drawer or its search. They stay in your themes and dock.",
+                stringResource(R.string.hidden_apps_don_t_appear_in_the_drawer_or_its_se),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -71,7 +73,7 @@ fun HiddenAppsSheet(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search apps") },
+                placeholder = { Text(stringResource(R.string.search_apps)) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 singleLine = true,
                 shape = CircleShape,
@@ -96,9 +98,9 @@ fun HiddenAppsSheet(
             }
             HorizontalDivider()
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 Spacer(Modifier.size(8.dp))
-                Button(onClick = { onSave(selected.toSet()) }) { Text("Save") }
+                Button(onClick = { onSave(selected.toSet()) }) { Text(stringResource(R.string.save)) }
             }
         }
     }

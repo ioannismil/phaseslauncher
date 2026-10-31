@@ -9,6 +9,11 @@ import org.junit.Test
 
 class ArcGeometryTest {
 
+    private companion object {
+        const val PITCH = 165f
+        const val LABEL_ROOM = 520f
+    }
+
     private val width = 1080f
     private val height = 2220f
 
@@ -18,10 +23,12 @@ class ArcGeometryTest {
         side = side,
         width = width,
         height = height,
-        spacing = 200f,
-        minRadius = 400f,
-        ringGap = 250f,
-        margin = 150f,
+        pitch = PITCH,
+        minRadius = 470f,
+        maxSpacing = 240f,
+        labelRoom = LABEL_ROOM,
+        edgeInset = 150f,
+        margin = 130f,
     )
 
     @Test
@@ -49,17 +56,50 @@ class ArcGeometryTest {
     }
 
     @Test
-    fun manyThemesUseTwoRingsWithinTheMaxRadius() {
-        val g = geometry(16, SwitcherSide.Right)
-        assertEquals(16, g.positions.size)
-        val distances = g.positions.map { (it - g.center).getDistance() }
-        // Two clusters of distances: the outer ring and the inner ring.
-        val rings = distances.sorted().fold(mutableListOf<Float>()) { acc, d ->
-            if (acc.isEmpty() || d - acc.last() > 1f) acc += d
-            acc
+    fun itemsLieOnACircleEquallySpaced() {
+        for (count in listOf(2, 5, 9, 17)) {
+            val g = geometry(count, SwitcherSide.Right)
+            g.positions.forEach { assertEquals("count=$count", g.radius, (it - g.arcCenter).getDistance(), 1f) }
+            val chords = g.positions.zipWithNext { a, b -> (b - a).getDistance() }
+            chords.forEach { assertEquals("count=$count", chords.first(), it, 1f) }
         }
-        assertEquals(2, rings.size)
-        assertTrue(distances.all { it <= g.radius + 0.5f })
+    }
+
+    @Test
+    fun consecutiveItemsAreAtLeastAPitchApartInHeight() {
+        for (count in 2..10) {
+            val g = geometry(count, SwitcherSide.Right)
+            assertEquals("count=$count", 1f, g.itemScale)
+            g.positions.zipWithNext().forEach { (a, b) -> assertTrue("count=$count", b.y - a.y >= PITCH - 0.5f) }
+        }
+    }
+
+    @Test
+    fun fewItemsUseAWideArc() {
+        val g = geometry(5, SwitcherSide.Right)
+        // The ends curve back toward the edge, well short of the middle item.
+        assertTrue(width - g.positions.first().x < (width - g.positions[2].x) * 0.6f)
+    }
+
+    @Test
+    fun namesBesideTheItemsStayOnScreen() {
+        for (count in listOf(3, 8, 14, 30)) {
+            for (side in SwitcherSide.entries) {
+                val g = geometry(count, side)
+                g.positions.forEach { p ->
+                    val fromEdge = if (side == SwitcherSide.Right) width - p.x else p.x
+                    assertTrue("count=$count $side", fromEdge + LABEL_ROOM <= width)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun crowdedArcsShrinkItemsAndStayOnScreen() {
+        val g = geometry(30, SwitcherSide.Right)
+        assertTrue(g.itemScale < 1f)
+        assertTrue(g.positions.all { it.y in 0f..height })
+        assertEquals(g.positions.sortedBy { it.y }, g.positions)
     }
 
     @Test

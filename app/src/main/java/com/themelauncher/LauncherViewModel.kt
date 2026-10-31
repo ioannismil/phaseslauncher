@@ -1,8 +1,10 @@
 package com.themelauncher
 
 import android.appwidget.AppWidgetProviderInfo
+import android.content.pm.ApplicationInfo
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Bundle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
@@ -16,9 +18,32 @@ import com.themelauncher.data.apps.filterApps
 import com.themelauncher.data.db.AppCustomizationEntity
 import com.themelauncher.data.db.FavoriteEntity
 import com.themelauncher.data.icons.IconPackInfo
+import com.themelauncher.data.items.AppItem
+import com.themelauncher.data.items.Folder
+import com.themelauncher.data.items.FolderItem
+import com.themelauncher.data.items.FolderRepository
+import com.themelauncher.data.items.HomeItem
+import com.themelauncher.data.items.ItemKeys
+import com.themelauncher.data.items.PinnedShortcut
+import com.themelauncher.data.items.ShortcutItem
+import com.themelauncher.data.focus.FocusBlock
+import com.themelauncher.data.importer.LauncherLayout
+import com.themelauncher.data.importer.LayoutImportOptions
+import com.themelauncher.data.rules.RuleText
 import com.themelauncher.data.rules.ThemeRule
+import com.themelauncher.data.share.ImportOptions
+import com.themelauncher.data.share.Resolution
+import com.themelauncher.data.share.ShareOptions
+import com.themelauncher.data.share.SharedTheme
+import com.themelauncher.data.suggestions.Suggestion
+import com.themelauncher.data.suggestions.SuggestionEngine
+import com.themelauncher.data.suggestions.SuggestionSettings
+import org.json.JSONObject
+import com.themelauncher.data.search.Calculation
+import com.themelauncher.data.search.Calculator
 import com.themelauncher.data.search.ContactResult
 import com.themelauncher.data.search.SettingsResult
+import com.themelauncher.data.settings.DrawerSort
 import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.themes.AddFavoriteResult
@@ -26,15 +51,21 @@ import com.themelauncher.data.themes.Theme
 import com.themelauncher.data.themes.ThemeDefaults
 import com.themelauncher.data.themes.ThemeDraft
 import com.themelauncher.data.themes.ThemeIconKey
+import com.themelauncher.data.themes.toDraft
+import com.themelauncher.data.rules.RuleSetting
 import com.themelauncher.data.widgets.ThemeWidget
+import com.themelauncher.ui.components.HomeDrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -44,6 +75,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -63,6 +95,9 @@ data class DrawerState(
     val settingsResults: List<SettingsResult> = emptyList(),
     /** Offer to enable contact search (searching, contact search on, permission not granted). */
     val askContactsPermission: Boolean = false,
+    val sort: DrawerSort = DrawerSort.Name,
+    /** The query worked out as arithmetic or a unit conversion, if it is one. */
+    val calculation: Calculation? = null,
 ) {
     val selectedProfileState: ProfileState? get() = profiles.firstOrNull { it.type == selectedProfile }
 }
@@ -71,8 +106,6 @@ data class HomeState(
     val isLoading: Boolean = true,
     val themes: List<Theme> = emptyList(),
     val activeTheme: Theme? = null,
-    /** The active theme's apps that are currently installed and launchable, in order. */
-    val themeApps: List<AppInfo> = emptyList(),
     /** The dock being shown: the active theme's own dock, or the shared one. */
     val favorites: List<AppInfo> = emptyList(),
     val dockId: Long = FavoriteEntity.SHARED_DOCK,
@@ -80,14 +113,60 @@ data class HomeState(
     val widgets: Map<Long, List<ThemeWidget>> = emptyMap(),
     /** Every launchable app by key (custom names applied). */
     val apps: Map<String, AppInfo> = emptyMap(),
+    /** Pinned shortcuts whose app is launchable, by key. */
+    val shortcuts: Map<String, ShortcutItem> = emptyMap(),
+    val folders: Map<String, Folder> = emptyMap(),
 ) {
     val canAddFavorite: Boolean get() = favorites.size < ThemeDefaults.MAX_FAVORITES
 
-    /** A theme's launchable apps in order; unavailable ones are skipped. */
-    fun appsFor(theme: Theme): List<AppInfo> = theme.appKeys.mapNotNull(apps::get)
+    /** A theme's apps, shortcuts and folders in order; unavailable ones (and empty folders) are skipped. */
+    fun itemsFor(theme: Theme): List<HomeItem> = theme.appKeys.mapNotNull { resolve(it, allowFolder = true) }
+
+    fun foldersFor(theme: Theme): List<FolderItem> = itemsFor(theme).filterIsInstance<FolderItem>()
+
+    /** Themes that contain [appKey], directly or in one of their folders. */
+    fun themesContaining(appKey: String): Set<Long> =
+        themes.filter { appKey in it.appKeys }.mapTo(HashSet()) { it.id } +
+            folders.values.filter { appKey in it.itemKeys }.map { it.themeId }
+
+    /** [theme]'s app keys, including the apps in its folders. */
+    fun appKeysOf(theme: Theme): Set<String> =
+        theme.appKeys.filter(ItemKeys::isApp).toSet() + folders.values.filter { it.themeId == theme.id }.flatMap { it.itemKeys }
+
+    /** Apps in [theme]'s folders, with their folder's name. */
+    fun folderMembers(theme: Theme): Map<String, String> =
+        folders.values.filter { it.themeId == theme.id }.flatMap { f -> f.itemKeys.map { it to f.name } }.toMap()
+
+    /** Launchable apps and shortcuts on [theme], counting what's inside its folders. */
+    fun itemCount(theme: Theme): Int = itemsFor(theme).sumOf { if (it is FolderItem) it.items.size else 1 }
+
+    private fun resolve(key: String, allowFolder: Boolean): HomeItem? = when {
+        ItemKeys.isApp(key) -> apps[key]?.let(::AppItem)
+        ItemKeys.shortcutId(key) != null -> shortcuts[key]
+        allowFolder -> folders[key]?.let { folder ->
+            FolderItem(folder, folder.itemKeys.mapNotNull { resolve(it, allowFolder = false) }).takeIf { it.items.isNotEmpty() }
+        }
+        else -> null
+    }
 
     fun widgetsFor(theme: Theme): List<ThemeWidget> = widgets[theme.id].orEmpty()
 }
+
+/** A prompt on the home screen: an automatic switch waiting for an OK, or a suggestion. */
+data class HomeBanner(
+    val id: String,
+    val themeId: Long,
+    val title: String,
+    val body: String,
+    val acceptLabel: String,
+    /** Offers "Customize…" to open the theme editor with the change in place. */
+    val canCustomize: Boolean = false,
+    /** An automatic switch ("Ask first"), rather than a suggestion. */
+    val isAutoPrompt: Boolean = false,
+)
+
+/** A launch held back by a theme's focus settings. */
+data class PendingLaunch(val block: FocusBlock, val proceed: () -> Unit)
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class LauncherViewModel(private val container: AppContainer) : ViewModel() {
@@ -101,6 +180,8 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     val widgets = container.widgetRepository
     val themeEffects = container.themeEffects
     val autoSwitcher = container.autoSwitcher
+    val focusManager = container.focusManager
+    private val history = container.history
 
     val customizations: StateFlow<Map<String, AppCustomizationEntity>> =
         container.customizationRepository.customizations.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
@@ -113,12 +194,21 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     private val _drawerOpen = MutableStateFlow(false)
     val drawerOpen: StateFlow<Boolean> = _drawerOpen.asStateFlow()
 
+    /** Whether the drawer opened for searching (keyboard up) rather than browsing. */
+    private val _drawerKeyboard = MutableStateFlow(false)
+    val drawerKeyboard: StateFlow<Boolean> = _drawerKeyboard.asStateFlow()
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
     /** One-off messages for the user (e.g. "Dock is full"). */
     private val _messages = Channel<String>(Channel.BUFFERED)
     val messages: Flow<String> = _messages.receiveAsFlow()
+
+    /** Fires when the launcher comes back after opening an app, so home can zoom back in. */
+    private val _returnedFromApp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val returnedFromApp: SharedFlow<Unit> = _returnedFromApp.asSharedFlow()
+    private var appInFront = false
 
     /** Installed apps with custom names applied, re-sorted by the shown name. */
     private val apps: Flow<List<AppInfo>?> =
@@ -129,8 +219,13 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                 .sortedWith { a, b -> collator.compare(a.label, b.label) }
         }.flowOn(Dispatchers.Default)
 
+    private val usage = container.database.usageDao().observeAll().shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
+
+    private val drawerSort: Flow<Pair<DrawerSort, Map<String, Int>>> =
+        combine(prefs.map { it.drawerSort }.distinctUntilChanged(), usage) { sort, rows -> sort to rows.associate { it.appKey to it.launchCount } }
+
     private val suggestions: Flow<List<String>> =
-        container.database.usageDao().observeAll().map { usage ->
+        usage.map { usage ->
             val now = System.currentTimeMillis()
             // Frequency, weighted toward recent use (half-life of about a week).
             usage.sortedByDescending { it.launchCount * exp(-(now - it.lastLaunched) / WEEK_MS) }
@@ -139,6 +234,9 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         }
 
     private val searchRefresh = MutableStateFlow(0)
+
+    /** Apps the active theme blocks and hides from the drawer ("Hide blocked apps"). */
+    private val blockedInDrawer = MutableStateFlow<Set<String>>(emptySet())
 
     private val searchExtras: Flow<Triple<List<ContactResult>, List<SettingsResult>, Boolean>> =
         combine(_query.debounce(120), prefs.map { it.contactSearch }.distinctUntilChanged(), searchRefresh) { q, contactSearch, _ ->
@@ -158,17 +256,26 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         combine(
             combine(apps, appsRepository.profiles, ::Pair),
             _query,
-            prefs.map { it.hiddenApps }.distinctUntilChanged(),
+            combine(prefs.map { it.hiddenApps }.distinctUntilChanged(), blockedInDrawer) { hidden, blocked -> hidden + blocked },
             selectedProfile,
-            combine(suggestions, searchExtras, ::Pair),
-        ) { (apps, profiles), query, hidden, selected, (suggestedKeys, extras) ->
+            combine(suggestions, searchExtras, drawerSort, ::Triple),
+        ) { (apps, profiles), query, hidden, selected, (suggestedKeys, extras, sorting) ->
             val tab = selected.takeIf { type -> profiles.any { it.type == type } } ?: ProfileType.Personal
             val visible = apps.orEmpty().filter { it.key !in hidden }
             val byKey = visible.associateBy { it.key }
+            val (sort, launchCounts) = sorting
+            // Ties keep the alphabetical order the apps arrive in.
+            val browsing = when (sort) {
+                DrawerSort.Name -> visible
+                DrawerSort.MostUsed -> visible.sortedByDescending { launchCounts[it.key] ?: 0 }
+                DrawerSort.Newest -> visible.sortedByDescending { it.installTime }
+            }
             DrawerState(
                 isLoading = apps == null,
                 // Searching looks across every profile; browsing shows the selected tab.
-                apps = if (query.isBlank()) visible.filter { it.profile == tab } else filterApps(visible, query),
+                apps = if (query.isBlank()) browsing.filter { it.profile == tab } else filterApps(visible, query),
+                sort = sort,
+                calculation = if (query.isBlank()) null else Calculator.evaluate(query),
                 profiles = profiles,
                 selectedProfile = tab,
                 suggestions = if (query.isBlank() && tab == ProfileType.Personal) {
@@ -192,13 +299,17 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     val homeState: StateFlow<HomeState> =
         combine(
-            apps,
+            combine(apps, container.pinnedShortcuts.shortcuts, container.folderRepository.folders, ::Triple),
             themeRepository.themes,
             favoritesRepository.docks,
             activeThemeId,
             widgets.widgets,
-        ) { apps, themes, docks, activeId, widgets ->
+        ) { (apps, shortcuts, folders), themes, docks, activeId, widgets ->
             val byKey = apps.orEmpty().associateBy { it.key }
+            // A shortcut shows only while its app does (e.g. not on a paused work profile).
+            val appByPackage = apps.orEmpty().associateBy { it.packageName to it.user }
+            val shortcutItems = shortcuts.mapNotNull { s -> appByPackage[s.packageName to s.user]?.let { ShortcutItem(s, it) } }
+                .associateBy { it.key }
             // A missing or deleted active theme falls back to the first one.
             val active = themes.firstOrNull { it.id == activeId } ?: themes.firstOrNull()
             val dockId = if (active?.ownDock == true) active.id else FavoriteEntity.SHARED_DOCK
@@ -206,11 +317,12 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                 isLoading = apps == null,
                 themes = themes,
                 activeTheme = active,
-                themeApps = active?.appKeys.orEmpty().mapNotNull(byKey::get),
                 favorites = docks[dockId].orEmpty().mapNotNull(byKey::get),
                 dockId = dockId,
                 widgets = widgets,
                 apps = byKey,
+                shortcuts = shortcutItems,
+                folders = folders,
             )
         }
             .flowOn(Dispatchers.Default)
@@ -224,7 +336,196 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     init {
         // Automatic switching (and restores) write the persisted value; let it win over a stale tap.
         viewModelScope.launch { settingsRepository.activeThemeId.collect { selectedThemeId.value = null } }
+        viewModelScope.launch {
+            homeState.collect { state ->
+                val theme = state.activeTheme
+                val focus = theme?.focus
+                blockedInDrawer.value = if (focus == null || !focus.hideBlockedApps) {
+                    emptySet()
+                } else {
+                    val inTheme = state.appKeysOf(theme) + state.favorites.map { it.key }
+                    state.apps.keys.filterTo(HashSet()) { focus.blocks(it, inTheme) }
+                }
+            }
+        }
     }
+
+    // region Focus
+
+    private val _pendingLaunch = MutableStateFlow<PendingLaunch?>(null)
+    /** A launch waiting on the pause screen (or refused); the UI shows why. */
+    val pendingLaunch: StateFlow<PendingLaunch?> = _pendingLaunch.asStateFlow()
+
+    /** The pause screen was waited out: open the app and let it be for the theme's allowance. */
+    fun proceedPendingLaunch() {
+        val pending = _pendingLaunch.value ?: return
+        _pendingLaunch.value = null
+        focusManager.allow(pending.block)
+        pending.proceed()
+    }
+
+    fun cancelPendingLaunch() {
+        _pendingLaunch.value = null
+    }
+
+    /** Runs [launch] unless the active theme's focus settings hold [app] back. */
+    private fun guarded(app: AppInfo, launch: () -> Unit) {
+        val state = homeState.value
+        val anyFocus = state.themes.any { it.focus.blocksAnything || it.focus.hasLimits }
+        if (!anyFocus) return launch()
+        viewModelScope.launch {
+            val block = focusManager.check(
+                app = app,
+                active = state.activeTheme,
+                themes = state.themes,
+                dockKeys = state.favorites.mapTo(HashSet()) { it.key },
+                appsOf = state::appKeysOf,
+            )
+            if (block == null) launch() else _pendingLaunch.value = PendingLaunch(block, launch)
+        }
+    }
+
+    // endregion
+
+    // region Suggestions and automatic-switch prompts
+
+    /** A suggestion made at launch time ("Switch to Gaming?"), shown once home is back. */
+    private val liveSuggestion = MutableStateFlow<Suggestion?>(null)
+
+    private val computedSuggestions: Flow<List<Suggestion>> =
+        combine(
+            themeRepository.themes,
+            history.launches(),
+            history.switches(),
+            prefs.map { SuggestionSettings(it.suggestApps, it.suggestSchedules, it.suggestSwitching, it.suggestionMinLaunches) }
+                .distinctUntilChanged(),
+            combine(container.folderRepository.folders, favoritesRepository.docks, ::Pair),
+        ) { themes, launches, switches, settings, (folders, docks) ->
+            val appsOf = { theme: Theme ->
+                theme.appKeys.toSet() + folders.values.filter { it.themeId == theme.id }.flatMap { it.itemKeys }
+            }
+            val dockOf = { theme: Theme -> docks[if (theme.ownDock) theme.id else FavoriteEntity.SHARED_DOCK].orEmpty().toSet() }
+            SuggestionEngine.compute(themes, launches, switches, settings, appsOf, dockOf)
+        }.flowOn(Dispatchers.Default)
+
+    val homeBanner: StateFlow<HomeBanner?> =
+        combine(autoSwitcher.prompt, liveSuggestion, computedSuggestions, prefs, homeState) { prompt, live, computed, prefs, state ->
+            val themes = state.themes.associateBy { it.id }
+            if (prompt != null) {
+                themes[prompt.themeId]?.let { theme ->
+                    return@combine HomeBanner(
+                        id = "prompt:${theme.id}",
+                        themeId = theme.id,
+                        title = "Switch to ${theme.name}?",
+                        body = RuleText.reason(prompt.rule),
+                        acceptLabel = "Switch",
+                        isAutoPrompt = true,
+                    )
+                }
+            }
+            val now = System.currentTimeMillis()
+            val active = state.activeTheme?.id
+            (listOfNotNull(live) + computed)
+                .filter { (prefs.dismissedSuggestions[it.id] ?: 0L) <= now }
+                // A switch suggestion is moot once you're on that theme.
+                .filterNot { it is Suggestion.SwitchForApp && it.themeId == active }
+                .firstNotNullOfOrNull { bannerFor(it, themes, state.apps) }
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private fun bannerFor(suggestion: Suggestion, themes: Map<Long, Theme>, apps: Map<String, AppInfo>): HomeBanner? {
+        val theme = themes[suggestion.themeId] ?: return null
+        return when (suggestion) {
+            is Suggestion.AddApp -> {
+                val app = apps[suggestion.appKey] ?: return null
+                HomeBanner(
+                    id = suggestion.id,
+                    themeId = theme.id,
+                    title = "Add ${app.label} to ${theme.name}?",
+                    body = "You opened it ${suggestion.launches} times on ${theme.name} in the last two weeks.",
+                    acceptLabel = "Add",
+                )
+            }
+            is Suggestion.Schedule -> HomeBanner(
+                id = suggestion.id,
+                themeId = theme.id,
+                title = "Switch to ${theme.name} automatically?",
+                body = "You switch to it around ${RuleText.minute(suggestion.rule.startMinute)} " +
+                    "(${suggestion.days} days lately). Schedule: ${RuleText.describe(suggestion.rule)}.",
+                acceptLabel = "Add schedule",
+                canCustomize = true,
+            )
+            is Suggestion.SwitchForApp -> {
+                val app = apps[suggestion.appKey] ?: return null
+                HomeBanner(
+                    id = suggestion.id,
+                    themeId = theme.id,
+                    title = "Switch to ${theme.name}?",
+                    body = "${app.label} is on ${theme.name}.",
+                    acceptLabel = "Switch",
+                )
+            }
+        }
+    }
+
+    private fun currentSuggestion(id: String): Suggestion? =
+        liveSuggestion.value?.takeIf { it.id == id } ?: lastComputed.firstOrNull { it.id == id }
+
+    private var lastComputed: List<Suggestion> = emptyList()
+
+    init {
+        viewModelScope.launch { computedSuggestions.collect { lastComputed = it } }
+    }
+
+    /** Opens the editor for a theme with a change already made (e.g. a suggested schedule) to fine-tune. */
+    private val _editDraft = Channel<Pair<Long, ThemeDraft>>(Channel.BUFFERED)
+    val editDraft: Flow<Pair<Long, ThemeDraft>> = _editDraft.receiveAsFlow()
+
+    fun acceptBanner(banner: HomeBanner) {
+        if (banner.isAutoPrompt) return autoSwitcher.acceptPrompt()
+        val suggestion = currentSuggestion(banner.id) ?: return
+        liveSuggestion.value = null
+        when (suggestion) {
+            is Suggestion.AddApp -> viewModelScope.launch {
+                themeRepository.addApp(suggestion.themeId, suggestion.appKey)
+                message("Added to ${homeState.value.themes.firstOrNull { it.id == suggestion.themeId }?.name ?: "the theme"}")
+            }
+            is Suggestion.Schedule -> viewModelScope.launch {
+                themeRepository.addRule(suggestion.themeId, suggestion.rule)
+                message("Schedule added. Change it in the theme's settings.")
+            }
+            is Suggestion.SwitchForApp -> selectTheme(suggestion.themeId)
+        }
+    }
+
+    fun customizeBanner(banner: HomeBanner) {
+        val suggestion = currentSuggestion(banner.id) as? Suggestion.Schedule ?: return
+        val theme = homeState.value.themes.firstOrNull { it.id == suggestion.themeId } ?: return
+        _editDraft.trySend(theme.id to theme.toDraft().let { it.copy(rules = it.rules + RuleSetting(suggestion.rule)) })
+    }
+
+    /** "Not now" hides it for a week; [forever] for good. */
+    fun dismissBanner(banner: HomeBanner, forever: Boolean) {
+        if (banner.isAutoPrompt) return autoSwitcher.dismissPrompt()
+        if (liveSuggestion.value?.id == banner.id) liveSuggestion.value = null
+        val until = if (forever) Long.MAX_VALUE else System.currentTimeMillis() + WEEK_MS.toLong()
+        updatePrefs { it.copy(dismissedSuggestions = it.dismissedSuggestions + (banner.id to until)) }
+    }
+
+    fun resetSuggestions() {
+        updatePrefs { it.copy(dismissedSuggestions = emptyMap()) }
+        message("Dismissed suggestions can show again")
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch {
+            history.clear()
+            message("Activity history cleared")
+        }
+    }
+
+    // endregion
 
     // region Settings
 
@@ -292,7 +593,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
             favoritesRepository.setFavorites(favoriteKeys)
             val ids = themes.map { themeRepository.createTheme(it) }
             val firstWithApps = themes.indexOfFirst { it.appKeys.isNotEmpty() }
-            ids.getOrNull(firstWithApps.coerceAtLeast(0))?.let { selectTheme(it) }
+            ids.getOrNull(firstWithApps.coerceAtLeast(0))?.let { activate(it) }
             settingsRepository.setOnboardingComplete(true)
         }
     }
@@ -305,7 +606,9 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     // region Drawer & search
 
-    fun openDrawer() {
+    /** [withKeyboard]: open for searching; by default the "Open keyboard" setting decides. */
+    fun openDrawer(withKeyboard: Boolean = prefs.value.drawerKeyboard) {
+        _drawerKeyboard.value = withKeyboard
         _drawerOpen.value = true
     }
 
@@ -334,11 +637,51 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     // region Apps
 
-    fun launch(app: AppInfo, sourceBounds: Rect?) {
-        if (appsRepository.launch(app, sourceBounds)) {
-            viewModelScope.launch { container.database.usageDao().recordLaunch(app.key, System.currentTimeMillis()) }
+    /** [options] carry the launch animation (see LaunchAnimation). */
+    fun launch(app: AppInfo, sourceBounds: Rect?, options: Bundle? = null) = guarded(app) {
+        if (appsRepository.launch(app, sourceBounds, options)) {
+            appInFront = true
+            val state = homeState.value
+            val now = System.currentTimeMillis()
+            viewModelScope.launch {
+                container.database.usageDao().recordLaunch(app.key, now)
+                history.recordLaunch(app.key, state.activeTheme?.id, now)
+            }
+            suggestSwitchFor(app, state)
         } else {
             message("${app.label} is not available")
+        }
+    }
+
+    /** Opening an app that lives on exactly one other theme offers to switch there. */
+    private fun suggestSwitchFor(app: AppInfo, state: HomeState) {
+        if (!prefs.value.suggestSwitching) return
+        val active = state.activeTheme ?: return
+        if (app.key in state.appKeysOf(active) || state.favorites.any { it.key == app.key }) return
+        val home = state.themes.filter { it.id != active.id && app.key in state.appKeysOf(it) }.singleOrNull() ?: return
+        liveSuggestion.value = Suggestion.SwitchForApp(app.key, home.id)
+    }
+
+    /** Launches an app or pinned shortcut. Folders are opened by the UI. */
+    fun open(item: HomeItem, sourceBounds: Rect?, options: Bundle?) {
+        when (item) {
+            is AppItem -> launch(item.app, sourceBounds, options)
+            is ShortcutItem -> guarded(item.app) {
+                if (container.pinnedShortcuts.launch(item.shortcut, sourceBounds, options)) {
+                    appInFront = true
+                } else {
+                    message("Couldn\u2019t open \u201c${item.label}\u201d. Its app may have removed it.")
+                }
+            }
+            is FolderItem -> Unit
+        }
+    }
+
+    /** The launcher is in front again. */
+    fun onResumed() {
+        if (appInFront) {
+            appInFront = false
+            _returnedFromApp.tryEmit(Unit)
         }
     }
 
@@ -348,15 +691,38 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     suspend fun shortcutsFor(app: AppInfo): List<AppShortcut> = container.shortcutsRepository.shortcutsFor(app)
 
-    fun launchShortcut(shortcut: AppShortcut, sourceBounds: Rect?) {
-        if (!container.shortcutsRepository.launch(shortcut, sourceBounds)) message("Couldn't open “${shortcut.label}”")
+    fun launchShortcut(shortcut: AppShortcut, sourceBounds: Rect?, options: Bundle? = null) {
+        if (container.shortcutsRepository.launch(shortcut, sourceBounds, options)) {
+            appInFront = true
+        } else {
+            message("Couldn't open “${shortcut.label}”")
+        }
     }
+
+    suspend fun pinnedShortcutIcon(shortcut: PinnedShortcut) = container.pinnedShortcuts.icon(shortcut)
 
     // endregion
 
     // region Themes
 
+    /** Moves [delta] themes along the switcher's order, wrapping around (the next/previous theme gestures). */
+    fun stepTheme(delta: Int) {
+        val themes = homeState.value.themes
+        if (themes.size < 2) return
+        val index = themes.indexOfFirst { it.id == homeState.value.activeTheme?.id }.coerceAtLeast(0)
+        val next = themes[Math.floorMod(index + delta, themes.size)]
+        selectTheme(next.id)
+        message(next.name)
+    }
+
+    /** The user picked a theme (it's remembered for schedule suggestions). */
     fun selectTheme(themeId: Long) {
+        val changed = themeId != homeState.value.activeTheme?.id
+        activate(themeId)
+        if (changed) viewModelScope.launch { history.recordManualSwitch(themeId) }
+    }
+
+    private fun activate(themeId: Long) {
         selectedThemeId.value = themeId
         viewModelScope.launch { settingsRepository.setActiveThemeId(themeId) }
     }
@@ -364,7 +730,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     /** Creates a theme and makes it active. */
     fun createTheme(draft: ThemeDraft) {
         viewModelScope.launch {
-            selectTheme(themeRepository.createTheme(draft))
+            activate(themeRepository.createTheme(draft))
             refreshAfterRuleChange(draft)
         }
     }
@@ -389,12 +755,13 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
             }
             widgets.removeForTheme(themeId)
             themeRepository.deleteTheme(themeId)
+            container.pinnedShortcuts.pruneUnused()
             cleanUpWallpapers()
             // If the active theme was deleted, move to its neighbour rather than jumping to the first.
             if (activeThemeId.first() == themeId) {
                 val index = themes.indexOfFirst { it.id == themeId }
                 val remaining = themes.filter { it.id != themeId }
-                remaining.getOrNull((index - 1).coerceAtLeast(0))?.let { selectTheme(it.id) }
+                remaining.getOrNull((index - 1).coerceAtLeast(0))?.let { activate(it.id) }
             }
         }
     }
@@ -407,7 +774,61 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private fun refreshAfterRuleChange(draft: ThemeDraft) {
-        if (draft.rules.any { it is ThemeRule.Bluetooth }) autoSwitcher.refreshBluetooth()
+        val rules = draft.rules.map { it.rule }
+        if (rules.any { it is ThemeRule.Bluetooth }) autoSwitcher.refreshBluetooth()
+        if (rules.any { it is ThemeRule.Calendar }) autoSwitcher.calendar.refresh()
+    }
+
+    // endregion
+
+    // region Sharing and importing
+
+    suspend fun shareJson(theme: Theme, options: ShareOptions, iconPackLabel: String?): JSONObject {
+        val state = homeState.value
+        val dock = if (theme.ownDock) favoritesRepository.getKeys(theme.id) else emptyList()
+        return container.themeSharing.export(
+            theme = theme,
+            folders = state.folders,
+            dock = dock,
+            labelOf = { key -> state.apps[key]?.label },
+            iconPackLabel = iconPackLabel,
+            options = options,
+        )
+    }
+
+    fun shareLink(json: JSONObject): String = container.themeSharing.toLink(json)
+
+    fun qrCode(text: String, sizePx: Int) = container.themeSharing.qrCode(text, sizePx)
+
+    suspend fun shareFile(json: JSONObject, name: String): Uri = container.themeSharing.writeFile(json, name)
+
+    suspend fun readSharedTheme(uri: Uri): Result<SharedTheme> = runCatching { container.themeSharing.read(uri) }
+
+    fun parseSharedTheme(text: String): Result<SharedTheme> = runCatching { container.themeSharing.parse(text) }
+
+    fun resolveSharedTheme(shared: SharedTheme): Resolution =
+        container.themeSharing.resolve(shared, homeState.value.apps.values.toList())
+
+    fun installSharedTheme(shared: SharedTheme, resolution: Resolution, options: ImportOptions) {
+        viewModelScope.launch {
+            runCatching { container.themeSharing.install(shared, resolution, options) }
+                .onSuccess { id ->
+                    activate(id)
+                    message("Added ${options.name.ifBlank { shared.name }}")
+                }
+                .onFailure { message("Couldn't add the theme: ${it.message}") }
+        }
+    }
+
+    suspend fun readLauncherBackup(uri: Uri): Result<LauncherLayout> =
+        runCatching { container.launcherImporter.read(uri, homeState.value.apps.values.toList()) }
+
+    fun importLauncherLayout(layout: LauncherLayout, options: LayoutImportOptions) {
+        viewModelScope.launch {
+            runCatching { container.launcherImporter.apply(layout, options) }
+                .onSuccess { count -> message(if (count == 1) "Imported 1 theme" else "Imported $count themes") }
+                .onFailure { message("Import failed: ${it.message}") }
+        }
     }
 
     fun reorderThemes(orderedIds: List<Long>) {
@@ -420,15 +841,121 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    fun removeAppFromActiveTheme(app: AppInfo) {
+    fun removeFromActiveTheme(item: HomeItem) {
         val theme = homeState.value.activeTheme ?: return
-        viewModelScope.launch { themeRepository.removeApp(theme.id, app.key) }
+        viewModelScope.launch {
+            themeRepository.removeApp(theme.id, item.key)
+            container.pinnedShortcuts.pruneUnused()
+        }
     }
 
     /** [visibleOrder] covers only the apps on screen; hidden (unavailable) ones keep their place at the end. */
     fun reorderThemeApps(themeId: Long, visibleOrder: List<String>) {
         val theme = homeState.value.themes.firstOrNull { it.id == themeId } ?: return
         viewModelScope.launch { themeRepository.setThemeApps(themeId, withHidden(visibleOrder, theme.appKeys)) }
+    }
+
+    // endregion
+
+    // region Folders
+
+    private val folders = container.folderRepository
+
+    /** Puts [item] (on the active theme's grid) in a new folder where it was. */
+    fun createFolder(item: HomeItem, name: String) {
+        val theme = homeState.value.activeTheme ?: return
+        viewModelScope.launch { folders.createWith(theme.id, item.key, name) }
+    }
+
+    fun moveIntoFolder(item: HomeItem, folder: FolderItem) {
+        viewModelScope.launch { folders.moveInto(folder.folder.id, item.key) }
+    }
+
+    /** Moves [item] out of [folder] onto the theme's grid. */
+    fun moveOutOfFolder(folder: FolderItem, item: HomeItem) {
+        viewModelScope.launch { folders.moveOut(folder.folder.id, item.key) }
+    }
+
+    /**
+     * [dragged] was dropped onto [target]'s middle on the theme's grid: into the folder, or both
+     * into a new folder where the target was. [order] is the grid order at the drop.
+     */
+    fun mergeItems(themeId: Long, order: List<String>, dragged: String, target: String) {
+        val state = homeState.value
+        val theme = state.themes.firstOrNull { it.id == themeId } ?: return
+        if (ItemKeys.folderId(dragged) != null) return
+        viewModelScope.launch {
+            themeRepository.setThemeApps(themeId, withHidden(order, theme.appKeys))
+            val folderId = ItemKeys.folderId(target) ?: folders.createWith(themeId, target, folderNameFor(dragged, target))
+            folders.moveInto(folderId, dragged)
+        }
+    }
+
+    /** An app carried from the drawer was dropped on the active theme's grid. */
+    fun dropOnHome(app: AppInfo, drop: HomeDrop?) {
+        val state = homeState.value
+        val theme = state.activeTheme ?: return
+        val inFolder = state.folders.values.firstOrNull { it.themeId == theme.id && app.key in it.itemKeys }
+        if (inFolder != null) {
+            message("${app.label} is already in the folder \u201c${inFolder.name}\u201d")
+            return
+        }
+        viewModelScope.launch {
+            when (drop) {
+                is HomeDrop.Into -> if (drop.key != app.key) {
+                    val folderId = ItemKeys.folderId(drop.key) ?: folders.createWith(theme.id, drop.key, folderNameFor(app.key, drop.key))
+                    folders.moveInto(folderId, app.key)
+                }
+                is HomeDrop.At -> {
+                    // The index counts the items on screen; place before the one there, keeping hidden ones in place.
+                    val visible = state.itemsFor(theme).map { it.key }.filter { it != app.key }
+                    val before = visible.getOrNull(drop.index)
+                    val keys = theme.appKeys.filter { it != app.key }.toMutableList()
+                    val at = before?.let(keys::indexOf)?.takeIf { it >= 0 } ?: keys.size
+                    keys.add(at, app.key)
+                    themeRepository.setThemeApps(theme.id, keys)
+                }
+                null -> if (app.key !in theme.appKeys) themeRepository.addApp(theme.id, app.key)
+            }
+        }
+    }
+
+    /** A new folder is named after the apps' shared Play Store category (e.g. "Games"), else "Folder". */
+    private fun folderNameFor(first: String, second: String): String {
+        val apps = homeState.value.apps
+        val category = listOf(first, second).map { apps[it]?.category ?: -1 }.distinct().singleOrNull()
+        return category?.takeIf { it >= 0 }
+            ?.let { ApplicationInfo.getCategoryTitle(container.appContext, it)?.toString() }
+            ?: FolderRepository.DEFAULT_NAME
+    }
+
+    /** Takes [keys] out of whichever of the theme's folders hold them (unchecked in the theme editor). */
+    fun removeFromThemeFolders(themeId: Long, keys: Set<String>) {
+        val held = homeState.value.folders.values.filter { it.themeId == themeId }
+        viewModelScope.launch {
+            held.forEach { folder -> folder.itemKeys.filter { it in keys }.forEach { folders.remove(folder.id, it) } }
+            container.pinnedShortcuts.pruneUnused()
+        }
+    }
+
+    fun removeFromFolder(folder: FolderItem, item: HomeItem) {
+        viewModelScope.launch {
+            folders.remove(folder.folder.id, item.key)
+            container.pinnedShortcuts.pruneUnused()
+        }
+    }
+
+    fun ungroupFolder(folder: FolderItem) {
+        viewModelScope.launch { folders.ungroup(folder.folder.id) }
+    }
+
+    fun renameFolder(folder: FolderItem, name: String) {
+        viewModelScope.launch { folders.rename(folder.folder.id, name) }
+    }
+
+    /** [visibleOrder] covers only the items shown; unavailable ones keep their place at the end. */
+    fun reorderFolder(folder: FolderItem, visibleOrder: List<String>) {
+        viewModelScope.launch { folders.reorder(folder.folder.id, withHidden(visibleOrder, folder.folder.itemKeys)) }
     }
 
     // endregion

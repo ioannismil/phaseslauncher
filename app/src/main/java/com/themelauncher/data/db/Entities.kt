@@ -22,6 +22,14 @@ data class ThemeEntity(
     @ColumnInfo(name = "sound_profile", defaultValue = "Unchanged") val soundProfile: String = "Unchanged",
     /** When true the theme shows its own dock instead of the shared one. */
     @ColumnInfo(name = "own_dock", defaultValue = "0") val ownDock: Boolean = false,
+    /** Icon pack for this theme: null follows the launcher setting, "" means the apps' own icons. */
+    @ColumnInfo(name = "icon_pack") val iconPack: String? = null,
+    /** Home grid for this theme: null follows the launcher setting, "fit" fits the screen, else a column count. */
+    @ColumnInfo(name = "grid_layout") val gridLayout: String? = null,
+    /** [com.themelauncher.data.rules.ThemeAutomation] as JSON; empty for the defaults. */
+    @ColumnInfo(defaultValue = "''") val automation: String = "",
+    /** [com.themelauncher.data.focus.ThemeFocus] as JSON; empty for the defaults. */
+    @ColumnInfo(defaultValue = "''") val focus: String = "",
 )
 
 /** An app assigned to a theme. An app may be in several themes. */
@@ -116,4 +124,80 @@ data class ThemeRuleEntity(
     val type: String,
     val config: String,
     val enabled: Boolean = true,
+)
+
+/** A folder on a theme's home grid. The theme lists it as [com.themelauncher.data.items.ItemKeys.folder]. */
+@Entity(
+    tableName = "folders",
+    foreignKeys = [
+        ForeignKey(
+            entity = ThemeEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["theme_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("theme_id")],
+)
+data class FolderEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "theme_id") val themeId: Long,
+    val name: String,
+)
+
+/** An app (or pinned shortcut) inside a folder. */
+@Entity(
+    tableName = "folder_items",
+    primaryKeys = ["folder_id", "item_key"],
+    foreignKeys = [
+        ForeignKey(
+            entity = FolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["folder_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("item_key")],
+)
+data class FolderItemEntity(
+    @ColumnInfo(name = "folder_id") val folderId: Long,
+    @ColumnInfo(name = "item_key") val itemKey: String,
+    val position: Int,
+)
+
+/**
+ * A shortcut another app pinned with "Add to home screen" (a Chrome page, a contact, a route).
+ * Themes and folders list it as [com.themelauncher.data.items.ItemKeys.shortcut].
+ */
+@Entity(
+    tableName = "pinned_shortcuts",
+    indices = [Index(value = ["package_name", "shortcut_id", "user_serial"], unique = true)],
+)
+data class PinnedShortcutEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "package_name") val packageName: String,
+    @ColumnInfo(name = "shortcut_id") val shortcutId: String,
+    /** [android.os.UserManager.getSerialNumberForUser] of the profile the shortcut belongs to. */
+    @ColumnInfo(name = "user_serial") val userSerial: Long,
+    /** The label at pin time; shown when the system can't give us the shortcut (e.g. not the default home). */
+    val label: String,
+)
+
+/** An app opened from the launcher, and the theme that was on; feeds suggestions. Kept for a few weeks. */
+@Entity(tableName = "launch_events", indices = [Index("time")])
+data class LaunchEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "app_key") val appKey: String,
+    @ColumnInfo(name = "theme_id") val themeId: Long?,
+    /** ms since epoch. */
+    val time: Long,
+)
+
+/** The user switched to a theme by hand; feeds schedule suggestions. Kept for a few weeks. */
+@Entity(tableName = "theme_switches", indices = [Index("time")])
+data class ThemeSwitchEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "theme_id") val themeId: Long,
+    /** ms since epoch. */
+    val time: Long,
 )

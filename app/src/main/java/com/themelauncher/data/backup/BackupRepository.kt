@@ -3,11 +3,18 @@ package com.themelauncher.data.backup
 import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
+import com.themelauncher.data.db.FolderEntity
 import com.themelauncher.data.db.LauncherDatabase
 import com.themelauncher.data.db.ThemeEntity
 import com.themelauncher.data.db.ThemeRuleEntity
+import com.themelauncher.data.items.ItemKeys
+import com.themelauncher.data.settings.AppearanceMode
 import com.themelauncher.data.settings.ClockPosition
+import com.themelauncher.data.settings.IconArrangement
 import com.themelauncher.data.settings.DateFormatOption
+import com.themelauncher.data.settings.DrawerSort
+import com.themelauncher.data.settings.GestureAction
+import com.themelauncher.data.settings.GestureKind
 import com.themelauncher.data.settings.IconSize
 import com.themelauncher.data.settings.SettingsRepository
 import com.themelauncher.data.settings.SwitcherSide
@@ -23,7 +30,8 @@ import org.json.JSONObject
 /**
  * Exports themes, the dock and launcher settings to a JSON file, and restores them.
  * Apps are referenced by component name, so a backup restores onto another phone as long as
- * the same apps are installed; missing ones are simply not shown.
+ * the same apps are installed; missing ones are simply not shown. Pinned shortcuts aren't included:
+ * only the app that made one can pin it again.
  */
 class BackupRepository(
     private val context: Context,
@@ -46,12 +54,22 @@ class BackupRepository(
                     .put("name", theme.name)
                     .put("icon", theme.iconKey)
                     .put("color", theme.accentColor)
-                    .put("apps", JSONArray(themeDao.getThemeAppKeys(theme.id)))
+                    .put("apps", JSONArray(themeDao.getThemeAppKeys(theme.id).filter { ItemKeys.shortcutId(it) == null }))
+                    .put("folders", JSONArray(database.folderDao().getForTheme(theme.id).map { folder ->
+                        JSONObject()
+                            .put("key", ItemKeys.folder(folder.id))
+                            .put("name", folder.name)
+                            .put("apps", JSONArray(database.folderDao().getItemKeys(folder.id).filter(ItemKeys::isApp)))
+                    }))
                     .put("soundProfile", theme.soundProfile)
                     .put("ownDock", theme.ownDock)
+                    .put("iconPack", theme.iconPack ?: JSONObject.NULL)
+                    .put("gridLayout", theme.gridLayout ?: JSONObject.NULL)
                     .put("dock", JSONArray(database.favoritesDao().getFavoriteKeys(theme.id)))
-                    .put("rules", JSONArray(database.ruleDao().getForTheme(theme.id).map {
-                        JSONObject().put("type", it.type).put("config", it.config)
+                    .put("automation", theme.automation)
+                    .put("focus", theme.focus)
+                    .put("rules", JSONArray(database.ruleDao().getForThemeOrdered(theme.id).map {
+                        JSONObject().put("type", it.type).put("config", it.config).put("enabled", it.enabled)
                     }))
             }))
             .put("favorites", JSONArray(favorites))
@@ -61,10 +79,16 @@ class BackupRepository(
                 .put("iconSize", prefs.iconSize.name)
                 .put("showLabels", prefs.showLabels)
                 .put("notificationDots", prefs.notificationDots)
-                .put("swipeDownForNotifications", prefs.swipeDownForNotifications)
+                .put("swipeUp", prefs.swipeUp.serialize())
+                .put("swipeDown", prefs.swipeDown.serialize())
+                .put("doubleTap", prefs.doubleTap.serialize())
+                .put("drawerSort", prefs.drawerSort.name)
+                .put("drawerKeyboard", prefs.drawerKeyboard)
                 .put("hiddenApps", JSONArray(prefs.hiddenApps.toList()))
                 .put("iconPack", prefs.iconPack ?: JSONObject.NULL)
-                .put("doubleTapToLock", prefs.doubleTapToLock)
+                .put("themedIcons", prefs.themedIcons)
+                .put("autoFitIcons", prefs.autoFitIcons)
+                .put("iconArrangement", prefs.iconArrangement.name)
                 .put("contactSearch", prefs.contactSearch)
                 .put("showTime", prefs.showTime)
                 .put("clockPosition", prefs.clockPosition.name)
@@ -72,7 +96,12 @@ class BackupRepository(
                 .put("dateFormat", prefs.dateFormat.name)
                 .put("showBattery", prefs.showBattery)
                 .put("showStatusBar", prefs.showStatusBar)
-                .put("showThemeLabel", prefs.showThemeLabel))
+                .put("showThemeLabel", prefs.showThemeLabel)
+                .put("appearance", prefs.appearance.name)
+                .put("suggestApps", prefs.suggestApps)
+                .put("suggestSchedules", prefs.suggestSchedules)
+                .put("suggestSwitching", prefs.suggestSwitching)
+                .put("suggestionMinLaunches", prefs.suggestionMinLaunches))
 
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toString(2).toByteArray()) }
             ?: error("Could not open the file for writing")
@@ -105,15 +134,35 @@ class BackupRepository(
                         // Wallpapers are files on the old phone, so they aren't part of a backup.
                         soundProfile = SoundProfile.fromName(theme.optString("soundProfile")).name,
                         ownDock = theme.optBoolean("ownDock"),
+                        iconPack = if (theme.isNull("iconPack")) null else theme.optString("iconPack"),
+                        gridLayout = if (theme.isNull("gridLayout")) null else theme.optString("gridLayout").ifBlank { null },
+                        automation = theme.optString("automation"),
+                        focus = theme.optString("focus"),
                     ),
-                    theme.optJSONArray("apps").strings(),
+                    emptyList(),
                 )
+                // Folder ids are new on this install; map the backup's folder keys to them.
+                val folderKeys = HashMap<String, String>()
+                theme.optJSONArray("folders")?.let { folders ->
+                    for (j in 0 until folders.length()) {
+                        val folder = folders.getJSONObject(j)
+                        val folderId = database.folderDao().insert(FolderEntity(themeId = id, name = folder.optString("name")))
+                        database.folderDao().setItems(folderId, folder.optJSONArray("apps").strings())
+                        folderKeys[folder.getString("key")] = ItemKeys.folder(folderId)
+                    }
+                }
+                themeDao.setApps(id, theme.optJSONArray("apps").strings().mapNotNull { key -> if (ItemKeys.isApp(key)) key else folderKeys[key] })
                 database.favoritesDao().setFavorites(theme.optJSONArray("dock").strings().take(ThemeDefaults.MAX_FAVORITES), id)
                 val rules = theme.optJSONArray("rules")
                 if (rules != null) {
                     database.ruleDao().setRules(id, List(rules.length()) { j ->
                         val rule = rules.getJSONObject(j)
-                        ThemeRuleEntity(themeId = id, type = rule.getString("type"), config = rule.getString("config"))
+                        ThemeRuleEntity(
+                            themeId = id,
+                            type = rule.getString("type"),
+                            config = rule.getString("config"),
+                            enabled = rule.optBoolean("enabled", true),
+                        )
                     })
                 }
             }
@@ -129,10 +178,27 @@ class BackupRepository(
                     iconSize = IconSize.entries.firstOrNull { it.name == s.optString("iconSize") } ?: current.iconSize,
                     showLabels = s.optBoolean("showLabels", current.showLabels),
                     notificationDots = s.optBoolean("notificationDots", current.notificationDots),
-                    swipeDownForNotifications = s.optBoolean("swipeDownForNotifications", current.swipeDownForNotifications),
+                    // Older backups had switches for these two gestures.
+                    swipeUp = GestureAction.parse(s.optString("swipeUp")) ?: current.swipeUp,
+                    swipeDown = GestureAction.parse(s.optString("swipeDown"))
+                        ?: if (s.has("swipeDownForNotifications")) {
+                            GestureAction(if (s.optBoolean("swipeDownForNotifications")) GestureKind.Notifications else GestureKind.None)
+                        } else {
+                            current.swipeDown
+                        },
+                    doubleTap = GestureAction.parse(s.optString("doubleTap"))
+                        ?: if (s.has("doubleTapToLock")) {
+                            GestureAction(if (s.optBoolean("doubleTapToLock")) GestureKind.Lock else GestureKind.None)
+                        } else {
+                            current.doubleTap
+                        },
+                    drawerSort = DrawerSort.entries.firstOrNull { it.name == s.optString("drawerSort") } ?: current.drawerSort,
+                    drawerKeyboard = s.optBoolean("drawerKeyboard", current.drawerKeyboard),
                     hiddenApps = s.optJSONArray("hiddenApps").strings().toSet(),
                     iconPack = if (s.isNull("iconPack")) null else s.optString("iconPack").ifBlank { null },
-                    doubleTapToLock = s.optBoolean("doubleTapToLock", current.doubleTapToLock),
+                    themedIcons = s.optBoolean("themedIcons", current.themedIcons),
+                    autoFitIcons = s.optBoolean("autoFitIcons", current.autoFitIcons),
+                    iconArrangement = IconArrangement.entries.firstOrNull { it.name == s.optString("iconArrangement") } ?: current.iconArrangement,
                     contactSearch = s.optBoolean("contactSearch", current.contactSearch),
                     showTime = s.optBoolean("showTime", s.optBoolean("showClock", current.showTime)),
                     clockPosition = ClockPosition.entries.firstOrNull { it.name == s.optString("clockPosition") } ?: current.clockPosition,
@@ -141,6 +207,11 @@ class BackupRepository(
                     showBattery = s.optBoolean("showBattery", current.showBattery),
                     showStatusBar = s.optBoolean("showStatusBar", current.showStatusBar),
                     showThemeLabel = s.optBoolean("showThemeLabel", current.showThemeLabel),
+                    appearance = AppearanceMode.entries.firstOrNull { it.name == s.optString("appearance") } ?: current.appearance,
+                    suggestApps = s.optBoolean("suggestApps", current.suggestApps),
+                    suggestSchedules = s.optBoolean("suggestSchedules", current.suggestSchedules),
+                    suggestSwitching = s.optBoolean("suggestSwitching", current.suggestSwitching),
+                    suggestionMinLaunches = s.optInt("suggestionMinLaunches", current.suggestionMinLaunches),
                 )
             }
         }
@@ -155,6 +226,6 @@ class BackupRepository(
 
     private companion object {
         const val FORMAT = "themelauncher-backup"
-        const val VERSION = 2
+        const val VERSION = 4 // 3: folders; 4: automation, focus, rules that are off
     }
 }

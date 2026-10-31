@@ -1,5 +1,7 @@
 package com.themelauncher.ui.home
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.clickable
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -29,6 +32,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeOptionsSheet(
+    onOpenDrawer: () -> Unit,
     onNewTheme: () -> Unit,
     onAddWidget: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -39,19 +43,24 @@ fun HomeOptionsSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             Text(
-                "ThemeLauncher",
+                stringResource(R.string.themelauncher),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
-            Option(Icons.Rounded.Add, "New theme") {
+            // Always reachable here, even with swipe up set to something else.
+            Option(Icons.Rounded.Apps, stringResource(R.string.all_apps)) {
+                onDismiss()
+                onOpenDrawer()
+            }
+            Option(Icons.Rounded.Add, stringResource(R.string.new_theme)) {
                 onDismiss()
                 onNewTheme()
             }
-            Option(Icons.Outlined.Widgets, "Add widget", "To the theme you're on") {
+            Option(Icons.Outlined.Widgets, stringResource(R.string.add_widget), stringResource(R.string.to_the_theme_you_re_on)) {
                 onDismiss()
                 onAddWidget()
             }
-            Option(Icons.Outlined.Wallpaper, "Wallpaper") {
+            Option(Icons.Outlined.Wallpaper, stringResource(R.string.wallpaper)) {
                 onDismiss()
                 try {
                     context.startActivity(
@@ -61,7 +70,7 @@ fun HomeOptionsSheet(
                 } catch (_: ActivityNotFoundException) {
                 }
             }
-            Option(Icons.Outlined.Settings, "Launcher settings", "Theme switcher side, themes, setup") {
+            Option(Icons.Outlined.Settings, stringResource(R.string.launcher_settings), stringResource(R.string.theme_switcher_side_themes_setup)) {
                 onDismiss()
                 onOpenSettings()
             }

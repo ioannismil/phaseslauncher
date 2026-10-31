@@ -1,5 +1,7 @@
 package com.themelauncher.ui.editor
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,11 +28,15 @@ import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.themes.Theme
 import com.themelauncher.ui.theme.imageVector
 
-/** Pick one or more themes for [app]. Themes that already contain it are shown checked and locked. */
+/**
+ * Pick one or more themes for [app]. Themes that already contain it ([alreadyIn], counting apps
+ * inside their folders) are shown checked and locked.
+ */
 @Composable
 fun AddToThemesDialog(
     app: AppInfo,
     themes: List<Theme>,
+    alreadyIn: Set<Long>,
     onConfirm: (Set<Long>) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -41,25 +47,25 @@ fun AddToThemesDialog(
         title = { Text("Add ${app.label} to…") },
         text = {
             if (themes.isEmpty()) {
-                Text("Create a theme first with the + button on the home screen.")
+                Text(stringResource(R.string.create_a_theme_first_with_the_button_on_the_home))
             } else {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     themes.forEach { theme ->
-                        val alreadyIn = app.key in theme.appKeys
-                        val checked = alreadyIn || theme.id in selected
+                        val isIn = theme.id in alreadyIn
+                        val checked = isIn || theme.id in selected
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .toggleable(
                                     value = checked,
-                                    enabled = !alreadyIn,
+                                    enabled = !isIn,
                                     role = Role.Checkbox,
                                     onValueChange = { if (it) selected += theme.id else selected -= theme.id },
                                 )
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Checkbox(checked = checked, onCheckedChange = null, enabled = !alreadyIn)
+                            Checkbox(checked = checked, onCheckedChange = null, enabled = !isIn)
                             Spacer(Modifier.size(8.dp))
                             Icon(theme.icon.imageVector, contentDescription = null, tint = Color(theme.accentColor))
                             Spacer(Modifier.size(12.dp))
@@ -70,8 +76,8 @@ fun AddToThemesDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(selected.toSet()) }, enabled = selected.isNotEmpty()) { Text("Add") }
+            TextButton(onClick = { onConfirm(selected.toSet()) }, enabled = selected.isNotEmpty()) { Text(stringResource(R.string.add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

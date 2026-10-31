@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -25,8 +27,10 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import com.themelauncher.HomeBanner
 import com.themelauncher.HomeState
 import com.themelauncher.data.apps.AppInfo
+import com.themelauncher.data.items.HomeItem
 import com.themelauncher.data.settings.ClockPosition
 import com.themelauncher.data.settings.SwitcherSide
 import com.themelauncher.data.themes.Theme
@@ -43,16 +47,23 @@ fun HomeScreen(
     switcherSide: SwitcherSide,
     onArcRelease: (Int?) -> Unit,
     onLaunch: (AppInfo, Rect?) -> Unit,
+    onOpenItem: (HomeItem, Rect?) -> Unit,
     onCreateTheme: () -> Unit,
     onAddApps: (Theme) -> Unit,
     onSwipeUp: () -> Unit,
     onSwipeDown: () -> Unit,
-    gridAppActions: (AppInfo) -> List<AppAction>,
+    gridItemActions: (HomeItem) -> List<AppAction>,
     dockAppActions: (AppInfo) -> List<AppAction>,
     onReorderThemeApps: (Theme, List<String>) -> Unit,
+    onMergeItems: (Theme, List<String>, String, String) -> Unit,
     onReorderFavorites: (List<String>) -> Unit,
     onEmptyLongPress: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A suggestion or an automatic switch asking first, shown above the apps. */
+    banner: HomeBanner? = null,
+    onBannerAccept: (HomeBanner) -> Unit = {},
+    onBannerCustomize: (HomeBanner) -> Unit = {},
+    onBannerDismiss: (HomeBanner, Boolean) -> Unit = { _, _ -> },
 ) {
     val swipeUpConnection = rememberVerticalSwipeConnection(onSwipeUp, onSwipeDown)
     val barRight = switcherSide == SwitcherSide.Right
@@ -102,14 +113,30 @@ fun HomeScreen(
                 // Neither clock nor label: just clear the status bar.
                 Spacer(Modifier.height(8.dp))
             }
+            AnimatedVisibility(visible = banner != null) {
+                // Keeps showing the last banner while it animates away.
+                val shown = remember { mutableStateOf(banner) }
+                if (banner != null) shown.value = banner
+                shown.value?.let { b ->
+                    HomeBannerCard(
+                        banner = b,
+                        theme = state.themes.firstOrNull { it.id == b.themeId },
+                        onAccept = { onBannerAccept(b) },
+                        onCustomize = { onBannerCustomize(b) },
+                        onDismiss = { forever -> onBannerDismiss(b, forever) },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+            }
             ThemeGrid(
                 state = state,
                 swipeUpConnection = swipeUpConnection,
-                onLaunch = onLaunch,
-                appActions = gridAppActions,
+                onOpenItem = onOpenItem,
+                itemActions = gridItemActions,
                 onCreateTheme = onCreateTheme,
                 onAddApps = onAddApps,
                 onReorder = onReorderThemeApps,
+                onMerge = onMergeItems,
                 onEmptyLongPress = onEmptyLongPress,
                 modifier = Modifier
                     .weight(1f)
@@ -132,6 +159,7 @@ fun HomeScreen(
                 side = switcherSide,
                 accent = state.activeTheme?.let { Color(it.accentColor) } ?: Color.White,
                 onRelease = onArcRelease,
+                themeNames = state.themes.map { it.name },
                 modifier = Modifier
                     // Slightly below center: within thumb reach on tall phones.
                     .align(BiasAlignment(horizontalBias = if (barRight) 1f else -1f, verticalBias = 0.15f)),

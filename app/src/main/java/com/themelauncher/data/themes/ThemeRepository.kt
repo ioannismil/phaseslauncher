@@ -3,6 +3,10 @@ package com.themelauncher.data.themes
 import androidx.room.withTransaction
 import com.themelauncher.data.db.LauncherDatabase
 import com.themelauncher.data.db.ThemeEntity
+import com.themelauncher.data.db.ThemeRuleEntity
+import com.themelauncher.data.focus.ThemeFocus
+import com.themelauncher.data.rules.RuleSetting
+import com.themelauncher.data.rules.ThemeAutomation
 import com.themelauncher.data.rules.ThemeRule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -16,11 +20,11 @@ class ThemeRepository(private val database: LauncherDatabase) {
     val themes: Flow<List<Theme>> =
         combine(dao.observeThemes(), dao.observeAssignments(), ruleDao.observeAll()) { themes, assignments, rules ->
             val appsByTheme = assignments.groupBy({ it.themeId }, { it.appKey })
-            val rulesByTheme = rules.filter { it.enabled }.groupBy { it.themeId }
+            val rulesByTheme = rules.groupBy { it.themeId }
             themes.map { entity ->
                 entity.toTheme(
                     appKeys = appsByTheme[entity.id].orEmpty(),
-                    rules = rulesByTheme[entity.id].orEmpty().mapNotNull(ThemeRule::fromEntity),
+                    rules = rulesByTheme[entity.id].orEmpty().mapNotNull { it.toSetting() },
                 )
             }
         }
@@ -35,10 +39,14 @@ class ThemeRepository(private val database: LauncherDatabase) {
                 wallpaperPath = draft.wallpaperPath,
                 soundProfile = draft.soundProfile.name,
                 ownDock = draft.ownDock,
+                iconPack = draft.iconPack,
+                gridLayout = draft.gridLayout,
+                automation = draft.automation.toJsonOrEmpty(),
+                focus = draft.focus.toJsonOrEmpty(),
             ),
             draft.appKeys,
         )
-        ruleDao.setRules(id, draft.rules.map { ThemeRule.toEntity(id, it) })
+        ruleDao.setRules(id, draft.rules.toEntities(id))
         id
     }
 
@@ -56,10 +64,20 @@ class ThemeRepository(private val database: LauncherDatabase) {
                 wallpaperPath = draft.wallpaperPath,
                 soundProfile = draft.soundProfile.name,
                 ownDock = draft.ownDock,
+                iconPack = draft.iconPack,
+                gridLayout = draft.gridLayout,
+                automation = draft.automation.toJsonOrEmpty(),
+                focus = draft.focus.toJsonOrEmpty(),
             ),
         )
         dao.setApps(id, draft.appKeys)
-        ruleDao.setRules(id, draft.rules.map { ThemeRule.toEntity(id, it) })
+        ruleDao.setRules(id, draft.rules.toEntities(id))
+    }
+
+    /** Adds a rule to a theme (e.g. an accepted schedule suggestion). */
+    suspend fun addRule(themeId: Long, rule: ThemeRule) = database.withTransaction {
+        val current = ruleDao.getForThemeOrdered(themeId)
+        ruleDao.setRules(themeId, current + ThemeRule.toEntity(themeId, rule))
     }
 
     /** Refuses to delete the last remaining theme. Returns whether the theme was deleted. */
@@ -81,7 +99,15 @@ class ThemeRepository(private val database: LauncherDatabase) {
 
     suspend fun removeApp(themeId: Long, appKey: String) = dao.removeApp(themeId, appKey)
 
-    private fun ThemeEntity.toTheme(appKeys: List<String>, rules: List<ThemeRule>) = Theme(
+    private fun List<RuleSetting>.toEntities(themeId: Long) = map { ThemeRule.toEntity(themeId, it.rule, it.enabled) }
+
+    private fun ThemeRuleEntity.toSetting(): RuleSetting? = ThemeRule.fromEntity(this)?.let { RuleSetting(it, enabled) }
+
+    private fun ThemeAutomation.toJsonOrEmpty() = if (this == ThemeAutomation()) "" else toJson()
+
+    private fun ThemeFocus.toJsonOrEmpty() = if (isDefault) "" else toJson()
+
+    private fun ThemeEntity.toTheme(appKeys: List<String>, rules: List<RuleSetting>) = Theme(
         id = id,
         name = name,
         icon = ThemeIconKey.fromName(iconKey),
@@ -91,5 +117,9 @@ class ThemeRepository(private val database: LauncherDatabase) {
         soundProfile = SoundProfile.fromName(soundProfile),
         ownDock = ownDock,
         rules = rules,
+        iconPack = iconPack,
+        gridLayout = gridLayout,
+        automation = ThemeAutomation.fromJson(automation),
+        focus = ThemeFocus.fromJson(focus),
     )
 }

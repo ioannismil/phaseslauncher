@@ -1,11 +1,14 @@
 package com.themelauncher.ui.settings
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,17 +39,28 @@ import androidx.compose.material.icons.outlined.BatteryStd
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.AddToHomeScreen
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.SettingsBackupRestore
+import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditCalendar
+import androidx.compose.material.icons.outlined.FitScreen
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.InvertColors
 
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Style
+import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.SwipeDown
+import androidx.compose.material.icons.outlined.SwipeUp
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.ViewDay
@@ -74,7 +88,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -97,8 +113,11 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.icons.IconPackInfo
 import com.themelauncher.data.notifications.NotificationDotsRepository
+import com.themelauncher.data.settings.AppearanceMode
 import com.themelauncher.data.settings.ClockPosition
+import com.themelauncher.data.settings.IconArrangement
 import com.themelauncher.data.settings.DateFormatOption
+import com.themelauncher.data.settings.DrawerSort
 import com.themelauncher.data.settings.IconSize
 import com.themelauncher.data.settings.LauncherPrefs
 import com.themelauncher.data.settings.SwitcherSide
@@ -115,6 +134,8 @@ import java.time.LocalDate
 @Composable
 fun SettingsScreen(
     themes: List<Theme>,
+    /** Apps on each theme (by id), counting those in folders. */
+    appCounts: Map<Long, Int>,
     prefs: LauncherPrefs,
     allApps: List<AppInfo>,
     notificationDots: NotificationDotsRepository,
@@ -129,6 +150,11 @@ fun SettingsScreen(
     onClose: () -> Unit,
     loadIconPacks: suspend () -> List<IconPackInfo>,
     onAddWidget: () -> Unit,
+    onImportThemeFile: (Uri) -> Unit = {},
+    onPasteTheme: () -> Unit = {},
+    onImportLauncher: (Uri) -> Unit = {},
+    onResetSuggestions: () -> Unit = {},
+    onClearHistory: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val defaultHome = rememberDefaultHomeState()
@@ -142,13 +168,22 @@ fun SettingsScreen(
     var showIconPacks by remember { mutableStateOf(false) }
     var explainLock by remember { mutableStateOf(false) }
     var showDateFormats by remember { mutableStateOf(false) }
+    var showArrangements by remember { mutableStateOf(false) }
     val iconPacks by produceState(emptyList<IconPackInfo>()) { value = loadIconPacks() }
+    val appsByKey = remember(allApps) { allApps.associateBy { it.key } }
     var lockServiceOn by remember { mutableStateOf(LockScreenService.isEnabled(context)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { lockServiceOn = LockScreenService.isEnabled(context) }
     val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         onUpdatePrefs { it.copy(contactSearch = granted) }
     }
     var pendingImport by remember { mutableStateOf<Uri?>(null) }
+    var choosingMinLaunches by remember { mutableStateOf(false) }
+    val themeFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(onImportThemeFile)
+    }
+    val launcherBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(onImportLauncher)
+    }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let(onExport)
     }
@@ -158,29 +193,54 @@ fun SettingsScreen(
 
     BackHandler(onBack = onClose)
 
+    // Large title that collapses as the list scrolls, like the system Settings app.
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text("Launcher settings") },
+            LargeTopAppBar(
+                scrollBehavior = scrollBehavior,
+                title = { Text(stringResource(R.string.launcher_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Close settings")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.close_settings))
                     }
                 },
             )
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            item { SectionHeader("Theme switcher") }
+            item { SectionHeader(stringResource(R.string.appearance)) }
             item {
                 Column(Modifier.padding(horizontal = 24.dp)) {
                     Text(
-                        "Swipe from the bar on the screen edge toward the middle, then release on a theme. Tap the bar to pick with a tap.",
+                        stringResource(R.string.appearance_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Bar position", style = MaterialTheme.typography.titleSmall)
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        AppearanceMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = mode == prefs.appearance,
+                                onClick = { onUpdatePrefs { it.copy(appearance = mode) } },
+                                shape = SegmentedButtonDefaults.itemShape(index, AppearanceMode.entries.size),
+                            ) { Text(mode.label) }
+                        }
+                    }
+                }
+            }
+
+            item { SectionHeader(stringResource(R.string.theme_switcher)) }
+            item {
+                Column(Modifier.padding(horizontal = 24.dp)) {
+                    Text(
+                        stringResource(R.string.swipe_from_the_bar_on_the_screen_edge_toward_the),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.bar_position), style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         SwitcherSide.entries.forEachIndexed { index, side ->
@@ -188,16 +248,17 @@ fun SettingsScreen(
                                 selected = side == prefs.switcherSide,
                                 onClick = { onUpdatePrefs { it.copy(switcherSide = side) } },
                                 shape = SegmentedButtonDefaults.itemShape(index, SwitcherSide.entries.size),
-                            ) { Text(if (side == SwitcherSide.Left) "Left edge" else "Right edge") }
+                            ) { Text(if (side == SwitcherSide.Left) stringResource(R.string.left_edge) else stringResource(R.string.right_edge)) }
                         }
                     }
                 }
             }
 
-            item { SectionHeader("Themes") }
+            item { SectionHeader(stringResource(R.string.themes)) }
             itemsIndexed(themes, key = { _, theme -> theme.id }) { index, theme ->
                 ThemeRow(
                     theme = theme,
+                    appCount = appCounts[theme.id] ?: theme.appKeys.size,
                     canMoveUp = index > 0,
                     canMoveDown = index < themes.lastIndex,
                     canDelete = themes.size > 1,
@@ -211,15 +272,84 @@ fun SettingsScreen(
                     modifier = Modifier.animateItem(),
                 )
             }
-            item { Option(Icons.Rounded.Add, "New theme", onClick = onNewTheme) }
+            item { Option(Icons.Rounded.Add, stringResource(R.string.new_theme), onClick = onNewTheme) }
+            item {
+                Option(Icons.Outlined.Download, "Import a theme file", "One someone shared with you") {
+                    themeFileLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                }
+            }
+            item { Option(Icons.Outlined.Link, "Paste a theme link", "themelauncher://… from a message", onClick = onPasteTheme) }
+            item {
+                Option(
+                    Icons.Outlined.SettingsBackupRestore,
+                    "Import from another launcher",
+                    "Nova (.novabackup), Lawnchair and other Launcher3-based backups",
+                ) { launcherBackupLauncher.launch(arrayOf("*/*")) }
+            }
 
-            item { SectionHeader("Clock & status bar") }
+            item { SectionHeader("Suggestions") }
+            item {
+                Text(
+                    "ThemeLauncher learns from the apps you open and the themes you pick, on this phone only, " +
+                        "and suggests changes at the top of the home screen.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.AddToHomeScreen,
+                    "Apps for a theme",
+                    if (prefs.suggestApps) "Suggest adding an app you keep opening on a theme" else stringResource(R.string.off),
+                    prefs.suggestApps,
+                ) { on -> onUpdatePrefs { it.copy(suggestApps = on) } }
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("Suggest after") },
+                    supportingContent = { Text("${prefs.suggestionMinLaunches} opens in two weeks") },
+                    leadingContent = { Icon(Icons.Outlined.Tune, contentDescription = null) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier
+                        .clickable(enabled = prefs.suggestApps) { choosingMinLaunches = true }
+                        .alpha(if (prefs.suggestApps) 1f else 0.38f)
+                        .padding(horizontal = 8.dp),
+                )
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.Schedule,
+                    "Schedules",
+                    if (prefs.suggestSchedules) "Suggest a schedule for a theme you pick around the same time" else stringResource(R.string.off),
+                    prefs.suggestSchedules,
+                ) { on -> onUpdatePrefs { it.copy(suggestSchedules = on) } }
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.SwapHoriz,
+                    "Switching",
+                    if (prefs.suggestSwitching) "Offer to switch when you open an app from another theme" else stringResource(R.string.off),
+                    prefs.suggestSwitching,
+                ) { on -> onUpdatePrefs { it.copy(suggestSwitching = on) } }
+            }
+            item {
+                Option(
+                    Icons.Outlined.Restore,
+                    "Show dismissed suggestions again",
+                    if (prefs.dismissedSuggestions.isEmpty()) "None dismissed" else "${prefs.dismissedSuggestions.size} dismissed",
+                    onClick = if (prefs.dismissedSuggestions.isEmpty()) null else onResetSuggestions,
+                )
+            }
+            item { Option(Icons.Outlined.DeleteSweep, "Clear activity history", "Forget the launches and switches suggestions learn from", onClick = onClearHistory) }
+
+            item { SectionHeader(stringResource(R.string.clock_status_bar)) }
             item {
                 Text(
                     if (prefs.showTime || prefs.showDate || prefs.showBattery || prefs.showThemeLabel) {
-                        "Show any mix at the top of the home screen."
+                        stringResource(R.string.show_any_mix_at_the_top_of_the_home_screen)
                     } else {
-                        "All off \u2014 apps use the whole screen."
+                        stringResource(R.string.all_off_apps_use_the_whole_screen)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -229,22 +359,22 @@ fun SettingsScreen(
             item {
                 SwitchOption(
                     Icons.Outlined.Schedule,
-                    "Time",
-                    "Large, at the top",
+                    stringResource(R.string.time),
+                    stringResource(R.string.large_at_the_top),
                     prefs.showTime,
                 ) { on -> onUpdatePrefs { it.copy(showTime = on) } }
             }
             item {
                 SwitchOption(
                     Icons.Outlined.CalendarToday,
-                    "Date",
-                    if (prefs.showTime) "Under the time" else "At the top",
+                    stringResource(R.string.date),
+                    if (prefs.showTime) stringResource(R.string.under_the_time) else stringResource(R.string.at_the_top),
                     prefs.showDate,
                 ) { on -> onUpdatePrefs { it.copy(showDate = on) } }
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Date format") },
+                    headlineContent = { Text(stringResource(R.string.date_format)) },
                     supportingContent = { Text(formatDate(prefs.dateFormat)) },
                     leadingContent = { Icon(Icons.Outlined.EditCalendar, contentDescription = null) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -257,16 +387,16 @@ fun SettingsScreen(
             item {
                 SwitchOption(
                     Icons.Outlined.BatteryStd,
-                    "Battery percentage",
-                    if (prefs.showDate) "Next to the date" else if (prefs.showTime) "Under the time" else "At the top",
+                    stringResource(R.string.battery_percentage),
+                    if (prefs.showDate) stringResource(R.string.next_to_the_date) else if (prefs.showTime) stringResource(R.string.under_the_time) else stringResource(R.string.at_the_top),
                     prefs.showBattery,
                 ) { on -> onUpdatePrefs { it.copy(showBattery = on) } }
             }
             item {
                 SwitchOption(
                     Icons.Outlined.Style,
-                    "Theme name",
-                    if (prefs.showThemeLabel) "Pill with the active theme; tap it to switch" else "Hidden — use the edge bar to switch themes",
+                    stringResource(R.string.theme_name),
+                    if (prefs.showThemeLabel) stringResource(R.string.pill_with_the_active_theme_tap_it_to_switch) else stringResource(R.string.hidden_use_the_edge_bar_to_switch_themes),
                     prefs.showThemeLabel,
                 ) { on -> onUpdatePrefs { it.copy(showThemeLabel = on) } }
             }
@@ -277,7 +407,7 @@ fun SettingsScreen(
                         .padding(horizontal = 24.dp, vertical = 8.dp)
                         .alpha(if (anyShown) 1f else 0.38f),
                 ) {
-                    Text("Position", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.position), style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.height(8.dp))
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         ClockPosition.entries.forEachIndexed { index, position ->
@@ -294,18 +424,34 @@ fun SettingsScreen(
             item {
                 SwitchOption(
                     Icons.Outlined.ViewDay,
-                    "Status bar",
-                    if (prefs.showStatusBar) "Shown on the home screen" else "Hidden \u2014 swipe down from the top edge to see it",
+                    stringResource(R.string.status_bar),
+                    if (prefs.showStatusBar) stringResource(R.string.shown_on_the_home_screen) else stringResource(R.string.hidden_swipe_down_from_the_top_edge_to_see_it),
                     prefs.showStatusBar,
                 ) { on -> onUpdatePrefs { it.copy(showStatusBar = on) } }
             }
 
-            item { SectionHeader("Home screen") }
+            item { SectionHeader(stringResource(R.string.home_screen)) }
+            item {
+                SwitchOption(
+                    Icons.Outlined.FitScreen,
+                    stringResource(R.string.fit_icons_to_the_screen),
+                    if (prefs.autoFitIcons) {
+                        stringResource(R.string.icons_grow_or_shrink_so_each_theme_fits_without)
+                    } else {
+                        stringResource(R.string.off_fixed_columns_and_icon_size)
+                    },
+                    prefs.autoFitIcons,
+                ) { on -> onUpdatePrefs { it.copy(autoFitIcons = on) } }
+            }
             item {
                 Column(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Grid columns", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                        Text("${prefs.gridColumns}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    Row(Modifier.alpha(if (prefs.autoFitIcons) 0.38f else 1f), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.grid_columns), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text(
+                            if (prefs.autoFitIcons) stringResource(R.string.auto) else "${prefs.gridColumns}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
                     val range = LauncherPrefs.COLUMN_RANGE
                     Slider(
@@ -313,9 +459,11 @@ fun SettingsScreen(
                         onValueChange = { value -> onUpdatePrefs { it.copy(gridColumns = value.toInt()) } },
                         valueRange = range.first.toFloat()..range.last.toFloat(),
                         steps = range.last - range.first - 1,
+                        enabled = !prefs.autoFitIcons,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("Icon size", style = MaterialTheme.typography.bodyLarge)
+                    // Fitted home icons size themselves; the setting still sizes the dock.
+                    Text(if (prefs.autoFitIcons) stringResource(R.string.dock_icon_size) else stringResource(R.string.icon_size), style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.height(8.dp))
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         IconSize.entries.forEachIndexed { index, size ->
@@ -329,45 +477,47 @@ fun SettingsScreen(
                 }
             }
             item {
-                SwitchOption(Icons.AutoMirrored.Outlined.Label, "App labels", "Show names under icons on the home screen", prefs.showLabels) { on ->
+                Option(Icons.Outlined.GridView, stringResource(R.string.icon_arrangement), prefs.iconArrangement.label) {
+                    showArrangements = true
+                }
+            }
+            item {
+                SwitchOption(Icons.AutoMirrored.Outlined.Label, stringResource(R.string.app_labels), stringResource(R.string.show_names_under_icons_on_the_home_screen), prefs.showLabels) { on ->
                     onUpdatePrefs { it.copy(showLabels = on) }
                 }
             }
             item {
                 Option(
                     Icons.Outlined.Palette,
-                    "Icon pack",
+                    stringResource(R.string.icon_pack),
                     iconPacks.firstOrNull { it.packageName == prefs.iconPack }?.label
-                        ?: if (iconPacks.isEmpty()) "None installed. Get one from the Play Store." else "App icons (none)",
+                        ?: if (iconPacks.isEmpty()) stringResource(R.string.none_installed_get_one_from_the_play_store) else stringResource(R.string.app_icons_none),
                 ) { showIconPacks = true }
             }
             item {
+                val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 SwitchOption(
-                    icon = Icons.Outlined.TouchApp,
-                    title = "Double-tap to lock",
+                    icon = Icons.Outlined.InvertColors,
+                    title = stringResource(R.string.themed_icons),
                     subtitle = when {
-                        prefs.doubleTapToLock && !lockServiceOn -> "Needs the accessibility service \u2014 tap to turn it on"
-                        prefs.doubleTapToLock -> "Double-tap an empty part of the home screen"
-                        else -> "Off"
+                        !supported -> stringResource(R.string.needs_android_13_or_newer)
+                        prefs.themedIcons -> stringResource(R.string.icons_take_the_color_of_the_theme_you_re_on_apps)
+                        else -> stringResource(R.string.off)
                     },
-                    checked = prefs.doubleTapToLock,
-                    subtitleIsWarning = prefs.doubleTapToLock && !lockServiceOn,
-                    onClick = if (prefs.doubleTapToLock && !lockServiceOn) ({ explainLock = true }) else null,
-                ) { on ->
-                    onUpdatePrefs { it.copy(doubleTapToLock = on) }
-                    if (on && !lockServiceOn) explainLock = true
-                }
+                    checked = prefs.themedIcons && supported,
+                    enabled = supported,
+                ) { on -> onUpdatePrefs { it.copy(themedIcons = on) } }
             }
-            item { Option(Icons.Outlined.Widgets, "Add widget", "To the theme you're on", onClick = onAddWidget) }
+            item { Option(Icons.Outlined.Widgets, stringResource(R.string.add_widget), stringResource(R.string.to_the_theme_you_re_on), onClick = onAddWidget) }
             item {
                 val needsAccess = prefs.notificationDots && !hasDotAccess
                 SwitchOption(
                     icon = Icons.Outlined.Badge,
-                    title = "Notification dots",
+                    title = stringResource(R.string.notification_dots),
                     subtitle = when {
-                        needsAccess -> "Needs notification access — tap to allow"
-                        prefs.notificationDots -> "A dot on apps with new notifications"
-                        else -> "Off"
+                        needsAccess -> stringResource(R.string.needs_notification_access_tap_to_allow)
+                        prefs.notificationDots -> stringResource(R.string.a_dot_on_apps_with_new_notifications)
+                        else -> stringResource(R.string.off)
                     },
                     checked = prefs.notificationDots,
                     subtitleIsWarning = needsAccess,
@@ -378,15 +528,7 @@ fun SettingsScreen(
                 }
             }
             item {
-                SwitchOption(
-                    Icons.Outlined.SwipeDown,
-                    "Swipe down for notifications",
-                    "Swipe down anywhere on the home screen",
-                    prefs.swipeDownForNotifications,
-                ) { on -> onUpdatePrefs { it.copy(swipeDownForNotifications = on) } }
-            }
-            item {
-                Option(Icons.Outlined.Wallpaper, "Wallpaper") {
+                Option(Icons.Outlined.Wallpaper, stringResource(R.string.wallpaper)) {
                     try {
                         context.startActivity(
                             Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Set wallpaper")
@@ -398,20 +540,70 @@ fun SettingsScreen(
             }
             item {
                 if (defaultHome.isDefault) {
-                    Option(Icons.Rounded.CheckCircle, "Default home app", "ThemeLauncher is your home app", onClick = null)
+                    Option(Icons.Rounded.CheckCircle, stringResource(R.string.default_home_app), stringResource(R.string.themelauncher_is_your_home_app), onClick = null)
                 } else {
-                    Option(Icons.Outlined.Home, "Set as default home app", "So the Home button opens ThemeLauncher", onClick = defaultHome.request)
+                    Option(Icons.Outlined.Home, stringResource(R.string.set_as_default_home_app), stringResource(R.string.so_the_home_button_opens_themelauncher), onClick = defaultHome.request)
                 }
             }
 
-            item { SectionHeader("Apps") }
+            item { SectionHeader(stringResource(R.string.gestures)) }
+            item {
+                Text(
+                    stringResource(R.string.on_an_empty_part_of_the_home_screen_long_press_i),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
+            }
+            item {
+                GestureOption(Icons.Outlined.SwipeUp, stringResource(R.string.swipe_up), prefs.swipeUp, appsByKey, lockServiceOn, { a -> onUpdatePrefs { it.copy(swipeUp = a) } }) {
+                    explainLock = true
+                }
+            }
+            item {
+                GestureOption(Icons.Outlined.SwipeDown, stringResource(R.string.swipe_down), prefs.swipeDown, appsByKey, lockServiceOn, { a -> onUpdatePrefs { it.copy(swipeDown = a) } }) {
+                    explainLock = true
+                }
+            }
+            item {
+                GestureOption(Icons.Outlined.TouchApp, stringResource(R.string.double_tap), prefs.doubleTap, appsByKey, lockServiceOn, { a -> onUpdatePrefs { it.copy(doubleTap = a) } }) {
+                    explainLock = true
+                }
+            }
+
+            item { SectionHeader(stringResource(R.string.app_drawer)) }
+            item {
+                Column(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
+                    Text(stringResource(R.string.sort_apps_by), style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        DrawerSort.entries.forEachIndexed { index, sort ->
+                            SegmentedButton(
+                                selected = sort == prefs.drawerSort,
+                                onClick = { onUpdatePrefs { it.copy(drawerSort = sort) } },
+                                shape = SegmentedButtonDefaults.itemShape(index, DrawerSort.entries.size),
+                            ) { Text(sort.shortLabel, maxLines = 1) }
+                        }
+                    }
+                }
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.Keyboard,
+                    stringResource(R.string.open_the_keyboard),
+                    if (prefs.drawerKeyboard) stringResource(R.string.the_drawer_opens_ready_to_search) else stringResource(R.string.tap_the_search_bar_to_search_the_search_gesture),
+                    prefs.drawerKeyboard,
+                ) { on -> onUpdatePrefs { it.copy(drawerKeyboard = on) } }
+            }
+
+            item { SectionHeader(stringResource(R.string.apps)) }
             item {
                 Option(
                     Icons.Outlined.VisibilityOff,
-                    "Hidden apps",
+                    stringResource(R.string.hidden_apps),
                     when (prefs.hiddenApps.size) {
-                        0 -> "None hidden. Long-press an app in the drawer to hide it."
-                        1 -> "1 app hidden from the drawer"
+                        0 -> stringResource(R.string.none_hidden_long_press_an_app_in_the_drawer_to_h)
+                        1 -> stringResource(R.string.t_1_app_hidden_from_the_drawer)
                         else -> "${prefs.hiddenApps.size} apps hidden from the drawer"
                     },
                 ) { showHiddenApps = true }
@@ -420,11 +612,11 @@ fun SettingsScreen(
             item {
                 SwitchOption(
                     icon = Icons.Outlined.Contacts,
-                    title = "Search contacts",
+                    title = stringResource(R.string.search_contacts),
                     subtitle = when {
-                        !prefs.contactSearch -> "Off"
-                        hasContactsPermission(context) -> "Matching contacts appear in drawer search"
-                        else -> "Needs permission to read contacts"
+                        !prefs.contactSearch -> stringResource(R.string.off)
+                        hasContactsPermission(context) -> stringResource(R.string.matching_contacts_appear_in_drawer_search)
+                        else -> stringResource(R.string.needs_permission_to_read_contacts)
                     },
                     checked = prefs.contactSearch && hasContactsPermission(context),
                 ) { on ->
@@ -436,21 +628,21 @@ fun SettingsScreen(
                 }
             }
 
-            item { SectionHeader("Backup") }
+            item { SectionHeader(stringResource(R.string.backup)) }
             item {
-                Option(Icons.Outlined.Upload, "Back up themes", "Save themes, dock and settings to a file") {
+                Option(Icons.Outlined.Upload, stringResource(R.string.back_up_themes), stringResource(R.string.save_themes_dock_and_settings_to_a_file)) {
                     exportLauncher.launch("themelauncher-${LocalDate.now()}.json")
                 }
             }
             item {
-                Option(Icons.Outlined.Download, "Restore from backup", "Replaces your current themes, dock and settings") {
+                Option(Icons.Outlined.Download, stringResource(R.string.restore_from_backup), stringResource(R.string.replaces_your_current_themes_dock_and_settings)) {
                     importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
                 }
             }
-            item { Option(Icons.Outlined.Restore, "Run setup again", "Pick favorites and add themes from presets", onClick = onRunSetup) }
+            item { Option(Icons.Outlined.Restore, stringResource(R.string.run_setup_again), stringResource(R.string.pick_favorites_and_add_themes_from_presets), onClick = onRunSetup) }
 
-            item { SectionHeader("About") }
-            item { Option(Icons.Outlined.Info, "ThemeLauncher", versionName?.let { "Version $it" }, onClick = null) }
+            item { SectionHeader(stringResource(R.string.about)) }
+            item { Option(Icons.Outlined.Info, stringResource(R.string.themelauncher), versionName?.let { "Version $it" }, onClick = null) }
             item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
         }
     }
@@ -470,7 +662,7 @@ fun SettingsScreen(
     if (showDateFormats) {
         AlertDialog(
             onDismissRequest = { showDateFormats = false },
-            title = { Text("Date format") },
+            title = { Text(stringResource(R.string.date_format)) },
             text = {
                 Column {
                     DateFormatOption.entries.forEach { option ->
@@ -491,14 +683,48 @@ fun SettingsScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showDateFormats = false }) { Text("Close") } },
+            confirmButton = { TextButton(onClick = { showDateFormats = false }) { Text(stringResource(R.string.close)) } },
+        )
+    }
+
+    if (showArrangements) {
+        AlertDialog(
+            onDismissRequest = { showArrangements = false },
+            title = { Text(stringResource(R.string.icon_arrangement)) },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.icon_arrangement_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    IconArrangement.entries.forEach { option ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(prefs.iconArrangement == option, role = Role.RadioButton) {
+                                    onUpdatePrefs { it.copy(iconArrangement = option) }
+                                    showArrangements = false
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = prefs.iconArrangement == option, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text(option.label)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showArrangements = false }) { Text(stringResource(R.string.close)) } },
         )
     }
 
     if (showIconPacks) {
         AlertDialog(
             onDismissRequest = { showIconPacks = false },
-            title = { Text("Icon pack") },
+            title = { Text(stringResource(R.string.icon_pack)) },
             text = {
                 Column {
                     val options = listOf<IconPackInfo?>(null) + iconPacks
@@ -515,55 +741,83 @@ fun SettingsScreen(
                         ) {
                             RadioButton(selected = prefs.iconPack == pack?.packageName, onClick = null)
                             Spacer(Modifier.size(12.dp))
-                            Text(pack?.label ?: "App icons (none)")
+                            Text(pack?.label ?: stringResource(R.string.app_icons_none))
                         }
                     }
                     if (iconPacks.isEmpty()) {
                         Text(
-                            "Icon packs made for Nova, ADW or Apex launchers work here.",
+                            stringResource(R.string.icon_packs_made_for_nova_adw_or_apex_launchers_w),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showIconPacks = false }) { Text("Close") } },
+            confirmButton = { TextButton(onClick = { showIconPacks = false }) { Text(stringResource(R.string.close)) } },
         )
     }
 
     if (explainLock) {
         AlertDialog(
             onDismissRequest = { explainLock = false },
-            title = { Text("Turn on double-tap to lock") },
+            title = { Text(stringResource(R.string.turn_on_screen_locking)) },
             text = {
                 Text(
-                    "Android only lets apps lock the screen through an accessibility service. " +
-                        "On the next screen, open \u201cThemeLauncher: double-tap to lock\u201d and turn it on.\n\n" +
-                        "It is used only to lock the screen. It can't read the screen or what you type.",
+                    stringResource(R.string.android_only_lets_apps_lock_the_screen_through_a) +
+                        stringResource(R.string.on_the_next_screen_open_themelauncher_double_tap) +
+                        stringResource(R.string.it_is_used_only_to_lock_the_screen_it_can_t_read),
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     explainLock = false
                     LockScreenService.openSettings(context)
-                }) { Text("Open settings") }
+                }) { Text(stringResource(R.string.open_settings)) }
             },
-            dismissButton = { TextButton(onClick = { explainLock = false }) { Text("Not now") } },
+            dismissButton = { TextButton(onClick = { explainLock = false }) { Text(stringResource(R.string.not_now)) } },
+        )
+    }
+
+    if (choosingMinLaunches) {
+        AlertDialog(
+            onDismissRequest = { choosingMinLaunches = false },
+            title = { Text("Suggest an app after") },
+            text = {
+                Column {
+                    LauncherPrefs.SUGGESTION_LAUNCH_CHOICES.forEach { count ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(prefs.suggestionMinLaunches == count, role = Role.RadioButton) {
+                                    onUpdatePrefs { it.copy(suggestionMinLaunches = count) }
+                                    choosingMinLaunches = false
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = prefs.suggestionMinLaunches == count, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text("$count opens in two weeks")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { choosingMinLaunches = false }) { Text(stringResource(R.string.close)) } },
         )
     }
 
     pendingImport?.let { uri ->
         AlertDialog(
             onDismissRequest = { pendingImport = null },
-            title = { Text("Restore from backup?") },
-            text = { Text("Your current themes, dock and launcher settings will be replaced by the ones in the backup.") },
+            title = { Text(stringResource(R.string.restore_from_backup_2)) },
+            text = { Text(stringResource(R.string.your_current_themes_dock_and_launcher_settings_w)) },
             confirmButton = {
                 TextButton(onClick = {
                     pendingImport = null
                     onImport(uri)
-                }) { Text("Restore") }
+                }) { Text(stringResource(R.string.restore)) }
             },
-            dismissButton = { TextButton(onClick = { pendingImport = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -584,6 +838,7 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun ThemeRow(
     theme: Theme,
+    appCount: Int,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     canDelete: Boolean,
@@ -607,7 +862,7 @@ private fun ThemeRow(
         Column(Modifier.weight(1f)) {
             Text(theme.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                if (theme.appKeys.size == 1) "1 app" else "${theme.appKeys.size} apps",
+                if (appCount == 1) stringResource(R.string.t_1_app) else "$appCount apps",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -670,3 +925,10 @@ private fun SwitchOption(
 
 private fun hasContactsPermission(context: Context) =
     ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+
+private val DrawerSort.shortLabel: String
+    get() = when (this) {
+        DrawerSort.Name -> "A\u2013Z"
+        DrawerSort.MostUsed -> "Most used"
+        DrawerSort.Newest -> "Newest"
+    }

@@ -1,5 +1,7 @@
 package com.themelauncher.ui.editor
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -87,19 +89,19 @@ fun CustomizeAppDialog(
                     Spacer(Modifier.width(16.dp))
                     if (iconPacks.isEmpty()) {
                         Text(
-                            "Install an icon pack to pick a different icon.",
+                            stringResource(R.string.install_an_icon_pack_to_pick_a_different_icon),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
-                        OutlinedButton(onClick = { picking = true }) { Text("Change icon") }
+                        OutlinedButton(onClick = { picking = true }) { Text(stringResource(R.string.change_icon)) }
                     }
                 }
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it.take(40) },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.name)) },
                     placeholder = { Text(app.defaultLabel) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -107,16 +109,16 @@ fun CustomizeAppDialog(
                 TextButton(onClick = {
                     onReset()
                     onDismiss()
-                }) { Text("Reset to default") }
+                }) { Text(stringResource(R.string.reset_to_default)) }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 onSave(label, picked?.first, picked?.second)
                 onDismiss()
-            }) { Text("Save") }
+            }) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 
     if (picking) {
@@ -152,7 +154,7 @@ private fun IconPickerSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxHeight().navigationBarsPadding().imePadding().padding(horizontal = 16.dp)) {
-            Text("Choose an icon", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 8.dp))
+            Text(stringResource(R.string.choose_an_icon), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 8.dp))
             if (iconPacks.size > 1) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
                     iconPacks.forEach { p ->
@@ -163,7 +165,7 @@ private fun IconPickerSheet(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search icons") },
+                placeholder = { Text(stringResource(R.string.search_icons)) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 singleLine = true,
                 shape = CircleShape,

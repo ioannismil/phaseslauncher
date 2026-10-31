@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
@@ -127,10 +128,16 @@ class AppsRepository(
      */
     fun isInstalled(key: String): Boolean {
         val (component, serial) = AppInfo.parseKey(key) ?: return false
-        val user = if (serial == null) Process.myUserHandle() else userManager.getUserForSerialNumber(serial)
+        return isPackageInstalled(component.packageName, serial)
+    }
+
+    /** Like [isInstalled], for a package in the profile with [userSerial] (null for the main profile). */
+    fun isPackageInstalled(packageName: String, userSerial: Long?): Boolean {
+        val user = if (userSerial == null) Process.myUserHandle() else userManager.getUserForSerialNumber(userSerial)
         if (user == null) return false
+        val key = "$packageName#$userSerial"
         return try {
-            launcherApps.getApplicationInfo(component.packageName, 0, user)
+            launcherApps.getApplicationInfo(packageName, 0, user)
             true
         } catch (_: PackageManager.NameNotFoundException) {
             false
@@ -142,8 +149,8 @@ class AppsRepository(
     }
 
     /** Returns false if the app could not be started (e.g. it was just uninstalled). */
-    fun launch(app: AppInfo, sourceBounds: Rect?): Boolean = try {
-        launcherApps.startMainActivity(app.componentName, app.user, sourceBounds, null)
+    fun launch(app: AppInfo, sourceBounds: Rect?, options: Bundle? = null): Boolean = try {
+        launcherApps.startMainActivity(app.componentName, app.user, sourceBounds, options)
         true
     } catch (e: Exception) {
         Log.w(TAG, "Could not launch ${app.key}", e)
@@ -213,6 +220,7 @@ class AppsRepository(
                             canUninstall = !isSystem,
                             category = info.applicationInfo.category,
                             profile = profile.type,
+                            installTime = info.firstInstallTime,
                         )
                     }
             }.sortedWith { a, b -> collator.compare(a.label, b.label) }

@@ -61,8 +61,12 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
+    // QR codes for sharing themes.
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
+    // The real org.json for JVM unit tests (Android's is a stub there).
+    testImplementation(libs.org.json)
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

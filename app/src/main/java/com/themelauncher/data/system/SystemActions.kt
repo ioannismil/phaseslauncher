@@ -20,4 +20,15 @@ object SystemActions {
         Log.w("SystemActions", "Could not expand notifications", e)
         false
     }
+
+    /** Pulls down Quick Settings (StatusBarManager.expandSettingsPanel, also EXPAND_STATUS_BAR). */
+    @SuppressLint("WrongConstant")
+    fun expandQuickSettings(context: Context): Boolean = try {
+        val statusBar = context.getSystemService("statusbar")
+        Class.forName("android.app.StatusBarManager").getMethod("expandSettingsPanel").invoke(statusBar)
+        true
+    } catch (e: Exception) {
+        Log.w("SystemActions", "Could not expand quick settings", e)
+        false
+    }
 }

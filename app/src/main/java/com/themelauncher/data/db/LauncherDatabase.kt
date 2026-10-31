@@ -15,12 +15,23 @@ import androidx.room.RoomDatabase
         AppCustomizationEntity::class,
         AppUsageEntity::class,
         ThemeRuleEntity::class,
+        FolderEntity::class,
+        FolderItemEntity::class,
+        PinnedShortcutEntity::class,
+        LaunchEventEntity::class,
+        ThemeSwitchEntity::class,
     ],
-    version = 2,
+    version = 5,
     exportSchema = true,
     autoMigrations = [
         // v2: per-theme wallpaper/sound/dock, widgets, app customizations, usage, rules.
         AutoMigration(from = 1, to = 2),
+        // v3: folders and pinned shortcuts.
+        AutoMigration(from = 2, to = 3),
+        // v4: per-theme icon pack and home grid.
+        AutoMigration(from = 3, to = 4),
+        // v5: per-theme automation and focus settings, launch and switch history for suggestions.
+        AutoMigration(from = 4, to = 5),
     ],
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -30,6 +41,9 @@ abstract class LauncherDatabase : RoomDatabase() {
     abstract fun customizationDao(): CustomizationDao
     abstract fun usageDao(): UsageDao
     abstract fun ruleDao(): RuleDao
+    abstract fun folderDao(): FolderDao
+    abstract fun pinnedShortcutDao(): PinnedShortcutDao
+    abstract fun historyDao(): HistoryDao
 
     companion object {
         fun create(context: Context): LauncherDatabase =

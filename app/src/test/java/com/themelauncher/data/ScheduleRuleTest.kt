@@ -3,6 +3,7 @@ package com.themelauncher.data
 import com.themelauncher.data.rules.ThemeRule
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.DayOfWeek
 import java.time.LocalDateTime
@@ -29,5 +30,14 @@ class ScheduleRuleTest {
         assertTrue(rule.isActive(at(5, 1))) // early Saturday belongs to Friday's range
         assertFalse(rule.isActive(at(5, 3)))
         assertFalse(rule.isActive(at(3, 23))) // Thursday
+    }
+
+    @Test
+    fun nextChangeIsTheNearestStartOrEndAfterNow() {
+        val rule = ThemeRule.Schedule(DayOfWeek.entries.toSet(), 9 * 60, 17 * 60)
+        val morning = LocalDateTime.of(2026, 11, 2, 8, 30)
+        assertEquals(LocalDateTime.of(2026, 11, 2, 9, 0), rule.nextChange(morning))
+        assertEquals(LocalDateTime.of(2026, 11, 2, 17, 0), rule.nextChange(LocalDateTime.of(2026, 11, 2, 9, 0)))
+        assertEquals(LocalDateTime.of(2026, 11, 3, 9, 0), rule.nextChange(LocalDateTime.of(2026, 11, 2, 18, 0)))
     }
 }

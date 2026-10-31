@@ -1,5 +1,7 @@
 package com.themelauncher.ui.widgets
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.appwidget.AppWidgetProviderInfo
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -81,7 +83,7 @@ fun WidgetPickerSheet(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search widgets") },
+                placeholder = { Text(stringResource(R.string.search_widgets)) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 singleLine = true,
                 shape = CircleShape,

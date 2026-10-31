@@ -1,5 +1,7 @@
 package com.themelauncher.ui.home
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -77,7 +79,7 @@ fun ClockHeader(
 
     // Re-read on every tick so 12/24h and locale changes apply without a restart.
     val locale = Locale.getDefault()
-    val timePattern = DateFormat.getBestDateTimePattern(locale, if (DateFormat.is24HourFormat(context)) "Hm" else "hm")
+    val timePattern = DateFormat.getBestDateTimePattern(locale, if (DateFormat.is24HourFormat(context)) stringResource(R.string.hm) else "hm")
         .replace("a", "").trim()
 
     Column(
@@ -109,7 +111,7 @@ fun ClockHeader(
                     val battery = rememberBatteryState()
                     Icon(
                         if (battery.charging) Icons.Rounded.BatteryChargingFull else Icons.Rounded.BatteryFull,
-                        contentDescription = if (battery.charging) "Charging" else "Battery",
+                        contentDescription = if (battery.charging) stringResource(R.string.charging) else stringResource(R.string.battery),
                         tint = wallpaperColors.content,
                         modifier = Modifier.size(18.dp),
                     )

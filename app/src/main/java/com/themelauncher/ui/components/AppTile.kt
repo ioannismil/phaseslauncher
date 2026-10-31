@@ -1,5 +1,7 @@
 package com.themelauncher.ui.components
 
+import com.themelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.Rect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -23,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
@@ -36,10 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import com.themelauncher.data.apps.AppInfo
 import com.themelauncher.data.apps.AppShortcut
 import com.themelauncher.data.apps.IconCache
+import com.themelauncher.data.items.PinnedShortcut
 import com.themelauncher.data.notifications.NotificationDotsRepository
 
 val LocalIconCache = staticCompositionLocalOf<IconCache> { error("IconCache not provided") }
@@ -57,8 +65,10 @@ val LocalIconCache = staticCompositionLocalOf<IconCache> { error("IconCache not 
 fun AppIcon(app: AppInfo, modifier: Modifier = Modifier, size: Dp = 56.dp) {
     val iconCache = LocalIconCache.current
     val generation by iconCache.generation.collectAsState()
-    val icon by produceState(iconCache.peek(app.key), app.key, generation) {
-        value = iconCache.peek(app.key) ?: iconCache.load(app)
+    // Keeps showing the previous icon while a new one renders (e.g. themed icons changing color).
+    var icon by remember(app.key) { mutableStateOf(iconCache.peek(app)) }
+    LaunchedEffect(app.key, generation) {
+        icon = iconCache.peek(app) ?: iconCache.load(app) ?: icon
     }
     Box(modifier.size(size)) {
         icon?.let { Image(bitmap = it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
@@ -66,10 +76,9 @@ fun AppIcon(app: AppInfo, modifier: Modifier = Modifier, size: Dp = 56.dp) {
 }
 
 /**
- * Icon + label. Callbacks receive the tile's bounds in window coordinates so the system
+ * Icon + label. Callbacks receive the tile's bounds in screen coordinates so the system
  * can animate the launched app out of the icon.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppTile(
     app: AppInfo,
@@ -79,27 +88,73 @@ fun AppTile(
     modifier: Modifier = Modifier,
     iconSize: Dp = 56.dp,
     showLabel: Boolean = true,
+    accessibilityActions: List<CustomAccessibilityAction> = emptyList(),
+) {
+    LauncherTile(
+        label = app.label,
+        accessibilityActions = accessibilityActions,
+        labelStyle = labelStyle,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        modifier = modifier,
+        iconSize = iconSize,
+        showLabel = showLabel,
+        hasDot = NotificationDotsRepository.dotKey(app.packageName, app.user) in LocalNotificationDots.current,
+    ) { AppIcon(app, size = iconSize) }
+}
+
+/** The tile layout shared by apps, pinned shortcuts and folders: [icon] (drawn at [iconSize]) over a label. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun LauncherTile(
+    label: String,
+    labelStyle: TextStyle,
+    onClick: (Rect?) -> Unit,
+    onLongClick: ((Rect?) -> Unit)?,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 56.dp,
+    showLabel: Boolean = true,
+    hasDot: Boolean = false,
+    /** What screen readers say instead of the label (e.g. "Folder Games, 4 apps"). */
+    description: String? = null,
+    /** Screen-reader alternatives to dragging, e.g. "Move earlier". */
+    accessibilityActions: List<CustomAccessibilityAction> = emptyList(),
+    icon: @Composable () -> Unit,
 ) {
     val bounds = remember { Rect() }
+    val view = LocalView.current
+    val origin = remember { IntArray(2) }
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .onGloballyPositioned { coords ->
-                val b = coords.boundsInWindow()
-                bounds.set(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())
+                // Screen coordinates, so tiles in a dialog (folders) work like those on home.
+                view.getLocationOnScreen(origin)
+                val b = coords.boundsInRoot()
+                bounds.set(
+                    origin[0] + b.left.toInt(),
+                    origin[1] + b.top.toInt(),
+                    origin[0] + b.right.toInt(),
+                    origin[1] + b.bottom.toInt(),
+                )
             }
             .combinedClickable(
                 onClick = { onClick(Rect(bounds)) },
                 onLongClick = onLongClick?.let { { it(Rect(bounds)) } },
-                onLongClickLabel = onLongClick?.let { "Options" },
+                onLongClickLabel = onLongClick?.let { stringResource(R.string.options) },
             )
-            .semantics(mergeDescendants = true) { if (!showLabel) contentDescription = app.label }
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .semantics(mergeDescendants = true) {
+                when {
+                    description != null -> contentDescription = description
+                    !showLabel -> contentDescription = label
+                }
+                if (accessibilityActions.isNotEmpty()) customActions = accessibilityActions
+            }
+            .padding(vertical = TilePadding.vertical, horizontal = TilePadding.horizontal),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val hasDot = NotificationDotsRepository.dotKey(app.packageName, app.user) in LocalNotificationDots.current
         Box {
-            AppIcon(app, size = iconSize)
+            icon()
             if (hasDot) {
                 Box(
                     Modifier
@@ -113,9 +168,9 @@ fun AppTile(
             }
         }
         if (showLabel) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(TilePadding.labelGap))
             Text(
-                text = app.label,
+                text = label,
                 style = labelStyle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -126,9 +181,16 @@ fun AppTile(
     }
 }
 
+/** Spacing inside a [LauncherTile]; the auto-fitting home grid needs it to size icons. */
+object TilePadding {
+    val vertical = 8.dp
+    val horizontal = 4.dp
+    val labelGap = 6.dp
+}
+
 data class AppAction(val label: String, val icon: ImageVector, val onClick: (Rect?) -> Unit)
 
-/** An [AppTile] whose long-press opens a menu of [actions], anchored to the tile. */
+/** An [AppTile] whose long-press opens a menu of the app's shortcuts and [actions], anchored to the tile. */
 @Composable
 fun AppTileWithMenu(
     app: AppInfo,
@@ -139,6 +201,7 @@ fun AppTileWithMenu(
     iconSize: Dp = 56.dp,
     showLabel: Boolean = true,
     menuState: AppMenuState = remember { AppMenuState() },
+    accessibilityActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val expanded = menuState.openKey == app.key
     val shortcutHost = LocalShortcutHost.current
@@ -146,29 +209,58 @@ fun AppTileWithMenu(
     val shortcuts by produceState(emptyList<AppShortcut>(), expanded, app.key) {
         value = if (expanded && shortcutHost != null) shortcutHost.load(app) else emptyList()
     }
-    Box(modifier) {
+    TileWithMenu(
+        key = app.key,
+        title = app.label,
+        actions = actions,
+        menuState = menuState,
+        modifier = modifier,
+        shortcuts = shortcuts,
+        onShortcut = { shortcut, bounds -> shortcutHost?.launch(shortcut, bounds) },
+    ) { onLongClick ->
         AppTile(
             app = app,
             labelStyle = labelStyle,
             onClick = onClick,
-            onLongClick = { menuState.open(app.key, it) },
+            onLongClick = onLongClick,
             iconSize = iconSize,
             showLabel = showLabel,
+            accessibilityActions = accessibilityActions,
         )
+    }
+}
+
+/**
+ * Any tile whose long-press opens a menu: [shortcuts] (an app's shortcuts) first, then [actions].
+ * [tile] gets the long-press handler to put on itself.
+ */
+@Composable
+fun TileWithMenu(
+    key: String,
+    title: String,
+    actions: () -> List<AppAction>,
+    menuState: AppMenuState,
+    modifier: Modifier = Modifier,
+    shortcuts: List<AppShortcut> = emptyList(),
+    onShortcut: (AppShortcut, Rect?) -> Unit = { _, _ -> },
+    tile: @Composable (onLongClick: (Rect?) -> Unit) -> Unit,
+) {
+    Box(modifier) {
+        tile { menuState.open(key, it) }
         DropdownMenu(
-            expanded = expanded,
+            expanded = menuState.openKey == key,
             onDismissRequest = { menuState.close() },
             shape = RoundedCornerShape(16.dp),
         ) {
             Text(
-                text = app.label,
+                text = title,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            if (shortcuts.isNotEmpty() && shortcutHost != null) {
+            if (shortcuts.isNotEmpty()) {
                 shortcuts.forEach { shortcut ->
                     DropdownMenuItem(
                         text = { Text(shortcut.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -178,7 +270,7 @@ fun AppTileWithMenu(
                         onClick = {
                             val bounds = menuState.bounds
                             menuState.close()
-                            shortcutHost.launch(shortcut, bounds)
+                            onShortcut(shortcut, bounds)
                         },
                     )
                 }
@@ -217,10 +309,11 @@ class AppMenuState {
     }
 }
 
-/** Loads and launches app shortcuts for long-press menus. */
+/** Loads and launches app shortcuts for long-press menus, and draws pinned shortcuts. */
 interface ShortcutHost {
     suspend fun load(app: AppInfo): List<AppShortcut>
     fun launch(shortcut: AppShortcut, sourceBounds: Rect?)
+    suspend fun pinnedIcon(shortcut: PinnedShortcut): ImageBitmap?
 }
 
 val LocalShortcutHost = staticCompositionLocalOf<ShortcutHost?> { null }

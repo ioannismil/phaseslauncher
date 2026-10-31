@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
 import android.graphics.Rect
+import android.os.Bundle
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -52,8 +53,8 @@ class ShortcutsRepository(context: Context) {
             }
     }
 
-    fun launch(shortcut: AppShortcut, sourceBounds: Rect?): Boolean = try {
-        launcherApps.startShortcut(shortcut.info, sourceBounds, null)
+    fun launch(shortcut: AppShortcut, sourceBounds: Rect?, options: Bundle? = null): Boolean = try {
+        launcherApps.startShortcut(shortcut.info, sourceBounds, options)
         true
     } catch (e: Exception) {
         Log.w(TAG, "Could not start shortcut ${shortcut.id}", e)

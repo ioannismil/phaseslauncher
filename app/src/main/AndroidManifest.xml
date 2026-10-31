@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Lets "Uninstall" open the system uninstall confirmation. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
@@ -16,6 +17,19 @@
     <!-- Switch theme when a chosen Bluetooth device (e.g. the car) connects (asked at runtime, optional). -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <!-- Switch theme on a chosen Wi-Fi network; Android only reveals network names with location access (asked at runtime, optional). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Place rules while another app is open ("Allow all the time"; asked separately, optional). -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Switch theme during calendar events (asked at runtime, optional). -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Daily limits per theme: how long apps were used today (granted in Settings, optional). -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Package visibility (Android 11+): see every app that has a launcher entry. -->
     <queries>
@@ -79,6 +93,72 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- "Add to home screen" from other apps: asks which theme the shortcut or widget goes on. -->
+        <activity
+            android:name=".ui.pin.PinItemActivity"
+            android:autoRemoveFromRecents="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ThemeLauncher.PinItem">
+            <intent-filter>
+                <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.content.pm.action.CONFIRM_PIN_APPWIDGET" />
+            </intent-filter>
+        </activity>
+
+        <!-- Shared themes: a themelauncher:// link (e.g. from a QR code), a theme file, or text with a link. -->
+        <activity
+            android:name=".ui.share.ImportThemeActivity"
+            android:autoRemoveFromRecents="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ThemeLauncher.PinItem">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="themelauncher" android:host="theme" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
+        </activity>
+
+        <!-- Theme files handed to the share sheet. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
+
+        <!-- Quick Settings tile: shows the active theme and switches themes from the shade. -->
+        <service
+            android:name=".ui.tile.ThemeTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_theme"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Wakes the launcher when a scheduled theme should start or end. -->
+        <receiver
+            android:name=".data.rules.ScheduleAlarmReceiver"
+            android:exported="false" />
 
         <!-- Double-tap to lock. Off unless the user turns it on in Accessibility settings. -->
         <service

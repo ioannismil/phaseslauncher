@@ -25,6 +25,8 @@ data class AppInfo(
     val profile: ProfileType = ProfileType.Personal,
     /** The app's own name; [label] differs when the user renamed it. */
     val defaultLabel: String = label,
+    /** When the app was first installed (ms since epoch), for "Recently installed" sorting. */
+    val installTime: Long = 0L,
 ) {
     val packageName: String get() = componentName.packageName
 
