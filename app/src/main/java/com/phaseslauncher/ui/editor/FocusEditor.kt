@@ -33,11 +33,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.apps.filterApps
 import com.phaseslauncher.data.focus.BlockMode
@@ -45,6 +49,7 @@ import com.phaseslauncher.data.focus.LimitScope
 import com.phaseslauncher.data.focus.NotificationFilter
 import com.phaseslauncher.data.focus.ThemeFocus
 import com.phaseslauncher.ui.components.AppIcon
+import com.phaseslauncher.ui.components.label
 
 private enum class FocusChoice { BlockMode, Pause, Allow, Filter, ThemeLimit, LimitScope, LimitMode }
 
@@ -71,36 +76,37 @@ fun FocusSection(
         usageAccess = env.hasUsageAccess()
     }
     val labels = remember(allApps) { allApps.associate { it.key to it.label } }
+    @Composable
     fun appsLabel(keys: Set<String>, none: String) = when (keys.size) {
         0 -> none
-        1 -> labels[keys.first()] ?: "1 app"
-        2 -> keys.mapNotNull(labels::get).joinToString(", ").ifBlank { "2 apps" }
-        else -> "${keys.size} apps"
+        1 -> labels[keys.first()] ?: pluralStringResource(R.plurals.apps_count, 1, 1)
+        2 -> keys.mapNotNull(labels::get).joinToString(", ").ifBlank { pluralStringResource(R.plurals.apps_count, 2, 2) }
+        else -> pluralStringResource(R.plurals.apps_count, keys.size, keys.size)
     }
 
     Text(
-        "Applies while this phase is on, to apps opened from Phases.",
+        stringResource(R.string.applies_while_this_phase_is_on_to_apps_opened_fr),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 
     // Blocking
-    ValueRow("Blocked apps", appsLabel(focus.blockedApps, "None")) { pickingApps = AppPick.Blocked }
+    ValueRow(stringResource(R.string.blocked_apps), appsLabel(focus.blockedApps, stringResource(R.string.none))) { pickingApps = AppPick.Blocked }
     ToggleRow(
-        title = "Block apps outside this phase",
-        subtitle = if (focus.blockOtherApps) "Only this phase's apps and the dock open freely" else "Off",
+        title = stringResource(R.string.block_apps_outside_this_phase),
+        subtitle = if (focus.blockOtherApps) stringResource(R.string.only_this_phase_s_apps_and_the_dock_open_freely) else stringResource(R.string.off),
         checked = focus.blockOtherApps,
         onCheckedChange = { onFocusChange(focus.copy(blockOtherApps = it)) },
     )
     if (focus.blocksAnything) {
-        ValueRow("Opening a blocked app", focus.blockMode.label) { choosing = FocusChoice.BlockMode }
+        ValueRow(stringResource(R.string.opening_a_blocked_app), focus.blockMode.label) { choosing = FocusChoice.BlockMode }
         if (focus.blockMode == BlockMode.Pause) {
-            ValueRow("Pause for", seconds(focus.pauseSeconds)) { choosing = FocusChoice.Pause }
-            ValueRow("Then let it open for", minutes(focus.allowMinutes)) { choosing = FocusChoice.Allow }
+            ValueRow(stringResource(R.string.pause_for), seconds(focus.pauseSeconds)) { choosing = FocusChoice.Pause }
+            ValueRow(stringResource(R.string.then_let_it_open_for), minutes(focus.allowMinutes)) { choosing = FocusChoice.Allow }
         }
         ToggleRow(
-            title = "Hide blocked apps from the drawer",
-            subtitle = if (focus.hideBlockedApps) "They come back when you switch phases" else "Shown, but held back when opened",
+            title = stringResource(R.string.hide_blocked_apps_from_the_drawer),
+            subtitle = if (focus.hideBlockedApps) stringResource(R.string.they_come_back_when_you_switch_phases) else stringResource(R.string.shown_but_held_back_when_opened),
             checked = focus.hideBlockedApps,
             onCheckedChange = { onFocusChange(focus.copy(hideBlockedApps = it)) },
         )
@@ -108,94 +114,96 @@ fun FocusSection(
 
     // Notifications
     Spacer(Modifier.height(8.dp))
-    Text("Notifications", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    ValueRow("Allow notifications from", focus.notificationFilter.label) { choosing = FocusChoice.Filter }
+    Text(stringResource(R.string.notifications), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    ValueRow(stringResource(R.string.allow_notifications_from), focus.notificationFilter.label) { choosing = FocusChoice.Filter }
     if (focus.notificationFilter != NotificationFilter.Off) {
         ValueRow(
-            if (focus.notificationFilter == NotificationFilter.Chosen) "Allowed apps" else "Also allow",
-            appsLabel(focus.allowedNotificationApps, "None"),
+            if (focus.notificationFilter == NotificationFilter.Chosen) stringResource(R.string.allowed_apps) else stringResource(R.string.also_allow),
+            appsLabel(focus.allowedNotificationApps, stringResource(R.string.none)),
         ) { pickingApps = AppPick.Notifications }
         ToggleRow(
-            title = "Keep the others out of the notification shade",
+            title = stringResource(R.string.keep_the_others_out_of_the_notification_shade),
             subtitle = if (focus.hideNotifications) {
-                "Snoozed while this phase is on; they return within 10 minutes after"
+                stringResource(R.string.snoozed_while_this_phase_is_on_they_return_withi)
             } else {
-                "Off: only their notification dots are hidden"
+                stringResource(R.string.off_only_their_notification_dots_are_hidden)
             },
             checked = focus.hideNotifications,
             onCheckedChange = { onFocusChange(focus.copy(hideNotifications = it)) },
         )
         ToggleRow(
-            title = "Always let calls, alarms and reminders through",
-            subtitle = if (focus.allowUrgent) "On" else "Off",
+            title = stringResource(R.string.always_let_calls_alarms_and_reminders_through),
+            subtitle = if (focus.allowUrgent) stringResource(R.string.on) else stringResource(R.string.off),
             checked = focus.allowUrgent,
             onCheckedChange = { onFocusChange(focus.copy(allowUrgent = it)) },
         )
         if (!notificationAccess) {
-            Warning("Needs notification access to filter notifications.", "Allow access") { env.requestNotificationAccess() }
+            Warning(stringResource(R.string.needs_notification_access_to_filter_notification), stringResource(R.string.allow_access)) { env.requestNotificationAccess() }
         }
     }
 
     // Limits
     Spacer(Modifier.height(8.dp))
-    Text("Daily limits", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(stringResource(R.string.daily_limits), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     ValueRow(
-        "Per app",
+        stringResource(R.string.per_app),
         when (focus.appLimits.size) {
-            0 -> "None"
-            1 -> focus.appLimits.entries.first().let { (k, v) -> "${labels[k] ?: "1 app"}: ${minutes(v)}" }
-            else -> "${focus.appLimits.size} apps"
+            0 -> stringResource(R.string.none)
+            1 -> focus.appLimits.entries.first().let { (k, v) ->
+                stringResource(R.string.app_limit, labels[k] ?: pluralStringResource(R.plurals.apps_count, 1, 1), minutes(v))
+            }
+            else -> pluralStringResource(R.plurals.apps_count, focus.appLimits.size, focus.appLimits.size)
         },
     ) { editingLimits = true }
     ValueRow(
-        "All of this phase's apps together",
-        if (focus.themeLimitMinutes == 0) "No limit" else "${minutes(focus.themeLimitMinutes)} a day",
+        stringResource(R.string.all_of_this_phase_s_apps_together),
+        if (focus.themeLimitMinutes == 0) stringResource(R.string.no_limit) else stringResource(R.string.a_day, minutes(focus.themeLimitMinutes)),
     ) { choosing = FocusChoice.ThemeLimit }
     if (focus.hasLimits) {
-        ValueRow("Limits count", focus.limitScope.label) { choosing = FocusChoice.LimitScope }
-        ValueRow("When time's up", focus.limitMode.label) { choosing = FocusChoice.LimitMode }
+        ValueRow(stringResource(R.string.limits_count), focus.limitScope.label) { choosing = FocusChoice.LimitScope }
+        ValueRow(stringResource(R.string.when_time_s_up), focus.limitMode.label) { choosing = FocusChoice.LimitMode }
         if (!usageAccess) {
-            Warning("Needs usage access to know how long you've used apps today.", "Allow access") { env.requestUsageAccess() }
+            Warning(stringResource(R.string.needs_usage_access_to_know_how_long_you_ve_used), stringResource(R.string.allow_access)) { env.requestUsageAccess() }
         }
     }
     if (!focus.isDefault) {
-        TextButton(onClick = { onFocusChange(ThemeFocus()) }) { Text("Reset focus settings") }
+        TextButton(onClick = { onFocusChange(ThemeFocus()) }) { Text(stringResource(R.string.reset_focus_settings)) }
     }
 
     when (choosing) {
-        FocusChoice.BlockMode -> ChoiceDialog("Opening a blocked app", BlockMode.entries, focus.blockMode, { it.label }, {
+        FocusChoice.BlockMode -> ChoiceDialog(stringResource(R.string.opening_a_blocked_app), BlockMode.entries, focus.blockMode, { it.label }, {
             choosing = null
             onFocusChange(focus.copy(blockMode = it))
         }, { choosing = null })
-        FocusChoice.Pause -> ChoiceDialog("Pause for", ThemeFocus.PAUSE_CHOICES, focus.pauseSeconds, ::seconds, {
+        FocusChoice.Pause -> ChoiceDialog(stringResource(R.string.pause_for), ThemeFocus.PAUSE_CHOICES, focus.pauseSeconds, { seconds(it) }, {
             choosing = null
             onFocusChange(focus.copy(pauseSeconds = it))
         }, { choosing = null })
-        FocusChoice.Allow -> ChoiceDialog("Then let it open for", ThemeFocus.ALLOW_CHOICES, focus.allowMinutes, ::minutes, {
+        FocusChoice.Allow -> ChoiceDialog(stringResource(R.string.then_let_it_open_for), ThemeFocus.ALLOW_CHOICES, focus.allowMinutes, { minutes(it) }, {
             choosing = null
             onFocusChange(focus.copy(allowMinutes = it))
         }, { choosing = null })
-        FocusChoice.Filter -> ChoiceDialog("Allow notifications from", NotificationFilter.entries, focus.notificationFilter, { it.label }, {
+        FocusChoice.Filter -> ChoiceDialog(stringResource(R.string.allow_notifications_from), NotificationFilter.entries, focus.notificationFilter, { it.label }, {
             choosing = null
             onFocusChange(focus.copy(notificationFilter = it))
             if (it != NotificationFilter.Off && !notificationAccess) env.requestNotificationAccess()
         }, { choosing = null })
         FocusChoice.ThemeLimit -> ChoiceDialog(
-            "All of this phase's apps together",
+            stringResource(R.string.all_of_this_phase_s_apps_together),
             listOf(0) + ThemeFocus.LIMIT_CHOICES,
             focus.themeLimitMinutes,
-            { if (it == 0) "No limit" else "${minutes(it)} a day" },
+            { if (it == 0) stringResource(R.string.no_limit) else stringResource(R.string.a_day, minutes(it)) },
             {
                 choosing = null
                 onFocusChange(focus.copy(themeLimitMinutes = it))
             },
             { choosing = null },
         )
-        FocusChoice.LimitScope -> ChoiceDialog("Limits count", LimitScope.entries, focus.limitScope, { it.label }, {
+        FocusChoice.LimitScope -> ChoiceDialog(stringResource(R.string.limits_count), LimitScope.entries, focus.limitScope, { it.label }, {
             choosing = null
             onFocusChange(focus.copy(limitScope = it))
         }, { choosing = null })
-        FocusChoice.LimitMode -> ChoiceDialog("When time's up", BlockMode.entries, focus.limitMode, { it.label }, {
+        FocusChoice.LimitMode -> ChoiceDialog(stringResource(R.string.when_time_s_up), BlockMode.entries, focus.limitMode, { it.label }, {
             choosing = null
             onFocusChange(focus.copy(limitMode = it))
         }, { choosing = null })
@@ -203,11 +211,11 @@ fun FocusSection(
     }
 
     when (pickingApps) {
-        AppPick.Blocked -> AppPickerDialog("Blocked apps", allApps, focus.blockedApps, {
+        AppPick.Blocked -> AppPickerDialog(stringResource(R.string.blocked_apps), allApps, focus.blockedApps, {
             pickingApps = null
             onFocusChange(focus.copy(blockedApps = it))
         }, { pickingApps = null })
-        AppPick.Notifications -> AppPickerDialog("Allowed notifications", allApps, focus.allowedNotificationApps, {
+        AppPick.Notifications -> AppPickerDialog(stringResource(R.string.allowed_notifications), allApps, focus.allowedNotificationApps, {
             pickingApps = null
             onFocusChange(focus.copy(allowedNotificationApps = it))
         }, { pickingApps = null })
@@ -252,7 +260,7 @@ fun AppPickerDialog(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search apps") },
+                    placeholder = { Text(stringResource(R.string.search_apps)) },
                     leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                     singleLine = true,
                     shape = CircleShape,
@@ -279,8 +287,8 @@ fun AppPickerDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onDone(selected) }) { Text(if (selected.isEmpty()) "Save (none)" else "Save (${selected.size})") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onDone(selected) }) { Text(if (selected.isEmpty()) stringResource(R.string.save_none) else stringResource(R.string.save_2, selected.size)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -291,17 +299,18 @@ private fun LimitsDialog(
     onDone: (Map<String, Int>) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val res = LocalResources.current
     var limits by remember { mutableStateOf(initial) }
     var adding by remember { mutableStateOf(false) }
     var editingKey by remember { mutableStateOf<String?>(null) }
     val byKey = remember(allApps) { allApps.associateBy { it.key } }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Daily limits per app") },
+        title = { Text(stringResource(R.string.daily_limits_per_app)) },
         text = {
             Column {
                 if (limits.isEmpty()) {
-                    Text("No limits yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.no_limits_yet), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 LazyColumn(Modifier.heightIn(max = 320.dp)) {
                     items(limits.entries.sortedBy { byKey[it.key]?.label ?: it.key }.toList(), key = { it.key }) { (key, minutes) ->
@@ -315,43 +324,50 @@ private fun LimitsDialog(
                             byKey[key]?.let { AppIcon(it, size = 32.dp) }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(byKey[key]?.label ?: "App not installed", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${minutes(minutes)} a day", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                Text(byKey[key]?.label ?: stringResource(R.string.app_not_installed), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(stringResource(R.string.a_day, minutes(minutes)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                             }
-                            IconButton(onClick = { limits = limits - key }) { Icon(Icons.Outlined.Delete, contentDescription = "Remove limit") }
+                            IconButton(onClick = { limits = limits - key }) { Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.remove_limit)) }
                         }
                     }
                 }
                 TextButton(onClick = { adding = true }) {
                     Icon(Icons.Rounded.Add, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Add apps")
+                    Text(stringResource(R.string.add_apps))
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onDone(limits) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onDone(limits) }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
     if (adding) {
-        AppPickerDialog("Add limits", allApps.filter { it.key !in limits }, emptySet(), { keys ->
+        AppPickerDialog(stringResource(R.string.add_limits), allApps.filter { it.key !in limits }, emptySet(), { keys ->
             adding = false
             limits = limits + keys.associateWith { DEFAULT_LIMIT }
         }, { adding = false })
     }
     editingKey?.let { key ->
-        ChoiceDialog("${byKey[key]?.label ?: "App"}: daily limit", ThemeFocus.LIMIT_CHOICES, limits[key] ?: DEFAULT_LIMIT, ::minutes, {
+        ChoiceDialog(res.getString(R.string.daily_limit, byKey[key]?.label ?: res.getString(R.string.app)), ThemeFocus.LIMIT_CHOICES, limits[key] ?: DEFAULT_LIMIT, { minutes(it) }, {
             editingKey = null
             limits = limits + (key to it)
         }, { editingKey = null })
     }
 }
 
-private fun seconds(s: Int) = if (s == 0) "No wait" else if (s < 60) "$s seconds" else "${s / 60} minute${if (s >= 120) "s" else ""}"
+@Composable
+private fun seconds(s: Int) = when {
+    s == 0 -> stringResource(R.string.no_wait)
+    s < 60 -> pluralStringResource(R.plurals.seconds_count, s, s)
+    else -> pluralStringResource(R.plurals.minutes_count, s / 60, s / 60)
+}
 
+/** "45 min", "2 h", "1 h 30 min". */
+@Composable
 internal fun minutes(m: Int) = when {
-    m < 60 -> "$m min"
-    m % 60 == 0 -> "${m / 60} h"
-    else -> "${m / 60} h ${m % 60} min"
+    m < 60 -> stringResource(R.string.minutes_short, m)
+    m % 60 == 0 -> stringResource(R.string.hours_short, m / 60)
+    else -> stringResource(R.string.hours_minutes_short, m / 60, m % 60)
 }
 
 private const val DEFAULT_LIMIT = 30

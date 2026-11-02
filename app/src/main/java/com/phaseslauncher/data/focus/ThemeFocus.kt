@@ -1,25 +1,28 @@
 package com.phaseslauncher.data.focus
 
+import androidx.annotation.StringRes
+import com.phaseslauncher.R
+import com.phaseslauncher.data.Labeled
 import org.json.JSONArray
 import org.json.JSONObject
 
 /** What opening a blocked app (or one over its time limit) does. */
-enum class BlockMode(val label: String) {
-    Pause("Show a pause screen first"),
-    Block("Don't open it"),
+enum class BlockMode(@StringRes override val labelRes: Int) : Labeled {
+    Pause(R.string.show_a_pause_screen_first),
+    Block(R.string.don_t_open_it),
 }
 
 /** Which apps may show notification dots, and (optionally) notifications, while a theme is on. */
-enum class NotificationFilter(val label: String) {
-    Off("All apps"),
-    ThemeApps("Only apps in this phase and the dock"),
-    Chosen("Only apps I choose"),
+enum class NotificationFilter(@StringRes override val labelRes: Int) : Labeled {
+    Off(R.string.all_apps),
+    ThemeApps(R.string.only_apps_in_this_phase_and_the_dock),
+    Chosen(R.string.only_apps_i_choose),
 }
 
 /** When a theme's daily limits count. */
-enum class LimitScope(val label: String) {
-    WhileActive("Only while this phase is on"),
-    Always("All day, whichever phase is on"),
+enum class LimitScope(@StringRes override val labelRes: Int) : Labeled {
+    WhileActive(R.string.only_while_this_phase_is_on),
+    Always(R.string.all_day_whichever_phase_is_on),
 }
 
 /**

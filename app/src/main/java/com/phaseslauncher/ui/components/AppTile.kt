@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.components
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.graphics.Rect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -43,7 +41,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.apps.AppShortcut
 import com.phaseslauncher.data.apps.IconCache
@@ -121,6 +122,7 @@ fun LauncherTile(
     accessibilityActions: List<CustomAccessibilityAction> = emptyList(),
     icon: @Composable () -> Unit,
 ) {
+    val res = LocalResources.current
     val bounds = remember { Rect() }
     val view = LocalView.current
     val origin = remember { IntArray(2) }
@@ -163,7 +165,7 @@ fun LauncherTile(
                         .border(2.dp, Color.White, CircleShape)
                         .padding(1.dp)
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
-                        .semantics { contentDescription = "New notifications" },
+                        .semantics { contentDescription = res.getString(R.string.new_notifications) },
                 )
             }
         }

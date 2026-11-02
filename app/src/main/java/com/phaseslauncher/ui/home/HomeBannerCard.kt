@@ -24,8 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.phaseslauncher.HomeBanner
+import com.phaseslauncher.R
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.ui.theme.contentColorOn
 import com.phaseslauncher.ui.theme.imageVector
@@ -60,9 +62,9 @@ fun HomeBannerCard(
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                if (!banner.isAutoPrompt) TextButton(onClick = { onDismiss(true) }) { Text("Never") }
-                TextButton(onClick = { onDismiss(false) }) { Text("Not now") }
-                if (banner.canCustomize) TextButton(onClick = onCustomize) { Text("Customize") }
+                if (!banner.isAutoPrompt) TextButton(onClick = { onDismiss(true) }) { Text(stringResource(R.string.never)) }
+                TextButton(onClick = { onDismiss(false) }) { Text(stringResource(R.string.not_now)) }
+                if (banner.canCustomize) TextButton(onClick = onCustomize) { Text(stringResource(R.string.customize_3)) }
                 FilledTonalButton(onClick = onAccept, modifier = Modifier.padding(start = 4.dp)) { Text(banner.acceptLabel) }
             }
         }

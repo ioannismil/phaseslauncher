@@ -3,6 +3,7 @@ package com.phaseslauncher.data.backup
 import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
+import com.phaseslauncher.R
 import com.phaseslauncher.data.db.FolderEntity
 import com.phaseslauncher.data.db.LauncherDatabase
 import com.phaseslauncher.data.db.ThemeEntity
@@ -10,16 +11,16 @@ import com.phaseslauncher.data.db.ThemeRuleEntity
 import com.phaseslauncher.data.items.ItemKeys
 import com.phaseslauncher.data.settings.AppearanceMode
 import com.phaseslauncher.data.settings.ClockPosition
-import com.phaseslauncher.data.settings.IconArrangement
 import com.phaseslauncher.data.settings.DateFormatOption
 import com.phaseslauncher.data.settings.DrawerSort
 import com.phaseslauncher.data.settings.GestureAction
 import com.phaseslauncher.data.settings.GestureKind
+import com.phaseslauncher.data.settings.IconArrangement
 import com.phaseslauncher.data.settings.IconSize
 import com.phaseslauncher.data.settings.SettingsRepository
 import com.phaseslauncher.data.settings.SwitcherSide
-import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.SoundProfile
+import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeIconKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -104,17 +105,17 @@ class BackupRepository(
                 .put("suggestionMinLaunches", prefs.suggestionMinLaunches))
 
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toString(2).toByteArray()) }
-            ?: error("Could not open the file for writing")
+            ?: error(context.getString(R.string.could_not_open_the_file_for_writing))
         Summary(themes.size, favorites.size)
     }
 
     /** Replaces all themes, the dock and settings with the backup's. Throws if the file isn't a backup. */
     suspend fun importFrom(uri: Uri): Summary = withContext(Dispatchers.IO) {
         val text = context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
-            ?: error("Could not open the file")
+            ?: error(context.getString(R.string.could_not_open_the_file))
         val json = JSONObject(text)
-        require(json.optString("format") == FORMAT) { "This isn't a Phases backup" }
-        require(json.optInt("version") <= VERSION) { "This backup is from a newer version of Phases" }
+        require(json.optString("format") == FORMAT) { context.getString(R.string.this_isn_t_a_phases_backup) }
+        require(json.optInt("version") <= VERSION) { context.getString(R.string.this_backup_is_from_a_newer_version_of_phases) }
 
         val themes = json.getJSONArray("themes")
         val favorites = json.optJSONArray("favorites").strings()

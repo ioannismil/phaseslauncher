@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.pin
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
@@ -15,10 +13,11 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.phaseslauncher.R
 import com.phaseslauncher.appContainer
+import com.phaseslauncher.data.settings.AppearanceMode
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.data.widgets.WidgetRepository
-import com.phaseslauncher.data.settings.AppearanceMode
 import com.phaseslauncher.ui.theme.PhasesTheme
 import com.phaseslauncher.ui.theme.isDark
 import com.phaseslauncher.ui.widgets.WidgetAddFlow
@@ -98,12 +97,12 @@ class PinItemActivity : ComponentActivity() {
                     val key = container.pinnedShortcuts.accept(request)
                     if (key != null) container.themeRepository.addApp(theme.id, key)
                     withContext(Dispatchers.Main) {
-                        done(if (key != null) "Added to ${theme.name}" else "Couldn’t add the shortcut")
+                        done(if (key != null) getString(R.string.added_to, theme.name) else getString(R.string.couldn_t_add_the_shortcut))
                     }
                 }
             }
             LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET -> {
-                val info = request.getAppWidgetProviderInfo(this) ?: return done("Couldn’t add the widget")
+                val info = request.getAppWidgetProviderInfo(this) ?: return done(getString(R.string.couldn_t_add_the_widget))
                 widgetTheme = theme
                 widgetAddFlow.start(info)
             }
@@ -117,12 +116,12 @@ class PinItemActivity : ComponentActivity() {
         val extras = Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId) }
         if (!runCatching { request.isValid && request.accept(extras) }.getOrDefault(false)) {
             container.widgetRepository.discardId(appWidgetId)
-            return done("Couldn’t add the widget")
+            return done(getString(R.string.couldn_t_add_the_widget))
         }
         val density = resources.displayMetrics.density
         container.appScope.launch {
             container.widgetRepository.add(appWidgetId, theme.id, info, density)
-            withContext(Dispatchers.Main) { done("Added to ${theme.name}") }
+            withContext(Dispatchers.Main) { done(getString(R.string.added_to, theme.name)) }
         }
     }
 

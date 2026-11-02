@@ -1,5 +1,6 @@
 package com.phaseslauncher.ui.importer
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,36 +27,45 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.importer.ImportMode
 import com.phaseslauncher.data.importer.LauncherLayout
 import com.phaseslauncher.data.importer.LayoutImportOptions
+import com.phaseslauncher.ui.components.label
 import com.phaseslauncher.ui.editor.ToggleRow
 
 /** Shows what was found in another launcher's backup and how to turn it into themes. */
 @Composable
 fun LauncherImportDialog(layout: LauncherLayout, onImport: (LayoutImportOptions) -> Unit, onDismiss: () -> Unit) {
+    val res = LocalResources.current
     var mode by rememberSaveable { mutableStateOf(if (layout.pages.size > 1) ImportMode.PagePerTheme else ImportMode.OneTheme) }
-    val names = remember { mutableStateMapOf<Int, String>().apply { layout.pages.forEach { put(it.index, defaultName(it.index)) } } }
+    val names = remember { mutableStateMapOf<Int, String>().apply { layout.pages.forEach { put(it.index, defaultName(res, it.index)) } } }
     val included = remember { mutableStateMapOf<Int, Boolean>().apply { layout.pages.forEach { put(it.index, true) } } }
-    var singleName by rememberSaveable { mutableStateOf("Imported") }
+    val importedName = stringResource(R.string.imported)
+    var singleName by rememberSaveable { mutableStateOf(importedName) }
     var dock by rememberSaveable { mutableStateOf(layout.dock.isNotEmpty()) }
     var folders by rememberSaveable { mutableStateOf(true) }
     val chosen = layout.pages.filter { included[it.index] == true }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Import home screen") },
+        title = { Text(stringResource(R.string.import_home_screen)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
                     buildString {
-                        append("Found ${layout.pages.size} page${if (layout.pages.size == 1) "" else "s"}")
-                        if (layout.dock.isNotEmpty()) append(" and a dock of ${layout.dock.size}")
-                        append(".")
-                        if (layout.unmatched > 0) append(" ${layout.unmatched} app${if (layout.unmatched == 1) " isn't" else "s aren't"} installed here and will be skipped.")
-                        append(" Widgets aren't carried over.")
+                        val pages = layout.pages.size
+                        append(
+                            if (layout.dock.isNotEmpty()) pluralStringResource(R.plurals.found_pages_and_dock, pages, pages, layout.dock.size)
+                            else pluralStringResource(R.plurals.found_pages, pages, pages),
+                        )
+                        if (layout.unmatched > 0) append(" ").append(pluralStringResource(R.plurals.apps_skipped, layout.unmatched, layout.unmatched))
+                        append(" ").append(stringResource(R.string.widgets_aren_t_carried_over))
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -79,13 +89,13 @@ fun LauncherImportDialog(layout: LauncherLayout, onImport: (LayoutImportOptions)
                     OutlinedTextField(
                         value = singleName,
                         onValueChange = { singleName = it.take(24) },
-                        label = { Text("Phase name") },
+                        label = { Text(stringResource(R.string.theme_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(8.dp))
                 }
-                Text("Pages", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.pages), style = MaterialTheme.typography.titleSmall)
                 layout.pages.forEach { page ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = included[page.index] == true, onCheckedChange = { included[page.index] = it })
@@ -95,25 +105,25 @@ fun LauncherImportDialog(layout: LauncherLayout, onImport: (LayoutImportOptions)
                                 onValueChange = { names[page.index] = it.take(24) },
                                 singleLine = true,
                                 enabled = included[page.index] == true,
-                                supportingText = { Text("${page.appCount} apps") },
+                                supportingText = { Text(pluralStringResource(R.plurals.apps_count, page.appCount, page.appCount)) },
                                 modifier = Modifier.weight(1f),
                             )
                         } else {
-                            Text("Page ${page.index + 1} · ${page.appCount} apps", modifier = Modifier.weight(1f))
+                            Text(stringResource(R.string.page_apps, page.index + 1, pluralStringResource(R.plurals.apps_count, page.appCount, page.appCount)), modifier = Modifier.weight(1f))
                         }
                     }
                 }
                 if (layout.dock.isNotEmpty()) {
                     ToggleRow(
-                        title = "Replace the dock",
-                        subtitle = if (dock) "With the ${layout.dock.size} apps from the backup" else "Keep your current dock",
+                        title = stringResource(R.string.replace_the_dock),
+                        subtitle = if (dock) pluralStringResource(R.plurals.with_the_apps_from_the_backup, layout.dock.size, layout.dock.size) else stringResource(R.string.keep_your_current_dock),
                         checked = dock,
                         onCheckedChange = { dock = it },
                     )
                 }
                 ToggleRow(
-                    title = "Keep folders",
-                    subtitle = if (folders) "Folders come across as folders" else "Their apps go straight onto the phase",
+                    title = stringResource(R.string.keep_folders),
+                    subtitle = if (folders) stringResource(R.string.folders_come_across_as_folders) else stringResource(R.string.their_apps_go_straight_onto_the_phase),
                     checked = folders,
                     onCheckedChange = { folders = it },
                 )
@@ -125,8 +135,8 @@ fun LauncherImportDialog(layout: LauncherLayout, onImport: (LayoutImportOptions)
                     onImport(
                         LayoutImportOptions(
                             mode = mode,
-                            pageNames = chosen.associate { it.index to (names[it.index]?.ifBlank { null } ?: defaultName(it.index)) },
-                            singleName = singleName.ifBlank { "Imported" },
+                            pageNames = chosen.associate { it.index to (names[it.index]?.ifBlank { null } ?: defaultName(res, it.index)) },
+                            singleName = singleName.ifBlank { importedName },
                             importDock = dock,
                             keepFolders = folders,
                         ),
@@ -136,15 +146,14 @@ fun LauncherImportDialog(layout: LauncherLayout, onImport: (LayoutImportOptions)
             ) {
                 Text(
                     when {
-                        chosen.isEmpty() -> "Import dock"
-                        mode == ImportMode.OneTheme || chosen.size == 1 -> "Import 1 phase"
-                        else -> "Import ${chosen.size} phases"
+                        chosen.isEmpty() -> stringResource(R.string.import_dock)
+                        else -> (if (mode == ImportMode.OneTheme) 1 else chosen.size).let { pluralStringResource(R.plurals.import_phases, it, it) }
                     },
                 )
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
-private fun defaultName(index: Int) = if (index == 0) "Home" else "Page ${index + 1}"
+private fun defaultName(res: Resources, index: Int) = if (index == 0) res.getString(R.string.home) else res.getString(R.string.page, index + 1)

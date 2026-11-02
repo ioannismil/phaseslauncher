@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.home
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.graphics.Rect
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,10 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.items.AppItem
 import com.phaseslauncher.data.items.FolderItem
 import com.phaseslauncher.data.items.HomeItem
@@ -76,8 +77,8 @@ fun HomeItemTile(
                 iconSize = iconSize,
                 showLabel = showLabel,
                 description = when (item) {
-                    is FolderItem -> "Folder ${item.label}, ${item.items.size} ${if (item.items.size == 1) "app" else "apps"}"
-                    is ShortcutItem -> "${item.label}, shortcut from ${item.app.label}"
+                    is FolderItem -> stringResource(R.string.folder_description, item.label, pluralStringResource(R.plurals.apps_count, item.items.size, item.items.size))
+                    is ShortcutItem -> stringResource(R.string.shortcut_from, item.label, item.app.label)
                     else -> null
                 },
                 accessibilityActions = accessibilityActions,

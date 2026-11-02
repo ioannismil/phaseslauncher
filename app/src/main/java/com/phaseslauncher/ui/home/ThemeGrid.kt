@@ -1,7 +1,6 @@
 package com.phaseslauncher.ui.home
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
+import android.content.res.Resources
 import android.graphics.Rect
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -38,23 +37,26 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.geometry.Rect as ComposeRect
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect as ComposeRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.phaseslauncher.HomeState
+import com.phaseslauncher.R
 import com.phaseslauncher.data.items.FolderItem
 import com.phaseslauncher.data.items.HomeItem
 import com.phaseslauncher.data.settings.LauncherPrefs
@@ -123,7 +125,7 @@ fun ThemeGrid(
                 val widgets = state.widgetsFor(theme)
                 if (items.isEmpty() && widgets.isEmpty() && !state.isLoading) {
                     EmptyMessage(
-                        title = "No apps in ${theme.name} yet",
+                        title = stringResource(R.string.no_apps_in_yet, theme.name),
                         body = stringResource(R.string.pick_apps_for_this_theme_or_long_press_any_app_i),
                         button = stringResource(R.string.add_apps),
                         onClick = { onAddApps(theme) },
@@ -158,6 +160,7 @@ private fun ItemGrid(
     onMerge: (List<String>, String, String) -> Unit,
     onEmptyLongPress: () -> Unit,
 ) {
+    val res = LocalResources.current
     val wallpaper = LocalWallpaperContent.current
     val labelStyle = MaterialTheme.typography.labelMedium.onWallpaper(wallpaper)
     val menuState = remember { AppMenuState() }
@@ -261,7 +264,7 @@ private fun ItemGrid(
                     CompositionLocalProvider(LocalLayoutDirection provides contentDirection) {
                         HomeItemTile(
                             // Screen readers can't drag; these move the item one place instead.
-                            accessibilityActions = moveActions(ordered.map { it.key }, item.key, onReorder),
+                            accessibilityActions = moveActions(res, ordered.map { it.key }, item.key, onReorder),
                             item = item,
                             labelStyle = labelStyle,
                             onClick = { onOpenItem(item, it) },
@@ -281,9 +284,9 @@ private fun ItemGrid(
     }
 }
 
-private fun moveActions(keys: List<String>, key: String, onReorder: (List<String>) -> Unit): List<CustomAccessibilityAction> {
+private fun moveActions(res: Resources, keys: List<String>, key: String, onReorder: (List<String>) -> Unit): List<CustomAccessibilityAction> {
     val index = keys.indexOf(key)
-    fun moveTo(target: Int) = CustomAccessibilityAction(if (target < index) "Move earlier" else "Move later") {
+    fun moveTo(target: Int) = CustomAccessibilityAction(if (target < index) res.getString(R.string.move_earlier) else res.getString(R.string.move_later)) {
         onReorder(keys.toMutableList().apply { add(target, removeAt(index)) })
         true
     }

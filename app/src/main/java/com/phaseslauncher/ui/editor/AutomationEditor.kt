@@ -47,9 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.rules.AutoEndAction
 import com.phaseslauncher.data.rules.AutoPriority
 import com.phaseslauncher.data.rules.RuleMatch
@@ -58,10 +62,11 @@ import com.phaseslauncher.data.rules.RuleText
 import com.phaseslauncher.data.rules.RuleType
 import com.phaseslauncher.data.rules.ThemeAutomation
 import com.phaseslauncher.data.rules.ThemeRule
-import kotlinx.coroutines.launch
+import com.phaseslauncher.ui.components.label
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 /** Which rule is being edited: [index] in the list, or null for a new one. */
 private data class RuleEdit(val index: Int?, val rule: ThemeRule)
@@ -78,6 +83,7 @@ fun AutomationSection(
     automation: ThemeAutomation,
     onAutomationChange: (ThemeAutomation) -> Unit,
 ) {
+    val res = LocalResources.current
     var picking by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<RuleEdit?>(null) }
     var choosing by remember { mutableStateOf<String?>(null) }
@@ -89,7 +95,7 @@ fun AutomationSection(
     }
 
     Text(
-        "Switches to this phase while its conditions apply, and back when they end. Add as many as you like.",
+        stringResource(R.string.switches_to_this_phase_while_its_conditions_appl),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -102,15 +108,15 @@ fun AutomationSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(RuleText.title(setting.rule.type), style = MaterialTheme.typography.bodyLarge)
+                Text(RuleText.title(res, setting.rule.type), style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    RuleText.describe(setting.rule),
+                    RuleText.describe(res, setting.rule),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (setting.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(onClick = { onRulesChange(rules.filterIndexed { i, _ -> i != index }) }) {
-                Icon(Icons.Outlined.Delete, contentDescription = "Remove condition")
+                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.remove_condition))
             }
             Switch(
                 checked = setting.enabled,
@@ -121,21 +127,21 @@ fun AutomationSection(
     TextButton(onClick = { picking = true }) {
         Icon(Icons.Rounded.Add, contentDescription = null)
         Spacer(Modifier.width(8.dp))
-        Text("Add a condition")
+        Text(stringResource(R.string.add_a_condition))
     }
 
     if (rules.isNotEmpty()) {
         Spacer(Modifier.height(4.dp))
-        Text("How it switches", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        ValueRow("Switch when", if (rules.count { it.enabled } < 2) "${automation.match.label} (only one is on)" else automation.match.label) {
+        Text(stringResource(R.string.how_it_switches), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ValueRow(stringResource(R.string.switch_when), if (rules.count { it.enabled } < 2) stringResource(R.string.only_one_is_on, automation.match.label) else automation.match.label) {
             choosing = "match"
         }
-        ValueRow("Priority", "${automation.priority.label} – wins over phases with a lower one when both apply") { choosing = "priority" }
-        ValueRow("Wait before switching", delayLabel(automation.delayMinutes)) { choosing = "delay" }
-        ValueRow("When the conditions end", automation.onEnd.label) { choosing = "end" }
+        ValueRow(stringResource(R.string.priority), stringResource(R.string.wins_over_phases_with_a_lower_one_when_both_appl, automation.priority.label)) { choosing = "priority" }
+        ValueRow(stringResource(R.string.wait_before_switching), delayLabel(automation.delayMinutes)) { choosing = "delay" }
+        ValueRow(stringResource(R.string.when_the_conditions_end), automation.onEnd.label) { choosing = "end" }
         ToggleRow(
-            title = "Ask first",
-            subtitle = if (automation.askFirst) "A prompt on the home screen asks before switching" else "Switches without asking",
+            title = stringResource(R.string.ask_first),
+            subtitle = if (automation.askFirst) stringResource(R.string.a_prompt_on_the_home_screen_asks_before_switchin) else stringResource(R.string.switches_without_asking),
             checked = automation.askFirst,
             onCheckedChange = { onAutomationChange(automation.copy(askFirst = it)) },
         )
@@ -180,7 +186,7 @@ fun AutomationSection(
 
     when (choosing) {
         "match" -> ChoiceDialog(
-            title = "Switch when",
+            title = stringResource(R.string.switch_when),
             options = RuleMatch.entries,
             selected = automation.match,
             label = { it.label },
@@ -191,7 +197,7 @@ fun AutomationSection(
             onDismiss = { choosing = null },
         )
         "priority" -> ChoiceDialog(
-            title = "Priority",
+            title = stringResource(R.string.priority),
             options = AutoPriority.entries.reversed(),
             selected = automation.priority,
             label = { it.label },
@@ -202,10 +208,10 @@ fun AutomationSection(
             onDismiss = { choosing = null },
         )
         "delay" -> ChoiceDialog(
-            title = "Wait before switching",
+            title = stringResource(R.string.wait_before_switching),
             options = ThemeAutomation.DELAY_CHOICES,
             selected = automation.delayMinutes,
-            label = ::delayLabel,
+            label = { delayLabel(it) },
             onSelect = {
                 choosing = null
                 onAutomationChange(automation.copy(delayMinutes = it))
@@ -213,7 +219,7 @@ fun AutomationSection(
             onDismiss = { choosing = null },
         )
         "end" -> ChoiceDialog(
-            title = "When the conditions end",
+            title = stringResource(R.string.when_the_conditions_end),
             options = AutoEndAction.entries,
             selected = automation.onEnd,
             label = { it.label },
@@ -226,19 +232,19 @@ fun AutomationSection(
     }
 }
 
-private fun delayLabel(minutes: Int) = when (minutes) {
-    0 -> "Switch right away"
-    1 -> "1 minute (the conditions must hold that long)"
-    else -> "$minutes minutes (the conditions must hold that long)"
-}
+@Composable
+private fun delayLabel(minutes: Int) =
+    if (minutes == 0) stringResource(R.string.switch_right_away)
+    else pluralStringResource(R.plurals.delay_minutes, minutes, minutes)
 
 /** Kinds without settings can only be added once; the rest as often as you like. */
 @Composable
 private fun RuleTypeDialog(existing: Set<RuleType>, onPick: (RuleType) -> Unit, onDismiss: () -> Unit) {
+    val res = LocalResources.current
     val once = setOf(RuleType.Controller, RuleType.Headphones, RuleType.Charging)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add a condition") },
+        title = { Text(stringResource(R.string.add_a_condition)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 listOf(
@@ -254,12 +260,12 @@ private fun RuleTypeDialog(existing: Set<RuleType>, onPick: (RuleType) -> Unit, 
                             .padding(vertical = 8.dp),
                     ) {
                         Text(
-                            RuleText.title(type),
+                            RuleText.title(res, type),
                             style = MaterialTheme.typography.bodyLarge,
                             color = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                         )
                         Text(
-                            if (enabled) RuleText.hint(type) else "Already added",
+                            if (enabled) RuleText.hint(res, type) else res.getString(R.string.already_added),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -267,7 +273,7 @@ private fun RuleTypeDialog(existing: Set<RuleType>, onPick: (RuleType) -> Unit, 
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -281,10 +287,10 @@ private fun ScheduleDialog(initial: ThemeRule.Schedule, onDone: (ThemeRule) -> U
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Schedule") },
+        title = { Text(stringResource(R.string.schedule)) },
         text = {
             Column {
-                Text("Days", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.days), style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     DayOfWeek.entries.forEach { day ->
@@ -296,18 +302,18 @@ private fun ScheduleDialog(initial: ThemeRule.Schedule, onDone: (ThemeRule) -> U
                     }
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    TextButton(onClick = { days = DayOfWeek.entries.take(5).toSet() }) { Text("Weekdays") }
-                    TextButton(onClick = { days = setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) }) { Text("Weekends") }
-                    TextButton(onClick = { days = DayOfWeek.entries.toSet() }) { Text("Every day") }
+                    TextButton(onClick = { days = DayOfWeek.entries.take(5).toSet() }) { Text(stringResource(R.string.weekdays)) }
+                    TextButton(onClick = { days = setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) }) { Text(stringResource(R.string.weekends)) }
+                    TextButton(onClick = { days = DayOfWeek.entries.toSet() }) { Text(stringResource(R.string.every_day)) }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { editingTime = true }) { Text("From ${RuleText.minute(start)}") }
-                    OutlinedButton(onClick = { editingTime = false }) { Text("To ${RuleText.minute(end)}") }
+                    OutlinedButton(onClick = { editingTime = true }) { Text(stringResource(R.string.from, RuleText.minute(start))) }
+                    OutlinedButton(onClick = { editingTime = false }) { Text(stringResource(R.string.to, RuleText.minute(end))) }
                 }
                 if (end <= start) {
                     Text(
-                        "Ends the next morning",
+                        stringResource(R.string.ends_the_next_morning),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -315,9 +321,9 @@ private fun ScheduleDialog(initial: ThemeRule.Schedule, onDone: (ThemeRule) -> U
             }
         },
         confirmButton = {
-            TextButton(onClick = { onDone(ThemeRule.Schedule(days, start, end)) }, enabled = days.isNotEmpty() && start != end) { Text("Save") }
+            TextButton(onClick = { onDone(ThemeRule.Schedule(days, start, end)) }, enabled = days.isNotEmpty() && start != end) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 
     editingTime?.let { isStart ->
@@ -325,16 +331,16 @@ private fun ScheduleDialog(initial: ThemeRule.Schedule, onDone: (ThemeRule) -> U
         val state = rememberTimePickerState(initialHour = minute / 60, initialMinute = minute % 60)
         AlertDialog(
             onDismissRequest = { editingTime = null },
-            title = { Text(if (isStart) "Start time" else "End time") },
+            title = { Text(if (isStart) stringResource(R.string.start_time) else stringResource(R.string.end_time)) },
             text = { TimePicker(state = state) },
             confirmButton = {
                 TextButton(onClick = {
                     val picked = state.hour * 60 + state.minute
                     if (isStart) start = picked else end = picked
                     editingTime = null
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.ok)) }
             },
-            dismissButton = { TextButton(onClick = { editingTime = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { editingTime = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -346,17 +352,17 @@ private fun BluetoothDialog(env: ThemeEditorEnvironment, onDone: (ThemeRule) -> 
     val devices = remember(granted) { if (granted) env.pairedDevices() else emptyList() }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Choose a device") },
+        title = { Text(stringResource(R.string.choose_a_device)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 when {
                     !granted -> {
-                        Text("Phases needs permission to see your Bluetooth devices.")
+                        Text(stringResource(R.string.phases_needs_permission_to_see_your_bluetooth_de))
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            TextButton(onClick = { permission.launch(Manifest.permission.BLUETOOTH_CONNECT) }) { Text("Allow") }
+                            TextButton(onClick = { permission.launch(Manifest.permission.BLUETOOTH_CONNECT) }) { Text(stringResource(R.string.allow)) }
                         }
                     }
-                    devices.isEmpty() -> Text("No paired Bluetooth devices. Pair one in Settings first.")
+                    devices.isEmpty() -> Text(stringResource(R.string.no_paired_bluetooth_devices_pair_one_in_settings))
                 }
                 devices.forEach { device ->
                     Text(
@@ -370,7 +376,7 @@ private fun BluetoothDialog(env: ThemeEditorEnvironment, onDone: (ThemeRule) -> 
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -388,42 +394,42 @@ private fun WifiDialog(env: ThemeEditorEnvironment, initial: String?, onDone: (T
     var name by rememberSaveable { mutableStateOf(initial ?: current.orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Wi-Fi network") },
+        title = { Text(stringResource(R.string.wi_fi_network)) },
         text = {
             Column {
                 when {
                     current != null -> {
-                        Text("Connected to", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.connected_to), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(onClick = { name = current }) { Text(current) }
                     }
                     canDetect -> Text(
-                        "Not connected to Wi-Fi right now. Type the network's name.",
+                        stringResource(R.string.not_connected_to_wi_fi_right_now_type_the_networ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     else -> {
                         Text(
-                            "Without location access, Android hides network names, so this rule can't tell which network you're on.",
+                            stringResource(R.string.without_location_access_android_hides_network_na_2),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
                         TextButton(onClick = {
                             permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-                        }) { Text("Allow location access") }
+                        }) { Text(stringResource(R.string.allow_location_access)) }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Network name") },
+                    label = { Text(stringResource(R.string.network_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onDone(ThemeRule.Wifi(name.trim())) }, enabled = name.isNotBlank()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onDone(ThemeRule.Wifi(name.trim())) }, enabled = name.isNotBlank()) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -436,6 +442,7 @@ private fun LocationDialog(
     onDone: (ThemeRule) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val res = LocalResources.current
     val scope = rememberCoroutineScope()
     var name by rememberSaveable { mutableStateOf(initial.name) }
     var latitude by rememberSaveable { mutableStateOf(if (isNew) "" else initial.latitude.toString()) }
@@ -453,11 +460,11 @@ private fun LocationDialog(
             val fix = env.currentLocation()
             locating = false
             if (fix == null) {
-                status = "Couldn't get your location. Is location turned on?"
+                status = res.getString(R.string.couldn_t_get_your_location_is_location_turned_on)
             } else {
                 latitude = "%.6f".format(Locale.US, fix.latitude)
                 longitude = "%.6f".format(Locale.US, fix.longitude)
-                status = "Accurate to about ${fix.accuracyMeters.toInt()} m"
+                status = res.getString(R.string.accurate_to_about_m, fix.accuracyMeters.toInt())
             }
         }
     }
@@ -478,13 +485,13 @@ private fun LocationDialog(
     val lon = longitude.replace(',', '.').toDoubleOrNull()?.takeIf { it in -180.0..180.0 }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Place") },
+        title = { Text(stringResource(R.string.place)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(40) },
-                    label = { Text("Name (e.g. Gym)") },
+                    label = { Text(stringResource(R.string.name_e_g_gym)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -498,15 +505,15 @@ private fun LocationDialog(
                         }
                     },
                     enabled = !locating,
-                ) { Text(if (locating) "Finding you…" else "Use my current location") }
+                ) { Text(if (locating) stringResource(R.string.finding_you) else stringResource(R.string.use_my_current_location)) }
                 status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 Spacer(Modifier.height(8.dp))
-                Text("Or enter coordinates", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.or_enter_coordinates), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = latitude,
                         onValueChange = { latitude = it },
-                        label = { Text("Latitude") },
+                        label = { Text(stringResource(R.string.latitude)) },
                         singleLine = true,
                         isError = latitude.isNotBlank() && lat == null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -515,7 +522,7 @@ private fun LocationDialog(
                     OutlinedTextField(
                         value = longitude,
                         onValueChange = { longitude = it },
-                        label = { Text("Longitude") },
+                        label = { Text(stringResource(R.string.longitude)) },
                         singleLine = true,
                         isError = longitude.isNotBlank() && lon == null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -523,22 +530,21 @@ private fun LocationDialog(
                     )
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("Within", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.within), style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     RADII.forEach { r ->
-                        FilterChip(selected = radius == r, onClick = { radius = r }, label = { Text(RuleText.distance(r)) })
+                        FilterChip(selected = radius == r, onClick = { radius = r }, label = { Text(RuleText.distance(res, r)) })
                     }
                 }
                 if (granted && !background && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Without “Allow all the time”, Android only tells Phases where you are while it's on screen, " +
-                            "so the switch happens when you next go home.",
+                        stringResource(R.string.without_allow_all_the_time_android_only_tells_ph),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     TextButton(onClick = { backgroundPermission.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION) }) {
-                        Text("Allow all the time")
+                        Text(stringResource(R.string.allow_all_the_time))
                     }
                 }
             }
@@ -547,9 +553,9 @@ private fun LocationDialog(
             TextButton(
                 onClick = { onDone(ThemeRule.Location(name.trim(), lat!!, lon!!, radius)) },
                 enabled = lat != null && lon != null,
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -570,25 +576,25 @@ private fun CalendarDialog(env: ThemeEditorEnvironment, initial: ThemeRule.Calen
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Calendar events") },
+        title = { Text(stringResource(R.string.calendar_events)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (!granted) {
-                    Text("Phases needs permission to read your calendar. Events never leave your phone.")
-                    TextButton(onClick = { permission.launch(Manifest.permission.READ_CALENDAR) }) { Text("Allow") }
+                    Text(stringResource(R.string.phases_needs_permission_to_read_your_calendar_ev))
+                    TextButton(onClick = { permission.launch(Manifest.permission.READ_CALENDAR) }) { Text(stringResource(R.string.allow)) }
                     Spacer(Modifier.height(8.dp))
                 }
                 OutlinedTextField(
                     value = keywords,
                     onValueChange = { keywords = it },
-                    label = { Text("Title contains (optional)") },
-                    supportingText = { Text("Separate words with commas; any of them matches. Empty matches every event.") },
+                    label = { Text(stringResource(R.string.title_contains_optional)) },
+                    supportingText = { Text(stringResource(R.string.separate_words_with_commas_any_of_them_matches_e)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (calendars.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text("Calendars", style = MaterialTheme.typography.titleSmall)
-                    CheckRow("All calendars", chosen.isEmpty()) { chosen = emptySet() }
+                    Text(stringResource(R.string.calendars), style = MaterialTheme.typography.titleSmall)
+                    CheckRow(stringResource(R.string.all_calendars), chosen.isEmpty()) { chosen = emptySet() }
                     calendars.forEach { calendar ->
                         CheckRow("${calendar.name} · ${calendar.account}", calendar.id in chosen) {
                             chosen = if (calendar.id in chosen) chosen - calendar.id else chosen + calendar.id
@@ -596,14 +602,14 @@ private fun CalendarDialog(env: ThemeEditorEnvironment, initial: ThemeRule.Calen
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("Switch early", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.switch_early), style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(0, 5, 10, 15, 30).forEach { m ->
-                        FilterChip(selected = before == m, onClick = { before = m }, label = { Text(if (m == 0) "At the start" else "$m min before") })
+                        FilterChip(selected = before == m, onClick = { before = m }, label = { Text(if (m == 0) stringResource(R.string.at_the_start) else stringResource(R.string.min_before, m)) })
                     }
                 }
-                CheckRow("Include all-day events", allDay) { allDay = !allDay }
-                CheckRow("Only events marked busy", busyOnly) { busyOnly = !busyOnly }
+                CheckRow(stringResource(R.string.include_all_day_events), allDay) { allDay = !allDay }
+                CheckRow(stringResource(R.string.only_events_marked_busy), busyOnly) { busyOnly = !busyOnly }
             }
         },
         confirmButton = {
@@ -617,9 +623,9 @@ private fun CalendarDialog(env: ThemeEditorEnvironment, initial: ThemeRule.Calen
                         minutesBefore = before,
                     ),
                 )
-            }) { Text("Save") }
+            }) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

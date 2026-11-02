@@ -1,7 +1,6 @@
 package com.phaseslauncher.ui.home
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -13,7 +12,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -28,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Add
@@ -59,6 +58,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -72,8 +73,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.phaseslauncher.R
+import com.phaseslauncher.data.Labeled
 import com.phaseslauncher.data.settings.SwitcherSide
 import com.phaseslauncher.data.themes.Theme
+import com.phaseslauncher.ui.components.label
 import com.phaseslauncher.ui.theme.contentColorOn
 import com.phaseslauncher.ui.theme.imageVector
 import kotlin.math.PI
@@ -252,6 +256,7 @@ fun ThemeEdgeBar(
     /** Theme names in arc order; each becomes a "Switch to …" screen-reader action. */
     themeNames: List<String> = emptyList(),
 ) {
+    val res = LocalResources.current
     val haptics = LocalHapticFeedback.current
     var origin by remember { mutableStateOf(Offset.Zero) }
     val pressed by animateFloatAsState(if (state.isOpen) 1f else 0f, label = "barPressed")
@@ -284,10 +289,10 @@ fun ThemeEdgeBar(
             }
             .semantics {
                 role = Role.Button
-                contentDescription = "Switch phase"
+                contentDescription = res.getString(R.string.tile_dialog_title)
                 onClick { state.openForTap(); true }
                 customActions = themeNames.mapIndexed { index, name ->
-                    CustomAccessibilityAction("Switch to $name") { onRelease(index); true }
+                    CustomAccessibilityAction(res.getString(R.string.switch_to, name)) { onRelease(index); true }
                 }
             },
         contentAlignment = if (side == SwitcherSide.Right) Alignment.CenterEnd else Alignment.CenterStart,
@@ -318,6 +323,7 @@ fun ThemeArcOverlay(
     onSelect: (Int) -> Unit,
     themeActions: (Theme) -> List<ThemeAction>,
 ) {
+    val res = LocalResources.current
     val progress = remember { Animatable(0f) }
     LaunchedEffect(state.isOpen) {
         progress.animateTo(if (state.isOpen) 1f else 0f, spring(dampingRatio = 0.72f, stiffness = 520f))
@@ -367,7 +373,7 @@ fun ThemeArcOverlay(
                         Modifier
                             .pointerInput(Unit) { detectTapGestures { state.close() } }
                             .semantics {
-                                contentDescription = "Close phase switcher"
+                                contentDescription = res.getString(R.string.close_phase_switcher)
                                 onClick { state.close(); true }
                             }
                     } else {
@@ -437,9 +443,9 @@ fun ThemeArcOverlay(
 }
 
 /** Non-theme items at the end of the arc, in order. Their arc index is `themes.size + ordinal`. */
-enum class ArcExtra(val label: String, val icon: ImageVector) {
-    NewTheme("New phase", Icons.Rounded.Add),
-    Settings("Settings", Icons.Outlined.Settings),
+enum class ArcExtra(@StringRes override val labelRes: Int, val icon: ImageVector) : Labeled {
+    NewTheme(R.string.new_theme, Icons.Rounded.Add),
+    Settings(R.string.settings, Icons.Outlined.Settings),
 }
 
 private val ArcIconSize = 52.dp
@@ -495,7 +501,7 @@ private fun ArcItem(
                         indication = null,
                         onClick = onClick,
                         onLongClick = onLongClick,
-                        onClickLabel = if (theme != null) "Switch to $label" else label,
+                        onClickLabel = if (theme != null) stringResource(R.string.switch_to, label) else label,
                     )
                 } else {
                     Modifier

@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.phaseslauncher.R
 import com.phaseslauncher.appContainer
 import com.phaseslauncher.data.settings.AppearanceMode
 import com.phaseslauncher.data.share.Resolution
@@ -38,12 +39,12 @@ class ImportThemeActivity : ComponentActivity() {
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val shared = readIntent(intent) ?: error("Nothing to import")
+                    val shared = readIntent(intent) ?: error(getString(R.string.nothing_to_import))
                     val apps = container.appsRepository.apps.filterNotNull().first()
                     shared to container.themeSharing.resolve(shared, apps)
                 }
             }
-            result.onSuccess { received = it }.onFailure { done(it.message ?: "Couldn't open the phase") }
+            result.onSuccess { received = it }.onFailure { done(it.message ?: getString(R.string.couldn_t_open_the_phase)) }
         }
 
         setContent {
@@ -57,7 +58,7 @@ class ImportThemeActivity : ComponentActivity() {
                             container.appScope.launch {
                                 val message = runCatching { container.themeSharing.install(shared, resolution, options) }
                                     .onSuccess { container.settingsRepository.setActiveThemeId(it) }
-                                    .fold({ "Added ${options.name.ifBlank { shared.name }}" }, { "Couldn't add the phase: ${it.message}" })
+                                    .fold({ getString(R.string.added, options.name.ifBlank { shared.name }) }, { getString(R.string.couldn_t_add_the_phase, it.message) })
                                 withContext(Dispatchers.Main) { done(message) }
                             }
                         },

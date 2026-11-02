@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.app.Activity
 import android.appwidget.AppWidgetProviderInfo
@@ -33,6 +31,7 @@ import androidx.compose.material.icons.outlined.Eject
 import androidx.compose.material.icons.outlined.FolderOff
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
@@ -46,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -56,50 +56,44 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phaseslauncher.LauncherViewModel
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.apps.AppShortcut
 import com.phaseslauncher.data.icons.IconPackInfo
-import com.phaseslauncher.data.settings.GestureAction
-import com.phaseslauncher.data.settings.GestureKind
+import com.phaseslauncher.data.importer.LauncherLayout
 import com.phaseslauncher.data.items.AppItem
 import com.phaseslauncher.data.items.FolderItem
 import com.phaseslauncher.data.items.HomeItem
 import com.phaseslauncher.data.items.PinnedShortcut
 import com.phaseslauncher.data.items.ShortcutItem
+import com.phaseslauncher.data.settings.GestureAction
+import com.phaseslauncher.data.settings.GestureKind
+import com.phaseslauncher.data.share.Resolution
+import com.phaseslauncher.data.share.SharedTheme
 import com.phaseslauncher.data.system.LockScreenService
 import com.phaseslauncher.data.system.SystemActions
 import com.phaseslauncher.data.themes.Theme
+import com.phaseslauncher.data.themes.ThemeDraft
 import com.phaseslauncher.data.themes.ThemeLook
 import com.phaseslauncher.data.themes.toDraft
-import com.phaseslauncher.data.themes.ThemeDraft
-import com.phaseslauncher.data.importer.LauncherLayout
-import com.phaseslauncher.data.share.Resolution
-import com.phaseslauncher.data.share.SharedTheme
-import com.phaseslauncher.ui.home.FocusPauseDialog
-import com.phaseslauncher.ui.importer.LauncherImportDialog
-import com.phaseslauncher.ui.share.ImportThemeDialog
-import com.phaseslauncher.ui.share.PasteThemeDialog
-import com.phaseslauncher.ui.share.ShareActions
-import com.phaseslauncher.ui.share.ShareThemeSheet
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import com.phaseslauncher.ui.components.AppAction
 import com.phaseslauncher.ui.components.AppIcon
 import com.phaseslauncher.ui.components.ExternalDragState
-import com.phaseslauncher.ui.components.LocalExternalDrag
-import com.phaseslauncher.ui.components.externalDragTracker
 import com.phaseslauncher.ui.components.LaunchAnimation
+import com.phaseslauncher.ui.components.LocalExternalDrag
 import com.phaseslauncher.ui.components.LocalNotificationDots
 import com.phaseslauncher.ui.components.LocalShortcutHost
 import com.phaseslauncher.ui.components.ShortcutHost
+import com.phaseslauncher.ui.components.externalDragTracker
 import com.phaseslauncher.ui.drawer.AppDrawer
 import com.phaseslauncher.ui.drawer.DrawerSearchActions
 import com.phaseslauncher.ui.editor.AddToThemesDialog
@@ -108,24 +102,31 @@ import com.phaseslauncher.ui.editor.DeleteThemeDialog
 import com.phaseslauncher.ui.editor.ThemeEditorEnvironment
 import com.phaseslauncher.ui.editor.ThemeEditorSheet
 import com.phaseslauncher.ui.home.AddToFolderDialog
-import com.phaseslauncher.ui.home.FolderDialog
-import com.phaseslauncher.ui.home.RenameFolderDialog
 import com.phaseslauncher.ui.home.ArcExtra
+import com.phaseslauncher.ui.home.FocusPauseDialog
+import com.phaseslauncher.ui.home.FolderDialog
 import com.phaseslauncher.ui.home.HomeLayout
 import com.phaseslauncher.ui.home.HomeOptionsSheet
 import com.phaseslauncher.ui.home.HomeScreen
 import com.phaseslauncher.ui.home.LocalHomeLayout
+import com.phaseslauncher.ui.home.RenameFolderDialog
 import com.phaseslauncher.ui.home.ThemeAction
 import com.phaseslauncher.ui.home.ThemeArcOverlay
 import com.phaseslauncher.ui.home.ThemeArcState
+import com.phaseslauncher.ui.importer.LauncherImportDialog
 import com.phaseslauncher.ui.onboarding.OnboardingScreen
 import com.phaseslauncher.ui.settings.SettingsScreen
+import com.phaseslauncher.ui.share.ImportThemeDialog
+import com.phaseslauncher.ui.share.PasteThemeDialog
+import com.phaseslauncher.ui.share.ShareActions
+import com.phaseslauncher.ui.share.ShareThemeSheet
 import com.phaseslauncher.ui.theme.LocalDarkTheme
 import com.phaseslauncher.ui.theme.LocalWallpaperContent
 import com.phaseslauncher.ui.theme.rememberWallpaperContentColors
 import com.phaseslauncher.ui.widgets.LocalWidgetHost
 import com.phaseslauncher.ui.widgets.WidgetHostUi
 import com.phaseslauncher.ui.widgets.WidgetPickerSheet
+import kotlinx.coroutines.launch
 
 /** Which theme the editor is open for; [themeId] == null creates a new one. [draft] opens it with changes already made. */
 private data class EditorRequest(val themeId: Long?, val draft: ThemeDraft? = null)
@@ -135,6 +136,7 @@ private data class IncomingTheme(val shared: SharedTheme, val resolution: Resolu
 
 @Composable
 fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProviderInfo) -> Unit) {
+    val res = LocalResources.current
     val drawerOpen by viewModel.drawerOpen.collectAsStateWithLifecycle()
     val drawerKeyboard by viewModel.drawerKeyboard.collectAsStateWithLifecycle()
     val drawerState by viewModel.drawerState.collectAsStateWithLifecycle()
@@ -275,15 +277,15 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     val drawerActions: (AppInfo) -> List<AppAction> = { app ->
         buildList {
             if (app.key in favoriteKeys) {
-                add(AppAction("Remove from favorites", Icons.Rounded.Star) { viewModel.removeFavorite(app) })
+                add(AppAction(res.getString(R.string.remove_from_favorites), Icons.Rounded.Star) { viewModel.removeFavorite(app) })
             } else {
-                add(AppAction("Add to favorites", Icons.Rounded.StarOutline) { viewModel.addFavorite(app) })
+                add(AppAction(res.getString(R.string.add_to_favorites), Icons.Rounded.StarOutline) { viewModel.addFavorite(app) })
             }
-            add(AppAction("Add to phase…", Icons.Rounded.AddCircleOutline) { addToThemesApp = app })
-            add(AppAction("Customize\u2026", Icons.Outlined.Edit) { customizingApp = app })
-            add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
-            add(AppAction("Hide app", Icons.Outlined.VisibilityOff) { viewModel.hideApp(app) })
-            if (app.canUninstall) add(AppAction("Uninstall", Icons.Outlined.DeleteForever) { viewModel.uninstall(app) })
+            add(AppAction(res.getString(R.string.add_to_phase), Icons.Rounded.AddCircleOutline) { addToThemesApp = app })
+            add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = app })
+            add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
+            add(AppAction(res.getString(R.string.hide_app), Icons.Outlined.VisibilityOff) { viewModel.hideApp(app) })
+            if (app.canUninstall) add(AppAction(res.getString(R.string.uninstall), Icons.Outlined.DeleteForever) { viewModel.uninstall(app) })
         }
     }
     val gridActions: (HomeItem) -> List<AppAction> = { item ->
@@ -291,54 +293,54 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             when (item) {
                 is AppItem -> {
                     val app = item.app
-                    add(AppAction("Remove from this phase", Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromActiveTheme(item) })
-                    if (app.key !in favoriteKeys) add(AppAction("Move to favorites", Icons.Rounded.Star) { viewModel.moveToFavorites(app) })
-                    add(AppAction("Add to folder\u2026", Icons.Outlined.CreateNewFolder) { addToFolderItem = item })
-                    add(AppAction("Customize\u2026", Icons.Outlined.Edit) { customizingApp = app })
-                    add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
+                    add(AppAction(res.getString(R.string.remove_from_this_phase), Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromActiveTheme(item) })
+                    if (app.key !in favoriteKeys) add(AppAction(res.getString(R.string.move_to_favorites), Icons.Rounded.Star) { viewModel.moveToFavorites(app) })
+                    add(AppAction(res.getString(R.string.add_to_folder), Icons.Outlined.CreateNewFolder) { addToFolderItem = item })
+                    add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = app })
+                    add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
                 }
                 is ShortcutItem -> {
-                    add(AppAction("Remove from this phase", Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromActiveTheme(item) })
-                    add(AppAction("Add to folder\u2026", Icons.Outlined.CreateNewFolder) { addToFolderItem = item })
-                    add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
+                    add(AppAction(res.getString(R.string.remove_from_this_phase), Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromActiveTheme(item) })
+                    add(AppAction(res.getString(R.string.add_to_folder), Icons.Outlined.CreateNewFolder) { addToFolderItem = item })
+                    add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
                 }
                 is FolderItem -> {
-                    add(AppAction("Rename", Icons.Outlined.Edit) { renamingFolder = item })
-                    add(AppAction("Ungroup", Icons.Outlined.FolderOff) { viewModel.ungroupFolder(item) })
+                    add(AppAction(res.getString(R.string.rename), Icons.Outlined.Edit) { renamingFolder = item })
+                    add(AppAction(res.getString(R.string.ungroup), Icons.Outlined.FolderOff) { viewModel.ungroupFolder(item) })
                 }
             }
         }
     }
     val folderItemActions: (FolderItem, HomeItem) -> List<AppAction> = { folder, item ->
         buildList {
-            add(AppAction("Move out of folder", Icons.Outlined.Eject) { viewModel.moveOutOfFolder(folder, item) })
-            add(AppAction("Remove", Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromFolder(folder, item) })
+            add(AppAction(res.getString(R.string.move_out_of_folder), Icons.Outlined.Eject) { viewModel.moveOutOfFolder(folder, item) })
+            add(AppAction(res.getString(R.string.remove), Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromFolder(folder, item) })
             when (item) {
                 is AppItem -> {
-                    add(AppAction("Customize\u2026", Icons.Outlined.Edit) { customizingApp = item.app })
-                    add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
+                    add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = item.app })
+                    add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
                 }
-                is ShortcutItem -> add(AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
+                is ShortcutItem -> add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
                 is FolderItem -> Unit
             }
         }
     }
     val dockActions: (AppInfo) -> List<AppAction> = { app ->
         listOf(
-            AppAction("Remove from favorites", Icons.Rounded.RemoveCircleOutline) { viewModel.removeFavorite(app) },
-            AppAction("Customize\u2026", Icons.Outlined.Edit) { customizingApp = app },
-            AppAction("App info", Icons.Outlined.Info) { viewModel.openAppInfo(app, it) },
+            AppAction(res.getString(R.string.remove_from_favorites), Icons.Rounded.RemoveCircleOutline) { viewModel.removeFavorite(app) },
+            AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = app },
+            AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(app, it) },
         )
     }
     val themeActions: (Theme) -> List<ThemeAction> = { theme ->
         val canDelete = homeState.themes.size > 1
         listOf(
-            ThemeAction("Edit phase", Icons.Outlined.Edit) { editor = EditorRequest(theme.id) },
-            ThemeAction("Share phase", Icons.Outlined.Share) { sharingTheme = theme },
-            ThemeAction(if (canDelete) "Delete phase" else "Delete phase (last one)", Icons.Outlined.Delete, enabled = canDelete) {
+            ThemeAction(res.getString(R.string.edit_theme), Icons.Outlined.Edit) { editor = EditorRequest(theme.id) },
+            ThemeAction(res.getString(R.string.share_phase), Icons.Outlined.Share) { sharingTheme = theme },
+            ThemeAction(if (canDelete) res.getString(R.string.delete_phase) else res.getString(R.string.delete_phase_last_one), Icons.Outlined.Delete, enabled = canDelete) {
                 deletingTheme = theme
             },
-            ThemeAction("Manage phases", Icons.Outlined.Settings) { showSettings = true },
+            ThemeAction(res.getString(R.string.manage_phases), Icons.Outlined.Settings) { showSettings = true },
         )
     }
     // Arc items are the themes in order, then the ArcExtra items ("New theme", "Settings").
@@ -385,14 +387,14 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             GestureKind.Notifications -> SystemActions.expandNotifications(context)
             GestureKind.QuickSettings -> SystemActions.expandQuickSettings(context)
             GestureKind.Lock -> if (!LockScreenService.lock()) {
-                viewModel.message("Turn on \u201cPhases: double-tap to lock\u201d in Accessibility settings")
+                viewModel.message(res.getString(R.string.turn_on_phases_double_tap_to_lock_in_accessibili))
                 LockScreenService.openSettings(context)
             }
             GestureKind.ThemeSwitcher -> arcState.openForTap()
             GestureKind.NextTheme -> viewModel.stepTheme(1)
             GestureKind.PreviousTheme -> viewModel.stepTheme(-1)
             GestureKind.OpenApp -> action.appKey?.let(homeState.apps::get)?.let { launchApp(it, null) }
-                ?: viewModel.message("The app for this gesture isn't installed")
+                ?: viewModel.message(res.getString(R.string.the_app_for_this_gesture_isn_t_installed))
         }
     }
     val swipeDown: () -> Unit = { performGesture(prefs.swipeDown) }
@@ -572,7 +574,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                         uiScope.launch {
                             viewModel.readSharedTheme(uri)
                                 .onSuccess { incomingTheme = IncomingTheme(it, viewModel.resolveSharedTheme(it)) }
-                                .onFailure { viewModel.message(it.message ?: "Couldn't open the phase") }
+                                .onFailure { viewModel.message(it.message ?: res.getString(R.string.couldn_t_open_the_phase)) }
                         }
                     },
                     onPasteTheme = { pastingTheme = true },
@@ -580,7 +582,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                         uiScope.launch {
                             viewModel.readLauncherBackup(uri)
                                 .onSuccess { incomingLayout = it }
-                                .onFailure { viewModel.message(it.message ?: "Couldn't read the backup") }
+                                .onFailure { viewModel.message(it.message ?: res.getString(R.string.couldn_t_read_the_backup)) }
                         }
                     },
                     onResetSuggestions = viewModel::resetSuggestions,
@@ -645,7 +647,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                         incomingTheme = IncomingTheme(it, viewModel.resolveSharedTheme(it))
                         null
                     },
-                    onFailure = { it.message ?: "That isn't a phase link" },
+                    onFailure = { it.message ?: res.getString(R.string.that_isn_t_a_phase_link) },
                 )
             },
             onDismiss = { pastingTheme = false },

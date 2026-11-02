@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.editor
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,6 +52,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -61,17 +61,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
-import com.phaseslauncher.data.items.ItemKeys
 import com.phaseslauncher.data.apps.filterApps
+import com.phaseslauncher.data.focus.ThemeFocus
+import com.phaseslauncher.data.items.ItemKeys
+import com.phaseslauncher.data.rules.RuleSetting
+import com.phaseslauncher.data.rules.ThemeAutomation
+import com.phaseslauncher.data.themes.SoundProfile
 import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeDraft
 import com.phaseslauncher.data.themes.ThemeIconKey
 import com.phaseslauncher.data.themes.ThemePreset
-import com.phaseslauncher.data.themes.SoundProfile
-import com.phaseslauncher.data.focus.ThemeFocus
-import com.phaseslauncher.data.rules.RuleSetting
-import com.phaseslauncher.data.rules.ThemeAutomation
 import com.phaseslauncher.ui.components.AppIcon
 import com.phaseslauncher.ui.theme.contentColorOn
 import com.phaseslauncher.ui.theme.imageVector
@@ -100,6 +101,7 @@ fun ThemeEditorSheet(
     title: String? = null,
     saveLabel: String? = null,
 ) {
+    val res = LocalResources.current
     val isNew = initial == null
     var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
     var icon by rememberSaveable { mutableStateOf(initial?.icon ?: ThemeIconKey.Star) }
@@ -156,7 +158,7 @@ fun ThemeEditorSheet(
                         color = color,
                         onColorChange = { color = it },
                         onPreset = { preset ->
-                            name = preset.name
+                            name = res.getString(preset.nameRes)
                             icon = preset.icon
                             color = preset.accentColor
                             // The preset's starting rules, sound and matching apps; all can be changed below.
@@ -197,7 +199,7 @@ fun ThemeEditorSheet(
                             when (appCount) {
                                 0 -> stringResource(R.string.apps)
                                 1 -> stringResource(R.string.apps_1_selected)
-                                else -> "Apps · $appCount selected"
+                                else -> stringResource(R.string.apps_selected, appCount)
                             },
                         )
                         OutlinedTextField(
@@ -264,7 +266,7 @@ private fun ThemeDetails(
                 TextButton(onClick = onShare) {
                     Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.size(8.dp))
-                    Text("Share")
+                    Text(stringResource(R.string.share))
                 }
             }
         }
@@ -275,7 +277,7 @@ private fun ThemeDetails(
                 ThemeDefaults.Presets.forEach { preset ->
                     SuggestionChip(
                         onClick = { onPreset(preset) },
-                        label = { Text(preset.name) },
+                        label = { Text(stringResource(preset.nameRes)) },
                         icon = { Icon(preset.icon.imageVector, contentDescription = null, Modifier.size(18.dp)) },
                     )
                 }
@@ -368,7 +370,7 @@ private fun AppCheckRow(app: AppInfo, folder: String?, checked: Boolean, onCheck
             )
             if (folder != null) {
                 Text(
-                    "In folder \u201c$folder\u201d",
+                    stringResource(R.string.in_folder, folder),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

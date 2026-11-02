@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.settings
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -34,18 +32,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.AddToHomeScreen
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.BatteryStd
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.AddToHomeScreen
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.SettingsBackupRestore
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.FitScreen
@@ -53,15 +47,18 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.InvertColors
-
+import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.SettingsBackupRestore
 import androidx.compose.material.icons.outlined.Style
-import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.SwipeDown
 import androidx.compose.material.icons.outlined.SwipeUp
 import androidx.compose.material.icons.outlined.TouchApp
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.ViewDay
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -76,6 +73,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -88,9 +86,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,26 +99,32 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.icons.IconPackInfo
 import com.phaseslauncher.data.notifications.NotificationDotsRepository
 import com.phaseslauncher.data.settings.AppearanceMode
 import com.phaseslauncher.data.settings.ClockPosition
-import com.phaseslauncher.data.settings.IconArrangement
 import com.phaseslauncher.data.settings.DateFormatOption
 import com.phaseslauncher.data.settings.DrawerSort
+import com.phaseslauncher.data.settings.IconArrangement
 import com.phaseslauncher.data.settings.IconSize
 import com.phaseslauncher.data.settings.LauncherPrefs
 import com.phaseslauncher.data.settings.SwitcherSide
 import com.phaseslauncher.data.system.LockScreenService
 import com.phaseslauncher.data.themes.Theme
+import com.phaseslauncher.ui.components.label
 import com.phaseslauncher.ui.home.formatDate
 import com.phaseslauncher.ui.onboarding.rememberDefaultHomeState
 import com.phaseslauncher.ui.theme.contentColorOn
@@ -157,6 +159,7 @@ fun SettingsScreen(
     onClearHistory: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val res = LocalResources.current
     val defaultHome = rememberDefaultHomeState()
     val versionName = remember {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
@@ -274,24 +277,23 @@ fun SettingsScreen(
             }
             item { Option(Icons.Rounded.Add, stringResource(R.string.new_theme), onClick = onNewTheme) }
             item {
-                Option(Icons.Outlined.Download, "Import a phase file", "One someone shared with you") {
+                Option(Icons.Outlined.Download, stringResource(R.string.import_a_phase_file), stringResource(R.string.one_someone_shared_with_you)) {
                     themeFileLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
                 }
             }
-            item { Option(Icons.Outlined.Link, "Paste a phase link", "phases://… from a message", onClick = onPasteTheme) }
+            item { Option(Icons.Outlined.Link, stringResource(R.string.paste_a_phase_link), stringResource(R.string.phases_from_a_message), onClick = onPasteTheme) }
             item {
                 Option(
                     Icons.Outlined.SettingsBackupRestore,
-                    "Import from another launcher",
-                    "Nova (.novabackup), Lawnchair and other Launcher3-based backups",
+                    stringResource(R.string.import_from_another_launcher),
+                    stringResource(R.string.nova_novabackup_lawnchair_and_other_launcher3_ba),
                 ) { launcherBackupLauncher.launch(arrayOf("*/*")) }
             }
 
-            item { SectionHeader("Suggestions") }
+            item { SectionHeader(stringResource(R.string.suggestions)) }
             item {
                 Text(
-                    "Phases learns from the apps you open and the phases you pick, on this phone only, " +
-                        "and suggests changes at the top of the home screen.",
+                    stringResource(R.string.phases_learns_from_the_apps_you_open_and_the_pha),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
@@ -300,15 +302,15 @@ fun SettingsScreen(
             item {
                 SwitchOption(
                     Icons.Outlined.AddToHomeScreen,
-                    "Apps for a phase",
-                    if (prefs.suggestApps) "Suggest adding an app you keep opening on a phase" else stringResource(R.string.off),
+                    stringResource(R.string.apps_for_a_phase),
+                    if (prefs.suggestApps) stringResource(R.string.suggest_adding_an_app_you_keep_opening_on_a_phas) else stringResource(R.string.off),
                     prefs.suggestApps,
                 ) { on -> onUpdatePrefs { it.copy(suggestApps = on) } }
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Suggest after") },
-                    supportingContent = { Text("${prefs.suggestionMinLaunches} opens in two weeks") },
+                    headlineContent = { Text(stringResource(R.string.suggest_after)) },
+                    supportingContent = { Text(pluralStringResource(R.plurals.opens_in_two_weeks, prefs.suggestionMinLaunches, prefs.suggestionMinLaunches)) },
                     leadingContent = { Icon(Icons.Outlined.Tune, contentDescription = null) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier
@@ -320,28 +322,28 @@ fun SettingsScreen(
             item {
                 SwitchOption(
                     Icons.Outlined.Schedule,
-                    "Schedules",
-                    if (prefs.suggestSchedules) "Suggest a schedule for a phase you pick around the same time" else stringResource(R.string.off),
+                    stringResource(R.string.schedules),
+                    if (prefs.suggestSchedules) stringResource(R.string.suggest_a_schedule_for_a_phase_you_pick_around_t) else stringResource(R.string.off),
                     prefs.suggestSchedules,
                 ) { on -> onUpdatePrefs { it.copy(suggestSchedules = on) } }
             }
             item {
                 SwitchOption(
                     Icons.Outlined.SwapHoriz,
-                    "Switching",
-                    if (prefs.suggestSwitching) "Offer to switch when you open an app from another phase" else stringResource(R.string.off),
+                    stringResource(R.string.switching),
+                    if (prefs.suggestSwitching) stringResource(R.string.offer_to_switch_when_you_open_an_app_from_anothe) else stringResource(R.string.off),
                     prefs.suggestSwitching,
                 ) { on -> onUpdatePrefs { it.copy(suggestSwitching = on) } }
             }
             item {
                 Option(
                     Icons.Outlined.Restore,
-                    "Show dismissed suggestions again",
-                    if (prefs.dismissedSuggestions.isEmpty()) "None dismissed" else "${prefs.dismissedSuggestions.size} dismissed",
+                    stringResource(R.string.show_dismissed_suggestions_again),
+                    if (prefs.dismissedSuggestions.isEmpty()) stringResource(R.string.none_dismissed) else pluralStringResource(R.plurals.n_dismissed, prefs.dismissedSuggestions.size, prefs.dismissedSuggestions.size),
                     onClick = if (prefs.dismissedSuggestions.isEmpty()) null else onResetSuggestions,
                 )
             }
-            item { Option(Icons.Outlined.DeleteSweep, "Clear activity history", "Forget the launches and switches suggestions learn from", onClick = onClearHistory) }
+            item { Option(Icons.Outlined.DeleteSweep, stringResource(R.string.clear_activity_history), stringResource(R.string.forget_the_launches_and_switches_suggestions_lea), onClick = onClearHistory) }
 
             item { SectionHeader(stringResource(R.string.clock_status_bar)) }
             item {
@@ -531,7 +533,7 @@ fun SettingsScreen(
                 Option(Icons.Outlined.Wallpaper, stringResource(R.string.wallpaper)) {
                     try {
                         context.startActivity(
-                            Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Set wallpaper")
+                            Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), res.getString(R.string.set_wallpaper))
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     } catch (_: ActivityNotFoundException) {
@@ -603,8 +605,7 @@ fun SettingsScreen(
                     stringResource(R.string.hidden_apps),
                     when (prefs.hiddenApps.size) {
                         0 -> stringResource(R.string.none_hidden_long_press_an_app_in_the_drawer_to_h)
-                        1 -> stringResource(R.string.t_1_app_hidden_from_the_drawer)
-                        else -> "${prefs.hiddenApps.size} apps hidden from the drawer"
+                        else -> pluralStringResource(R.plurals.apps_hidden, prefs.hiddenApps.size, prefs.hiddenApps.size)
                     },
                 ) { showHiddenApps = true }
             }
@@ -642,7 +643,7 @@ fun SettingsScreen(
             item { Option(Icons.Outlined.Restore, stringResource(R.string.run_setup_again), stringResource(R.string.pick_favorites_and_add_themes_from_presets), onClick = onRunSetup) }
 
             item { SectionHeader(stringResource(R.string.about)) }
-            item { Option(Icons.Outlined.Info, stringResource(R.string.phases), versionName?.let { "Version $it" }, onClick = null) }
+            item { Option(Icons.Outlined.Info, stringResource(R.string.phases), versionName?.let { stringResource(R.string.version, it) }, onClick = null) }
             item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
         }
     }
@@ -781,7 +782,7 @@ fun SettingsScreen(
     if (choosingMinLaunches) {
         AlertDialog(
             onDismissRequest = { choosingMinLaunches = false },
-            title = { Text("Suggest an app after") },
+            title = { Text(stringResource(R.string.suggest_an_app_after)) },
             text = {
                 Column {
                     LauncherPrefs.SUGGESTION_LAUNCH_CHOICES.forEach { count ->
@@ -797,7 +798,7 @@ fun SettingsScreen(
                         ) {
                             RadioButton(selected = prefs.suggestionMinLaunches == count, onClick = null)
                             Spacer(Modifier.size(12.dp))
-                            Text("$count opens in two weeks")
+                            Text(pluralStringResource(R.plurals.opens_in_two_weeks, count, count))
                         }
                     }
                 }
@@ -851,7 +852,7 @@ private fun ThemeRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onEdit, onClickLabel = "Edit ${theme.name}")
+            .clickable(onClick = onEdit, onClickLabel = stringResource(R.string.edit, theme.name))
             .padding(start = 24.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -862,21 +863,21 @@ private fun ThemeRow(
         Column(Modifier.weight(1f)) {
             Text(theme.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                if (appCount == 1) stringResource(R.string.t_1_app) else "$appCount apps",
+                pluralStringResource(R.plurals.apps_count, appCount, appCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
             IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
-                Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Move ${theme.name} up")
+                Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up_2, theme.name))
             }
             IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
-                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Move ${theme.name} down")
+                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down_2, theme.name))
             }
-            IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit ${theme.name}") }
+            IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit, theme.name)) }
             IconButton(onClick = onDelete, enabled = canDelete) {
-                Icon(Icons.Outlined.Delete, contentDescription = "Delete ${theme.name}")
+                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.delete_3, theme.name))
             }
         }
     }
@@ -927,8 +928,8 @@ private fun hasContactsPermission(context: Context) =
     ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
 
 private val DrawerSort.shortLabel: String
-    get() = when (this) {
+    @Composable get() = when (this) {
         DrawerSort.Name -> "A\u2013Z"
-        DrawerSort.MostUsed -> "Most used"
-        DrawerSort.Newest -> "Newest"
+        DrawerSort.MostUsed -> stringResource(R.string.most_used)
+        DrawerSort.Newest -> stringResource(R.string.newest)
     }

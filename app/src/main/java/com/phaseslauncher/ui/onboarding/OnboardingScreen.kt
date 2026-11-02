@@ -1,8 +1,9 @@
 package com.phaseslauncher.ui.onboarding
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -45,6 +46,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -62,6 +64,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
@@ -71,33 +74,32 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.apps.filterApps
-import com.phaseslauncher.data.themes.ThemeDefaults
-import com.phaseslauncher.data.themes.ThemeDraft
-import com.phaseslauncher.data.themes.ThemeIconKey
 import com.phaseslauncher.data.importer.LauncherLayout
 import com.phaseslauncher.data.importer.LayoutImportOptions
 import com.phaseslauncher.data.rules.RuleMatch
 import com.phaseslauncher.data.rules.RuleText
+import com.phaseslauncher.data.themes.ThemeDefaults
+import com.phaseslauncher.data.themes.ThemeDraft
+import com.phaseslauncher.data.themes.ThemeIconKey
+import com.phaseslauncher.ui.components.AppIcon
 import com.phaseslauncher.ui.editor.ThemeEditorEnvironment
 import com.phaseslauncher.ui.editor.ThemeEditorSheet
 import com.phaseslauncher.ui.importer.LauncherImportDialog
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import com.phaseslauncher.ui.components.AppIcon
 import com.phaseslauncher.ui.theme.contentColorOn
 import com.phaseslauncher.ui.theme.imageVector
+import kotlinx.coroutines.launch
 
 private enum class Step { Welcome, Favorites, Themes, DefaultHome }
 
@@ -127,13 +129,14 @@ fun OnboardingScreen(
     readLauncherBackup: suspend (Uri) -> Result<LauncherLayout>,
     onImportLayout: (LauncherLayout, LayoutImportOptions) -> Unit,
 ) {
+    val res = LocalResources.current
     var step by rememberSaveable { mutableStateOf(Step.Welcome) }
     val favorites = remember { initialFavorites.toMutableStateList() }
     val choices = remember(allApps.isEmpty()) {
         ThemeDefaults.Presets.mapNotNull { preset ->
             val suggested = preset.suggest(allApps)
             if (suggested.isEmpty() && !preset.alwaysOffer) return@mapNotNull null
-            ThemeChoice(preset.toDraft(suggested.map { it.key }), selected = suggested.isNotEmpty() && !preset.alwaysOffer)
+            ThemeChoice(preset.toDraft(res, suggested.map { it.key }), selected = suggested.isNotEmpty() && !preset.alwaysOffer)
         }.toMutableStateList()
     }
     var customizing by remember { mutableStateOf<ThemeChoice?>(null) }
@@ -183,7 +186,7 @@ fun OnboardingScreen(
                         apps = allApps,
                         onAddCustom = {
                             val color = ThemeDefaults.AccentColors[(choices.size * 3) % ThemeDefaults.AccentColors.size]
-                            val choice = ThemeChoice(ThemeDraft("My phase", ThemeIconKey.Star, color), selected = true)
+                            val choice = ThemeChoice(ThemeDraft(res.getString(R.string.my_phase), ThemeIconKey.Star, color), selected = true)
                             choices += choice
                             customizing = choice
                         },
@@ -221,7 +224,7 @@ fun OnboardingScreen(
                                 when (count) {
                                     0 -> stringResource(R.string.skip)
                                     1 -> stringResource(R.string.create_theme)
-                                    else -> "Create $count phases"
+                                    else -> pluralStringResource(R.plurals.create_phases, count, count)
                                 },
                             )
                         }
@@ -237,7 +240,7 @@ fun OnboardingScreen(
             initial = choice.draft,
             allApps = allApps,
             env = editorEnv,
-            title = "Customize ${choice.name}",
+            title = stringResource(R.string.customize_2, choice.name),
             saveLabel = stringResource(R.string.save),
             onSave = { draft ->
                 choice.draft = draft
@@ -265,9 +268,9 @@ fun OnboardingScreen(
     importError?.let { error ->
         AlertDialog(
             onDismissRequest = { importError = null },
-            title = { Text("Couldn't import") },
+            title = { Text(stringResource(R.string.couldn_t_import)) },
             text = { Text(error) },
-            confirmButton = { TextButton(onClick = { importError = null }) { Text("OK") } },
+            confirmButton = { TextButton(onClick = { importError = null }) { Text(stringResource(R.string.ok)) } },
         )
     }
 }
@@ -321,7 +324,7 @@ private fun FavoritesStep(allApps: List<AppInfo>, favorites: MutableList<String>
     Column(Modifier.fillMaxSize()) {
         StepHeader(
             title = stringResource(R.string.pick_your_favorites),
-            body = "Up to ${ThemeDefaults.MAX_FAVORITES} apps for the dock. They stay put whichever phase you're on.",
+            body = pluralStringResource(R.plurals.up_to_apps_for_the_dock_they_stay_put_whichever, ThemeDefaults.MAX_FAVORITES, ThemeDefaults.MAX_FAVORITES),
         )
         // The dock as it will look, in order. Tap an icon to remove it.
         Row(
@@ -351,7 +354,7 @@ private fun FavoritesStep(allApps: List<AppInfo>, favorites: MutableList<String>
             }
         }
         Text(
-            text = "${favorites.size} of ${ThemeDefaults.MAX_FAVORITES}",
+            text = stringResource(R.string.n_of_max, favorites.size, ThemeDefaults.MAX_FAVORITES),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp),
@@ -392,7 +395,7 @@ private fun ThemesStep(
                     stringResource(R.string.you_can_change_everything_later_by_long_pressing),
             )
             TextButton(onClick = onImport, modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text("Coming from Nova or another launcher? Import its home screen")
+                Text(stringResource(R.string.coming_from_nova_or_another_launcher_import_its))
             }
         }
         itemsIndexed(choices) { _, choice -> ThemeChoiceCard(choice, byKey) { onCustomize(choice) } }
@@ -408,6 +411,7 @@ private fun ThemesStep(
 
 @Composable
 private fun ThemeChoiceCard(choice: ThemeChoice, apps: Map<String, AppInfo>, onCustomize: () -> Unit) {
+    val res = LocalResources.current
     val draft = choice.draft
     val accent = Color(draft.accentColor)
     val suggested = remember(draft.appKeys, apps) { draft.appKeys.mapNotNull(apps::get) }
@@ -449,7 +453,7 @@ private fun ThemeChoiceCard(choice: ThemeChoice, apps: Map<String, AppInfo>, onC
                     items(suggested, key = { it.key }) { AppIcon(it, size = 32.dp) }
                 }
                 Text(
-                    text = if (suggested.size == 1) stringResource(R.string.t_1_suggested_app) else "${suggested.size} suggested apps",
+                    text = pluralStringResource(R.plurals.suggested_apps, suggested.size, suggested.size),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 48.dp, top = 6.dp),
@@ -465,18 +469,17 @@ private fun ThemeChoiceCard(choice: ThemeChoice, apps: Map<String, AppInfo>, onC
             val enabledRules = draft.rules.filter { it.enabled }
             Text(
                 text = if (enabledRules.isEmpty()) {
-                    "Switch by hand"
+                    stringResource(R.string.switch_by_hand)
                 } else {
-                    "Switches: " + enabledRules.joinToString(if (draft.automation.match == RuleMatch.All) " and " else " or ") {
-                        RuleText.describe(it.rule)
-                    }
+                    val separator = stringResource(if (draft.automation.match == RuleMatch.All) R.string.rules_and else R.string.rules_or)
+                    stringResource(R.string.switches, enabledRules.joinToString(separator) { RuleText.describe(res, it.rule) })
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 48.dp, top = 6.dp),
             )
             TextButton(onClick = onCustomize, modifier = Modifier.padding(start = 36.dp)) {
-                Text("Customize apps, switching and focus")
+                Text(stringResource(R.string.customize_apps_switching_and_focus))
             }
         }
     }

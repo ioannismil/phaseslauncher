@@ -12,6 +12,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.db.FolderEntity
 import com.phaseslauncher.data.db.LauncherDatabase
@@ -27,15 +28,15 @@ import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeDraft
 import com.phaseslauncher.data.themes.ThemeIconKey
 import com.phaseslauncher.data.themes.ThemeRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
 import java.util.zip.Deflater
 import java.util.zip.Inflater
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** What goes into a shared theme. */
 data class ShareOptions(
@@ -209,12 +210,12 @@ class ThemeSharing(
             trimmed.startsWith("{") -> JSONObject(trimmed)
             else -> {
                 val data = Regex("${Regex.escape(LINK_PREFIX)}([A-Za-z0-9_-]+)").find(trimmed)?.groupValues?.get(1)
-                    ?: throw IllegalArgumentException("This isn't a shared phase")
+                    ?: throw IllegalArgumentException(context.getString(R.string.this_isn_t_a_shared_phase))
                 JSONObject(inflate(Base64.decode(data, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)).decodeToString())
             }
         }
-        require(json.optString("format") == FORMAT) { "This isn't a shared phase" }
-        require(json.optInt("version") <= VERSION) { "This phase is from a newer version of Phases" }
+        require(json.optString("format") == FORMAT) { context.getString(R.string.this_isn_t_a_shared_phase) }
+        require(json.optInt("version") <= VERSION) { context.getString(R.string.this_phase_is_from_a_newer_version_of_phases) }
         return fromJson(json)
     }
 
@@ -222,7 +223,7 @@ class ThemeSharing(
 
     /** The file's text, refusing anything far bigger than a theme (with its wallpaper) can be. */
     fun readText(uri: Uri): String {
-        val input = context.contentResolver.openInputStream(uri) ?: error("Could not open the file")
+        val input = context.contentResolver.openInputStream(uri) ?: error(context.getString(R.string.could_not_open_the_file))
         return input.use {
             val out = ByteArrayOutputStream()
             val buffer = ByteArray(8192)
@@ -230,7 +231,7 @@ class ThemeSharing(
                 val n = it.read(buffer)
                 if (n < 0) break
                 out.write(buffer, 0, n)
-                require(out.size() <= MAX_FILE_BYTES) { "This file is too large to be a phase" }
+                require(out.size() <= MAX_FILE_BYTES) { context.getString(R.string.this_file_is_too_large_to_be_a_phase) }
             }
             out.toByteArray().decodeToString()
         }
@@ -317,7 +318,7 @@ class ThemeSharing(
             }
         }.orEmpty()
         return SharedTheme(
-            name = json.optString("name").ifBlank { "Shared phase" }.take(24),
+            name = json.optString("name").ifBlank { context.getString(R.string.shared_phase) }.take(24),
             icon = ThemeIconKey.fromName(json.optString("icon")),
             accentColor = json.optInt("color", ThemeDefaults.AccentColors.first()),
             items = items,
@@ -371,7 +372,7 @@ class ThemeSharing(
             val n = inflater.inflate(buffer)
             if (n == 0 && (inflater.needsInput() || inflater.needsDictionary())) break
             out.write(buffer, 0, n)
-            require(out.size() <= MAX_INFLATED_BYTES) { "This phase is too large" }
+            require(out.size() <= MAX_INFLATED_BYTES) { context.getString(R.string.this_phase_is_too_large) }
         }
         inflater.end()
         return out.toByteArray()

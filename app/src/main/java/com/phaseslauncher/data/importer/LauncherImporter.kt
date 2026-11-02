@@ -5,7 +5,10 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.room.withTransaction
+import com.phaseslauncher.R
+import com.phaseslauncher.data.Labeled
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.db.FolderEntity
 import com.phaseslauncher.data.db.LauncherDatabase
@@ -14,10 +17,10 @@ import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeDraft
 import com.phaseslauncher.data.themes.ThemeIconKey
 import com.phaseslauncher.data.themes.ThemeRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Something on another launcher's home page, matched to an installed app. */
 sealed interface ImportedItem {
@@ -37,16 +40,16 @@ data class LauncherLayout(
     val unmatched: Int,
 )
 
-enum class ImportMode(val label: String) {
-    PagePerTheme("Each home screen page becomes a phase"),
-    OneTheme("Everything in one phase"),
+enum class ImportMode(@StringRes override val labelRes: Int) : Labeled {
+    PagePerTheme(R.string.each_home_screen_page_becomes_a_phase),
+    OneTheme(R.string.everything_in_one_phase),
 }
 
 data class LayoutImportOptions(
     val mode: ImportMode = ImportMode.PagePerTheme,
     /** Page index → theme name; pages not in here are skipped. One-theme mode uses [singleName]. */
     val pageNames: Map<Int, String>,
-    val singleName: String = "Imported",
+    val singleName: String = "",
     val importDock: Boolean = true,
     val keepFolders: Boolean = true,
 )
@@ -71,14 +74,13 @@ class LauncherImporter(
         try {
             val source = File(work, "backup")
             context.contentResolver.openInputStream(uri)?.use { input -> source.outputStream().use { input.copyTo(it) } }
-                ?: error("Could not open the file")
+                ?: error(context.getString(R.string.could_not_open_the_file))
             val databases = if (source.startsWith(ZIP_MAGIC)) unzipDatabases(source, work) else listOf(source)
             val layouts = databases.mapNotNull { file -> runCatching { readLayout(file, installed) }.onFailure { Log.w(TAG, "Not a layout: ${file.name}", it) }.getOrNull() }
             layouts.maxByOrNull { layout -> layout.pages.sumOf { it.appCount } + layout.dock.size }
                 ?.takeIf { it.pages.isNotEmpty() || it.dock.isNotEmpty() }
                 ?: throw IllegalArgumentException(
-                    "Couldn't find a home screen in this file. Phases reads backups from Nova Launcher " +
-                        "(.novabackup), Lawnchair and other Launcher3-based launchers.",
+                    context.getString(R.string.couldn_t_find_a_home_screen_in_this_file_phases),
                 )
         } finally {
             work.deleteRecursively()
@@ -90,7 +92,7 @@ class LauncherImporter(
         val chosen = layout.pages.filter { it.index in options.pageNames }
         val groups: List<Pair<String, List<ImportedItem>>> = when (options.mode) {
             ImportMode.PagePerTheme -> chosen.map { page -> options.pageNames.getValue(page.index) to page.items }
-            ImportMode.OneTheme -> listOf(options.singleName to chosen.flatMap { it.items })
+            ImportMode.OneTheme -> listOf(options.singleName.ifBlank { context.getString(R.string.imported) } to chosen.flatMap { it.items })
         }.filter { (_, items) -> items.isNotEmpty() }
         database.withTransaction {
             val used = database.themeDao().getThemes().map { it.accentColor }.toMutableSet()
@@ -98,12 +100,12 @@ class LauncherImporter(
                 val color = ThemeDefaults.AccentColors.firstOrNull { it !in used } ?: ThemeDefaults.AccentColors[i % ThemeDefaults.AccentColors.size]
                 used += color
                 val icon = if (i == 0) ThemeIconKey.Home else ThemeIconKey.Star
-                val id = themes.createTheme(ThemeDraft(name.trim().ifBlank { "Imported" }.take(24), icon, color))
+                val id = themes.createTheme(ThemeDraft(name.trim().ifBlank { context.getString(R.string.imported) }.take(24), icon, color))
                 val keys = items.flatMap { item ->
                     when (item) {
                         is ImportedItem.App -> listOf(item.key)
                         is ImportedItem.Folder -> if (options.keepFolders) {
-                            val folderId = database.folderDao().insert(FolderEntity(themeId = id, name = item.name.ifBlank { "Folder" }))
+                            val folderId = database.folderDao().insert(FolderEntity(themeId = id, name = item.name.ifBlank { context.getString(R.string.folder) }))
                             database.folderDao().setItems(folderId, item.keys)
                             listOf(ItemKeys.folder(folderId))
                         } else {
@@ -135,7 +137,7 @@ class LauncherImporter(
                             val n = input.read(buffer)
                             if (n < 0) break
                             written += n
-                            require(written <= MAX_ENTRY_BYTES) { "This backup is too large" }
+                            require(written <= MAX_ENTRY_BYTES) { context.getString(R.string.this_backup_is_too_large) }
                             o.write(buffer, 0, n)
                         }
                     }

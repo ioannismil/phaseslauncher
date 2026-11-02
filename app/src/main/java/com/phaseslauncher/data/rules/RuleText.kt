@@ -1,5 +1,7 @@
 package com.phaseslauncher.data.rules
 
+import android.content.res.Resources
+import com.phaseslauncher.R
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -7,65 +9,76 @@ import java.util.Locale
 /** Short descriptions of rules, for the editor and the home screen's prompts. */
 object RuleText {
 
-    fun title(type: RuleType): String = when (type) {
-        RuleType.Schedule -> "On a schedule"
-        RuleType.Bluetooth -> "When a Bluetooth device connects"
-        RuleType.Controller -> "When a game controller connects"
-        RuleType.Headphones -> "When headphones are connected"
-        RuleType.Wifi -> "On a Wi-Fi network"
-        RuleType.Charging -> "While charging"
-        RuleType.Location -> "At a place"
-        RuleType.Calendar -> "During calendar events"
+    fun title(res: Resources, type: RuleType): String = when (type) {
+        RuleType.Schedule -> res.getString(R.string.on_a_schedule)
+        RuleType.Bluetooth -> res.getString(R.string.when_a_bluetooth_device_connects)
+        RuleType.Controller -> res.getString(R.string.when_a_game_controller_connects)
+        RuleType.Headphones -> res.getString(R.string.when_headphones_are_connected)
+        RuleType.Wifi -> res.getString(R.string.on_a_wi_fi_network)
+        RuleType.Charging -> res.getString(R.string.while_charging)
+        RuleType.Location -> res.getString(R.string.at_a_place)
+        RuleType.Calendar -> res.getString(R.string.during_calendar_events)
     }
 
-    fun hint(type: RuleType): String = when (type) {
-        RuleType.Schedule -> "e.g. work hours"
-        RuleType.Bluetooth -> "e.g. your car or headphones"
-        RuleType.Controller -> "Any Bluetooth or USB gamepad"
-        RuleType.Headphones -> "Wired, USB or Bluetooth"
-        RuleType.Wifi -> "e.g. home or the office"
-        RuleType.Charging -> "e.g. a bedside or desk phase"
-        RuleType.Location -> "e.g. the gym or a parent's house"
-        RuleType.Calendar -> "e.g. meetings, or events with “focus” in the title"
+    fun hint(res: Resources, type: RuleType): String = when (type) {
+        RuleType.Schedule -> res.getString(R.string.e_g_work_hours)
+        RuleType.Bluetooth -> res.getString(R.string.e_g_your_car_or_headphones)
+        RuleType.Controller -> res.getString(R.string.any_bluetooth_or_usb_gamepad)
+        RuleType.Headphones -> res.getString(R.string.wired_usb_or_bluetooth)
+        RuleType.Wifi -> res.getString(R.string.e_g_home_or_the_office)
+        RuleType.Charging -> res.getString(R.string.e_g_a_bedside_or_desk_theme)
+        RuleType.Location -> res.getString(R.string.e_g_the_gym_or_a_parent_s_house)
+        RuleType.Calendar -> res.getString(R.string.e_g_meetings_or_events_with_focus_in_the_title)
     }
 
-    fun describe(rule: ThemeRule): String = when (rule) {
-        is ThemeRule.Schedule -> "${days(rule.days)}, ${minute(rule.startMinute)}–${minute(rule.endMinute)}"
+    fun describe(res: Resources, rule: ThemeRule): String = when (rule) {
+        is ThemeRule.Schedule -> res.getString(
+            R.string.schedule_description, days(res, rule.days), minute(rule.startMinute), minute(rule.endMinute),
+        )
         is ThemeRule.Bluetooth -> rule.name.ifBlank { rule.address }
-        ThemeRule.Controller -> "Any game controller"
-        ThemeRule.Headphones -> "Headphones"
+        ThemeRule.Controller -> res.getString(R.string.any_game_controller)
+        ThemeRule.Headphones -> res.getString(R.string.headphones)
         is ThemeRule.Wifi -> rule.ssid
-        ThemeRule.Charging -> "Charging"
-        is ThemeRule.Location -> "${rule.name.ifBlank { "A place" }} (within ${distance(rule.radiusMeters)})"
+        ThemeRule.Charging -> res.getString(R.string.charging)
+        is ThemeRule.Location -> res.getString(
+            R.string.within_2, rule.name.ifBlank { res.getString(R.string.a_place) }, distance(res, rule.radiusMeters),
+        )
         is ThemeRule.Calendar -> buildList {
-            add(if (rule.keywords.isEmpty()) "Any event" else "Events with “${rule.keywords.joinToString("” or “")}”")
-            add(if (rule.calendarIds.isEmpty()) "all calendars" else if (rule.calendarIds.size == 1) "1 calendar" else "${rule.calendarIds.size} calendars")
-            if (rule.minutesBefore > 0) add("${rule.minutesBefore} min early")
-            if (rule.includeAllDay) add("all-day too")
-            if (!rule.busyOnly) add("free time too")
+            add(
+                if (rule.keywords.isEmpty()) res.getString(R.string.any_event)
+                else res.getString(R.string.events_with, rule.keywords.joinToString(res.getString(R.string.or))),
+            )
+            add(
+                if (rule.calendarIds.isEmpty()) res.getString(R.string.all_calendars_lower)
+                else res.getQuantityString(R.plurals.calendars_count, rule.calendarIds.size, rule.calendarIds.size),
+            )
+            if (rule.minutesBefore > 0) add(res.getString(R.string.min_early, rule.minutesBefore))
+            if (rule.includeAllDay) add(res.getString(R.string.all_day_too))
+            if (!rule.busyOnly) add(res.getString(R.string.free_time_too))
         }.joinToString(", ")
     }
 
     /** "Work hours started", for the prompt asking whether to switch. */
-    fun reason(rule: ThemeRule): String = when (rule) {
-        is ThemeRule.Schedule -> "It's ${minute(rule.startMinute)}–${minute(rule.endMinute)}"
-        is ThemeRule.Bluetooth -> "${rule.name.ifBlank { "A Bluetooth device" }} connected"
-        ThemeRule.Controller -> "A game controller connected"
-        ThemeRule.Headphones -> "Headphones connected"
-        is ThemeRule.Wifi -> "Connected to ${rule.ssid}"
-        ThemeRule.Charging -> "Charging"
-        is ThemeRule.Location -> "You're at ${rule.name.ifBlank { "a saved place" }}"
-        is ThemeRule.Calendar -> "A calendar event is on"
+    fun reason(res: Resources, rule: ThemeRule): String = when (rule) {
+        is ThemeRule.Schedule -> res.getString(R.string.it_s, minute(rule.startMinute), minute(rule.endMinute))
+        is ThemeRule.Bluetooth -> res.getString(R.string.bluetooth_connected, rule.name.ifBlank { res.getString(R.string.a_bluetooth_device) })
+        ThemeRule.Controller -> res.getString(R.string.a_game_controller_connected)
+        ThemeRule.Headphones -> res.getString(R.string.headphones_connected)
+        is ThemeRule.Wifi -> res.getString(R.string.connected_to_2, rule.ssid)
+        ThemeRule.Charging -> res.getString(R.string.charging)
+        is ThemeRule.Location -> res.getString(R.string.you_re_at, rule.name.ifBlank { res.getString(R.string.a_saved_place) })
+        is ThemeRule.Calendar -> res.getString(R.string.a_calendar_event_is_on)
     }
 
     fun minute(minute: Int) = "%02d:%02d".format(minute / 60, minute % 60)
 
-    fun days(days: Set<DayOfWeek>): String = when (days) {
-        DayOfWeek.entries.toSet() -> "Every day"
-        DayOfWeek.entries.take(5).toSet() -> "Weekdays"
-        setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) -> "Weekends"
+    fun days(res: Resources, days: Set<DayOfWeek>): String = when (days) {
+        DayOfWeek.entries.toSet() -> res.getString(R.string.every_day)
+        DayOfWeek.entries.take(5).toSet() -> res.getString(R.string.weekdays)
+        setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) -> res.getString(R.string.weekends)
         else -> DayOfWeek.entries.filter { it in days }.joinToString(" ") { it.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
     }
 
-    fun distance(meters: Int) = if (meters < 1000) "$meters m" else "%.1f km".format(meters / 1000.0)
+    fun distance(res: Resources, meters: Int): String =
+        if (meters < 1000) res.getString(R.string.distance_m, meters) else res.getString(R.string.distance_km, meters / 1000.0)
 }

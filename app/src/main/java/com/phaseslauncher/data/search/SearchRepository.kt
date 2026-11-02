@@ -11,6 +11,7 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.normalizedForSearch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -57,6 +58,7 @@ class SearchRepository(private val context: Context) {
         val q = query.trim().normalizedForSearch()
         if (q.length < 2) return emptyList()
         return SETTINGS
+            .map { (title, action, keywords) -> Triple(context.getString(title), action, keywords) }
             .filter { (title, _, keywords) -> title.normalizedForSearch().contains(q) || keywords.any { it.startsWith(q) } }
             .take(limit)
             .map { SettingsResult(it.first, it.second) }
@@ -85,30 +87,30 @@ class SearchRepository(private val context: Context) {
     }
 
     private companion object {
-        /** Title, settings action, extra keywords (normalized, lowercase). */
+        /** Title, settings action, extra keywords (normalized, lowercase, English). */
         val SETTINGS = listOf(
-            Triple("Wi-Fi", Settings.ACTION_WIFI_SETTINGS, listOf("wifi", "wireless", "internet", "network")),
-            Triple("Bluetooth", Settings.ACTION_BLUETOOTH_SETTINGS, listOf("bluetooth", "pair", "headphones", "car")),
-            Triple("Mobile network", Settings.ACTION_NETWORK_OPERATOR_SETTINGS, listOf("mobile", "data", "sim", "roaming")),
-            Triple("Airplane mode", Settings.ACTION_AIRPLANE_MODE_SETTINGS, listOf("airplane", "flight")),
-            Triple("Display", Settings.ACTION_DISPLAY_SETTINGS, listOf("display", "brightness", "screen", "dark")),
-            Triple("Sound & vibration", Settings.ACTION_SOUND_SETTINGS, listOf("sound", "volume", "ringtone", "vibration")),
-            Triple("Notifications", "android.settings.NOTIFICATION_SETTINGS", listOf("notifications", "alerts")),
-            Triple("Do Not Disturb", Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS, listOf("dnd", "do not disturb", "silence")),
-            Triple("Battery", Intent.ACTION_POWER_USAGE_SUMMARY, listOf("battery", "power", "charging")),
-            Triple("Apps", Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS, listOf("apps", "applications", "uninstall")),
-            Triple("Storage", Settings.ACTION_INTERNAL_STORAGE_SETTINGS, listOf("storage", "space", "memory")),
-            Triple("Location", Settings.ACTION_LOCATION_SOURCE_SETTINGS, listOf("location", "gps")),
-            Triple("Security", Settings.ACTION_SECURITY_SETTINGS, listOf("security", "lock", "fingerprint", "password")),
-            Triple("Privacy", Settings.ACTION_PRIVACY_SETTINGS, listOf("privacy", "permissions")),
-            Triple("Accessibility", Settings.ACTION_ACCESSIBILITY_SETTINGS, listOf("accessibility", "talkback")),
-            Triple("Date & time", Settings.ACTION_DATE_SETTINGS, listOf("date", "time", "clock", "timezone")),
-            Triple("Languages", Settings.ACTION_LOCALE_SETTINGS, listOf("language", "locale", "keyboard")),
-            Triple("Accounts", Settings.ACTION_SYNC_SETTINGS, listOf("accounts", "sync", "google")),
-            Triple("Default apps", Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, listOf("default", "home", "browser")),
-            Triple("About phone", Settings.ACTION_DEVICE_INFO_SETTINGS, listOf("about", "phone", "version", "build")),
-            Triple("Developer options", Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, listOf("developer", "debugging", "usb")),
-            Triple("Settings", Settings.ACTION_SETTINGS, listOf("settings", "preferences")),
+            Triple(R.string.wi_fi, Settings.ACTION_WIFI_SETTINGS, listOf("wifi", "wireless", "internet", "network")),
+            Triple(R.string.bluetooth, Settings.ACTION_BLUETOOTH_SETTINGS, listOf("bluetooth", "pair", "headphones", "car")),
+            Triple(R.string.mobile_network, Settings.ACTION_NETWORK_OPERATOR_SETTINGS, listOf("mobile", "data", "sim", "roaming")),
+            Triple(R.string.airplane_mode, Settings.ACTION_AIRPLANE_MODE_SETTINGS, listOf("airplane", "flight")),
+            Triple(R.string.display, Settings.ACTION_DISPLAY_SETTINGS, listOf("display", "brightness", "screen", "dark")),
+            Triple(R.string.sound_vibration, Settings.ACTION_SOUND_SETTINGS, listOf("sound", "volume", "ringtone", "vibration")),
+            Triple(R.string.notifications, "android.settings.NOTIFICATION_SETTINGS", listOf("notifications", "alerts")),
+            Triple(R.string.do_not_disturb, Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS, listOf("dnd", "do not disturb", "silence")),
+            Triple(R.string.battery, Intent.ACTION_POWER_USAGE_SUMMARY, listOf("battery", "power", "charging")),
+            Triple(R.string.apps, Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS, listOf("apps", "applications", "uninstall")),
+            Triple(R.string.storage, Settings.ACTION_INTERNAL_STORAGE_SETTINGS, listOf("storage", "space", "memory")),
+            Triple(R.string.location, Settings.ACTION_LOCATION_SOURCE_SETTINGS, listOf("location", "gps")),
+            Triple(R.string.security, Settings.ACTION_SECURITY_SETTINGS, listOf("security", "lock", "fingerprint", "password")),
+            Triple(R.string.privacy, Settings.ACTION_PRIVACY_SETTINGS, listOf("privacy", "permissions")),
+            Triple(R.string.accessibility, Settings.ACTION_ACCESSIBILITY_SETTINGS, listOf("accessibility", "talkback")),
+            Triple(R.string.date_time, Settings.ACTION_DATE_SETTINGS, listOf("date", "time", "clock", "timezone")),
+            Triple(R.string.languages, Settings.ACTION_LOCALE_SETTINGS, listOf("language", "locale", "keyboard")),
+            Triple(R.string.accounts, Settings.ACTION_SYNC_SETTINGS, listOf("accounts", "sync", "google")),
+            Triple(R.string.default_apps, Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, listOf("default", "home", "browser")),
+            Triple(R.string.about_phone, Settings.ACTION_DEVICE_INFO_SETTINGS, listOf("about", "phone", "version", "build")),
+            Triple(R.string.developer_options, Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, listOf("developer", "debugging", "usb")),
+            Triple(R.string.settings, Settings.ACTION_SETTINGS, listOf("settings", "preferences")),
         )
     }
 }

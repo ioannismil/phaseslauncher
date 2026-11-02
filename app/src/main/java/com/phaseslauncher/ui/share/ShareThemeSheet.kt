@@ -50,8 +50,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.share.ShareOptions
 import com.phaseslauncher.data.share.ThemeSharing.Companion.isPersonal
 import com.phaseslauncher.data.themes.Theme
@@ -72,6 +75,7 @@ class ShareActions(
 @Composable
 fun ShareThemeSheet(theme: Theme, actions: ShareActions, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val res = LocalResources.current
     val scope = rememberCoroutineScope()
     var options by remember { mutableStateOf(ShareOptions()) }
     var qr by remember { mutableStateOf<Bitmap?>(null) }
@@ -86,25 +90,25 @@ fun ShareThemeSheet(theme: Theme, actions: ShareActions, onDismiss: () -> Unit) 
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
-            Text("Share “${theme.name}”", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.share_2, theme.name), style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(4.dp))
             Text(
-                "Apps travel by name: whoever adds it gets the apps they have installed, and a list of the rest.",
+                stringResource(R.string.apps_travel_by_name_whoever_adds_it_gets_the_app),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
             if (theme.rules.isNotEmpty()) {
                 ToggleRow(
-                    title = "Switching conditions",
-                    subtitle = if (options.includeRules) "When it switches, and how" else "Not included",
+                    title = stringResource(R.string.switching_conditions),
+                    subtitle = if (options.includeRules) stringResource(R.string.when_it_switches_and_how) else stringResource(R.string.not_included),
                     checked = options.includeRules,
                     onCheckedChange = { options = options.copy(includeRules = it) },
                 )
                 if (hasPersonal && options.includeRules) {
                     ToggleRow(
-                        title = "Wi-Fi networks, Bluetooth devices and places",
-                        subtitle = if (options.includePersonalRules) "Included: they can reveal where you live and work" else "Left out for privacy",
+                        title = stringResource(R.string.wi_fi_networks_bluetooth_devices_and_places),
+                        subtitle = if (options.includePersonalRules) stringResource(R.string.included_they_can_reveal_where_you_live_and_work) else stringResource(R.string.left_out_for_privacy),
                         checked = options.includePersonalRules,
                         onCheckedChange = { options = options.copy(includePersonalRules = it) },
                     )
@@ -112,16 +116,16 @@ fun ShareThemeSheet(theme: Theme, actions: ShareActions, onDismiss: () -> Unit) 
             }
             if (!theme.focus.isDefault) {
                 ToggleRow(
-                    title = "Focus settings",
-                    subtitle = if (options.includeFocus) "Blocked apps, notification filter and limits" else "Not included",
+                    title = stringResource(R.string.focus_settings),
+                    subtitle = if (options.includeFocus) stringResource(R.string.blocked_apps_notification_filter_and_limits) else stringResource(R.string.not_included),
                     checked = options.includeFocus,
                     onCheckedChange = { options = options.copy(includeFocus = it) },
                 )
             }
             if (theme.wallpaperPath != null) {
                 ToggleRow(
-                    title = "Wallpaper",
-                    subtitle = if (options.includeWallpaper) "Included in the file (not in links or QR codes)" else "Not included",
+                    title = stringResource(R.string.wallpaper),
+                    subtitle = if (options.includeWallpaper) stringResource(R.string.included_in_the_file_not_in_links_or_qr_codes) else stringResource(R.string.not_included),
                     checked = options.includeWallpaper,
                     onCheckedChange = { options = options.copy(includeWallpaper = it) },
                 )
@@ -136,11 +140,11 @@ fun ShareThemeSheet(theme: Theme, actions: ShareActions, onDismiss: () -> Unit) 
                             Intent(Intent.ACTION_SEND)
                                 .setType("application/json")
                                 .putExtra(Intent.EXTRA_STREAM, uri)
-                                .putExtra(Intent.EXTRA_SUBJECT, "Phase: ${theme.name}")
+                                .putExtra(Intent.EXTRA_SUBJECT, res.getString(R.string.phase, theme.name))
                                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
                         )
                     }
-                }) { ButtonContent(Icons.Outlined.Description, "File") }
+                }) { ButtonContent(Icons.Outlined.Description, stringResource(R.string.file)) }
                 FilledTonalButton(onClick = {
                     scope.launch {
                         val link = actions.link(actions.build(theme, options.copy(includeWallpaper = false)))
@@ -148,25 +152,25 @@ fun ShareThemeSheet(theme: Theme, actions: ShareActions, onDismiss: () -> Unit) 
                             context,
                             Intent(Intent.ACTION_SEND)
                                 .setType("text/plain")
-                                .putExtra(Intent.EXTRA_TEXT, "Try my “${theme.name}” phase in Phases: $link"),
+                                .putExtra(Intent.EXTRA_TEXT, res.getString(R.string.try_my_phase_in_phases, theme.name, link)),
                         )
                     }
-                }) { ButtonContent(Icons.Outlined.Link, "Link") }
+                }) { ButtonContent(Icons.Outlined.Link, stringResource(R.string.link)) }
                 FilledTonalButton(onClick = {
                     scope.launch {
                         val link = actions.link(actions.build(theme, options.copy(includeWallpaper = false)))
                         context.getSystemService(ClipboardManager::class.java)
-                            ?.setPrimaryClip(ClipData.newPlainText("Phase link", link))
-                        Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+                            ?.setPrimaryClip(ClipData.newPlainText(res.getString(R.string.phase_link), link))
+                        Toast.makeText(context, res.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
                     }
-                }) { ButtonContent(Icons.Outlined.ContentCopy, "Copy link") }
+                }) { ButtonContent(Icons.Outlined.ContentCopy, stringResource(R.string.copy_link)) }
                 FilledTonalButton(onClick = {
                     scope.launch {
                         val link = actions.link(actions.build(theme, options.copy(includeWallpaper = false)))
                         qr = actions.qrCode(link, qrSize)
                         qrTooBig = qr == null
                     }
-                }) { ButtonContent(Icons.Outlined.QrCode2, "QR code") }
+                }) { ButtonContent(Icons.Outlined.QrCode2, stringResource(R.string.qr_code)) }
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -179,25 +183,25 @@ fun ShareThemeSheet(theme: Theme, actions: ShareActions, onDismiss: () -> Unit) 
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Box(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).padding(8.dp)) {
-                        Image(bitmap.asImageBitmap(), contentDescription = "QR code for ${theme.name}", modifier = Modifier.size(260.dp))
+                        Image(bitmap.asImageBitmap(), contentDescription = stringResource(R.string.qr_code_for, theme.name), modifier = Modifier.size(260.dp))
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Scan it with the phone's camera on a phone with Phases.",
+                        stringResource(R.string.scan_it_with_the_phone_s_camera_on_a_phone_with),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { qr = null }) { Text("Done") } },
+            confirmButton = { TextButton(onClick = { qr = null }) { Text(stringResource(R.string.done)) } },
         )
     }
     if (qrTooBig) {
         AlertDialog(
             onDismissRequest = { qrTooBig = false },
-            title = { Text("Too big for a QR code") },
-            text = { Text("This phase has too much in it to fit in a QR code. Share it as a file or a link instead.") },
-            confirmButton = { TextButton(onClick = { qrTooBig = false }) { Text("OK") } },
+            title = { Text(stringResource(R.string.too_big_for_a_qr_code)) },
+            text = { Text(stringResource(R.string.this_phase_has_too_much_in_it_to_fit_in_a_qr_cod)) },
+            confirmButton = { TextButton(onClick = { qrTooBig = false }) { Text(stringResource(R.string.ok)) } },
         )
     }
 }
@@ -211,8 +215,8 @@ private fun ButtonContent(icon: androidx.compose.ui.graphics.vector.ImageVector,
 
 private fun send(context: Context, intent: Intent) {
     try {
-        context.startActivity(Intent.createChooser(intent, "Share phase").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_phase)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (_: ActivityNotFoundException) {
-        Toast.makeText(context, "No app to share with", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.no_app_to_share_with), Toast.LENGTH_SHORT).show()
     }
 }

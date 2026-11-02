@@ -1,6 +1,10 @@
 package com.phaseslauncher.data.themes
 
 import android.content.pm.ApplicationInfo
+import android.content.res.Resources
+import androidx.annotation.StringRes
+import com.phaseslauncher.R
+import com.phaseslauncher.data.Labeled
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.focus.ThemeFocus
 import com.phaseslauncher.data.rules.AutoEndAction
@@ -21,13 +25,13 @@ enum class ThemeIconKey {
 }
 
 /** What happens to sound and Do Not Disturb while a theme is active. */
-enum class SoundProfile(val label: String, val needsPolicyAccess: Boolean) {
-    Unchanged("Don't change", false),
-    Normal("Sound on", false),
-    Vibrate("Vibrate", false),
-    Silent("Silent", true),
-    DndPriority("Do Not Disturb: priority only", true),
-    DndAlarms("Do Not Disturb: alarms only", true);
+enum class SoundProfile(@StringRes override val labelRes: Int, val needsPolicyAccess: Boolean) : Labeled {
+    Unchanged(R.string.don_t_change, false),
+    Normal(R.string.sound_on, false),
+    Vibrate(R.string.vibrate, false),
+    Silent(R.string.silent, true),
+    DndPriority(R.string.do_not_disturb_priority_only, true),
+    DndAlarms(R.string.do_not_disturb_alarms_only, true);
 
     companion object {
         fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: Unchanged
@@ -88,7 +92,7 @@ fun Theme.toDraft() =
     ThemeDraft(name, icon, accentColor, appKeys, wallpaperPath, soundProfile, ownDock, rules, iconPack, gridLayout, automation, focus)
 
 data class ThemePreset(
-    val name: String,
+    @StringRes val nameRes: Int,
     val icon: ThemeIconKey,
     val accentColor: Int,
     /** Play Store categories ([ApplicationInfo.category]) whose apps are suggested for this theme. */
@@ -105,8 +109,8 @@ data class ThemePreset(
     fun suggest(apps: List<AppInfo>): List<AppInfo> =
         apps.filter { it.category in categories || it.packageName in packages }
 
-    fun toDraft(appKeys: List<String>) = ThemeDraft(
-        name = name,
+    fun toDraft(res: Resources, appKeys: List<String>) = ThemeDraft(
+        name = res.getString(nameRes),
         icon = icon,
         accentColor = accentColor,
         appKeys = appKeys,
@@ -127,7 +131,7 @@ object ThemeDefaults {
 
     val Presets: List<ThemePreset> = listOf(
         ThemePreset(
-            name = "Gaming",
+            nameRes = R.string.gaming,
             icon = ThemeIconKey.Gaming,
             accentColor = AccentColors[0],
             categories = setOf(ApplicationInfo.CATEGORY_GAME),
@@ -141,7 +145,7 @@ object ThemeDefaults {
             rules = listOf(ThemeRule.Controller),
         ),
         ThemePreset(
-            name = "Work",
+            nameRes = R.string.work,
             icon = ThemeIconKey.Work,
             accentColor = AccentColors[1],
             categories = setOf(ApplicationInfo.CATEGORY_PRODUCTIVITY),
@@ -164,7 +168,7 @@ object ThemeDefaults {
             rules = listOf(ThemeRule.WORK_HOURS),
         ),
         ThemePreset(
-            name = "Social",
+            nameRes = R.string.social,
             icon = ThemeIconKey.Social,
             accentColor = AccentColors[8],
             categories = setOf(ApplicationInfo.CATEGORY_SOCIAL),
@@ -184,7 +188,7 @@ object ThemeDefaults {
             ),
         ),
         ThemePreset(
-            name = "Entertainment",
+            nameRes = R.string.entertainment,
             icon = ThemeIconKey.Movie,
             accentColor = AccentColors[7],
             categories = setOf(ApplicationInfo.CATEGORY_VIDEO),
@@ -198,7 +202,7 @@ object ThemeDefaults {
             ),
         ),
         ThemePreset(
-            name = "Music",
+            nameRes = R.string.music,
             icon = ThemeIconKey.Music,
             accentColor = AccentColors[3],
             categories = setOf(ApplicationInfo.CATEGORY_AUDIO),
@@ -215,7 +219,7 @@ object ThemeDefaults {
             rules = listOf(ThemeRule.Headphones),
         ),
         ThemePreset(
-            name = "Travel",
+            nameRes = R.string.travel,
             icon = ThemeIconKey.Travel,
             accentColor = AccentColors[2],
             categories = setOf(ApplicationInfo.CATEGORY_MAPS),
@@ -229,7 +233,7 @@ object ThemeDefaults {
             ),
         ),
         ThemePreset(
-            name = "News",
+            nameRes = R.string.news,
             icon = ThemeIconKey.Study,
             accentColor = AccentColors[9],
             categories = setOf(ApplicationInfo.CATEGORY_NEWS),
@@ -242,7 +246,7 @@ object ThemeDefaults {
             ),
         ),
         ThemePreset(
-            name = "Photos",
+            nameRes = R.string.photos,
             icon = ThemeIconKey.Photo,
             accentColor = AccentColors[5],
             categories = setOf(ApplicationInfo.CATEGORY_IMAGE),
@@ -255,7 +259,7 @@ object ThemeDefaults {
             ),
         ),
         ThemePreset(
-            name = "Bedtime",
+            nameRes = R.string.bedtime,
             icon = ThemeIconKey.Night,
             accentColor = AccentColors[0],
             packages = setOf(

@@ -10,19 +10,22 @@ import android.os.UserManager
 import android.util.Log
 import android.view.MotionEvent
 import android.view.ViewConfiguration
+import androidx.annotation.StringRes
+import com.phaseslauncher.R
+import com.phaseslauncher.data.Labeled
 import com.phaseslauncher.data.db.ThemeWidgetEntity
 import com.phaseslauncher.data.db.WidgetDao
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /** A widget placed on a theme. */
 data class ThemeWidget(val appWidgetId: Int, val themeId: Long, val heightDp: Int)
 
 /** Height presets offered when resizing a widget. */
-enum class WidgetSize(val label: String, val heightDp: Int) {
-    Small("Small", 110), Medium("Medium", 180), Large("Large", 260), ExtraLarge("Extra large", 360)
+enum class WidgetSize(@StringRes override val labelRes: Int, val heightDp: Int) : Labeled {
+    Small(R.string.small, 110), Medium(R.string.medium, 180), Large(R.string.large, 260), ExtraLarge(R.string.extra_large, 360)
 }
 
 /**

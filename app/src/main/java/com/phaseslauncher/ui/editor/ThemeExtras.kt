@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.editor
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -21,11 +19,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.AlertDialog
@@ -33,8 +35,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -43,35 +45,35 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.focus.ThemeFocus
+import com.phaseslauncher.data.icons.IconPackInfo
 import com.phaseslauncher.data.rules.BluetoothDeviceInfo
 import com.phaseslauncher.data.rules.CalendarInfo
 import com.phaseslauncher.data.rules.GeoFix
 import com.phaseslauncher.data.rules.RuleSetting
 import com.phaseslauncher.data.rules.ThemeAutomation
-import com.phaseslauncher.data.themes.SoundProfile
-import kotlinx.coroutines.Dispatchers
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.verticalScroll
-import com.phaseslauncher.data.icons.IconPackInfo
 import com.phaseslauncher.data.settings.LauncherPrefs
+import com.phaseslauncher.data.themes.SoundProfile
 import com.phaseslauncher.data.themes.ThemeLook
+import com.phaseslauncher.ui.components.label
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -188,7 +190,7 @@ fun ThemeExtras(
         SectionTitle(stringResource(R.string.switch_automatically))
         AutomationSection(env, rules, onRulesChange, automation, onAutomationChange)
 
-        SectionTitle("Focus")
+        SectionTitle(stringResource(R.string.focus))
         FocusSection(env, focus, onFocusChange, allApps)
         Spacer(Modifier.height(8.dp))
     }
@@ -238,20 +240,21 @@ private fun ThemeLookOptions(
     gridLayout: String?,
     onGridLayoutChange: (String?) -> Unit,
 ) {
+    val res = LocalResources.current
     val packs by produceState(emptyList<IconPackInfo>()) { value = env.loadIconPacks() }
     var pickingPack by remember { mutableStateOf(false) }
     var pickingGrid by remember { mutableStateOf(false) }
 
     fun packLabel(pack: String?) = when (pack) {
-        null -> "Same as launcher settings"
-        ThemeLook.NO_ICON_PACK -> "App icons"
-        else -> packs.firstOrNull { it.packageName == pack }?.label ?: "Icon pack (not installed)"
+        null -> res.getString(R.string.same_as_launcher_settings)
+        ThemeLook.NO_ICON_PACK -> res.getString(R.string.app_icons)
+        else -> packs.firstOrNull { it.packageName == pack }?.label ?: res.getString(R.string.icon_pack_not_installed)
     }
 
     fun gridLabel(layout: String?) = when (layout) {
-        null -> "Same as launcher settings"
-        ThemeLook.GRID_FIT -> "Fit icons to the screen"
-        else -> "$layout columns"
+        null -> res.getString(R.string.same_as_launcher_settings)
+        ThemeLook.GRID_FIT -> res.getString(R.string.fit_icons_to_the_screen)
+        else -> res.getString(R.string.n_columns, layout)
     }
 
     ValueRow(stringResource(R.string.icon_pack), packLabel(iconPack)) { pickingPack = true }
@@ -262,7 +265,7 @@ private fun ThemeLookOptions(
             title = stringResource(R.string.icon_pack_for_this_theme),
             options = listOf(null, ThemeLook.NO_ICON_PACK) + packs.map { it.packageName },
             selected = iconPack,
-            label = ::packLabel,
+            label = { packLabel(it) },
             onSelect = {
                 pickingPack = false
                 onIconPackChange(it)
@@ -275,7 +278,7 @@ private fun ThemeLookOptions(
             title = stringResource(R.string.home_grid_for_this_theme),
             options = listOf(null, ThemeLook.GRID_FIT) + LauncherPrefs.COLUMN_RANGE.map { it.toString() },
             selected = gridLayout,
-            label = ::gridLabel,
+            label = { gridLabel(it) },
             onSelect = {
                 pickingGrid = false
                 onGridLayoutChange(it)
@@ -305,7 +308,7 @@ internal fun <T> ChoiceDialog(
     title: String,
     options: List<T>,
     selected: T,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {

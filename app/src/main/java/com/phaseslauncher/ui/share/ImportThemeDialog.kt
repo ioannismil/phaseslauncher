@@ -34,13 +34,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.rules.RuleText
 import com.phaseslauncher.data.share.ImportOptions
 import com.phaseslauncher.data.share.Resolution
 import com.phaseslauncher.data.share.SharedTheme
 import com.phaseslauncher.data.themes.SoundProfile
+import com.phaseslauncher.ui.components.label
 import com.phaseslauncher.ui.editor.ToggleRow
 import com.phaseslauncher.ui.theme.contentColorOn
 import com.phaseslauncher.ui.theme.imageVector
@@ -54,6 +59,7 @@ fun ImportThemeDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val res = LocalResources.current
     var name by rememberSaveable { mutableStateOf(shared.name) }
     var rules by remember { mutableStateOf(true) }
     var focus by remember { mutableStateOf(true) }
@@ -70,44 +76,44 @@ fun ImportThemeDialog(
                 Icon(shared.icon.imageVector, contentDescription = null, tint = contentColorOn(accent))
             }
         },
-        title = { Text("Add this phase?") },
+        title = { Text(stringResource(R.string.add_this_phase)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(24) },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     when {
-                        total == 0 -> "No apps"
-                        resolution.missing.isEmpty() -> "All $total apps are installed"
-                        else -> "$found of $total apps are installed"
+                        total == 0 -> stringResource(R.string.no_apps)
+                        resolution.missing.isEmpty() -> pluralStringResource(R.plurals.all_apps_installed, total, total)
+                        else -> pluralStringResource(R.plurals.apps_installed_of, total, found, total)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (resolution.missing.isNotEmpty()) {
                     Text(
-                        "Not installed (you can add them later):",
+                        stringResource(R.string.not_installed_you_can_add_them_later),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     resolution.missing.take(MAX_MISSING_SHOWN).forEach { app ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            TextButton(onClick = { openStore(context, app.packageName) }) { Text("Get") }
+                            TextButton(onClick = { openStore(context, app.packageName) }) { Text(stringResource(R.string.get)) }
                         }
                     }
                     if (resolution.missing.size > MAX_MISSING_SHOWN) {
-                        Text("and ${resolution.missing.size - MAX_MISSING_SHOWN} more", style = MaterialTheme.typography.bodySmall)
+                        Text(pluralStringResource(R.plurals.and_more, resolution.missing.size - MAX_MISSING_SHOWN, resolution.missing.size - MAX_MISSING_SHOWN), style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 shared.iconPack?.let { pack ->
                     Text(
-                        "Uses the icon pack ${shared.iconPackLabel ?: pack}; if it isn't installed, apps keep their own icons.",
+                        stringResource(R.string.uses_the_icon_pack_if_it_isn_t_installed_apps_ke, shared.iconPackLabel ?: pack),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp),
@@ -116,20 +122,20 @@ fun ImportThemeDialog(
                 Spacer(Modifier.height(8.dp))
                 if (shared.rules.isNotEmpty()) {
                     ToggleRow(
-                        title = "Switching conditions",
-                        subtitle = shared.rules.joinToString("; ") { RuleText.describe(it.rule) },
+                        title = stringResource(R.string.switching_conditions),
+                        subtitle = shared.rules.joinToString("; ") { RuleText.describe(res, it.rule) },
                         checked = rules,
                         onCheckedChange = { rules = it },
                     )
                 }
                 if (!shared.focus.isDefault) {
-                    ToggleRow("Focus settings", "Blocked apps, notification filter and limits", focus) { focus = it }
+                    ToggleRow(stringResource(R.string.focus_settings), stringResource(R.string.blocked_apps_notification_filter_and_limits), focus) { focus = it }
                 }
                 if (shared.soundProfile != SoundProfile.Unchanged) {
-                    ToggleRow("Sound", shared.soundProfile.label, sound) { sound = it }
+                    ToggleRow(stringResource(R.string.sound), shared.soundProfile.label, sound) { sound = it }
                 }
                 if (shared.wallpaper != null) {
-                    ToggleRow("Wallpaper", "Applied when you switch to it", wallpaper) { wallpaper = it }
+                    ToggleRow(stringResource(R.string.wallpaper), stringResource(R.string.applied_when_you_switch_to_it), wallpaper) { wallpaper = it }
                 }
             }
         },
@@ -137,9 +143,9 @@ fun ImportThemeDialog(
             TextButton(
                 onClick = { onImport(ImportOptions(name, rules, focus, wallpaper, sound)) },
                 enabled = name.isNotBlank(),
-            ) { Text("Add phase") }
+            ) { Text(stringResource(R.string.add_phase)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -150,7 +156,7 @@ fun PasteThemeDialog(onParse: (String) -> String?, onDismiss: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Paste a phase link") },
+        title = { Text(stringResource(R.string.paste_a_phase_link)) },
         text = {
             OutlinedTextField(
                 value = text,
@@ -166,8 +172,8 @@ fun PasteThemeDialog(onParse: (String) -> String?, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().width(320.dp),
             )
         },
-        confirmButton = { TextButton(onClick = { error = onParse(text) }, enabled = text.isNotBlank()) { Text("Open") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { error = onParse(text) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.open_2)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

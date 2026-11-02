@@ -15,9 +15,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.focus.BlockMode
 import com.phaseslauncher.data.focus.FocusBlock
+import com.phaseslauncher.ui.editor.minutes
 import kotlinx.coroutines.delay
 
 /**
@@ -41,17 +44,17 @@ fun FocusPauseDialog(
         }
     }
     val title = when (block) {
-        is FocusBlock.Blocked -> "${block.app.label} is paused on ${block.theme.name}"
-        is FocusBlock.OverLimit -> "Time's up for ${if (block.themeTotal) "${block.theme.name}'s apps" else block.app.label}"
+        is FocusBlock.Blocked -> stringResource(R.string.is_paused_on, block.app.label, block.theme.name)
+        is FocusBlock.OverLimit -> stringResource(R.string.time_s_up_for, if (block.themeTotal) stringResource(R.string.s_apps, block.theme.name) else block.app.label)
     }
     val body = when (block) {
         is FocusBlock.Blocked -> if (block.mode == BlockMode.Pause) {
-            "Take a breath. Still want it? It will open freely for ${minutesText(focus.allowMinutes)}."
+            stringResource(R.string.take_a_breath_still_want_it_it_will_open_freely, minutes(focus.allowMinutes))
         } else {
-            "It can't be opened while ${block.theme.name} is on."
+            stringResource(R.string.it_can_t_be_opened_while_is_on, block.theme.name)
         }
-        is FocusBlock.OverLimit -> "Used ${minutesText(block.usedMinutes)} of ${minutesText(block.limitMinutes)} today." +
-            if (block.mode == BlockMode.Pause) " Opening it anyway gives you ${minutesText(focus.allowMinutes)}." else ""
+        is FocusBlock.OverLimit -> stringResource(R.string.used_of_today, minutes(block.usedMinutes), minutes(block.limitMinutes)) +
+            if (block.mode == BlockMode.Pause) stringResource(R.string.opening_it_anyway_gives_you, minutes(focus.allowMinutes)) else ""
     }
     AlertDialog(
         onDismissRequest = onCancel,
@@ -64,23 +67,17 @@ fun FocusPauseDialog(
                     LinearProgressIndicator(progress = { 1f - left / wait.toFloat() })
                 }
                 TextButton(onClick = onEditTheme) {
-                    Text("Change ${block.theme.name}'s focus settings", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.change_s_focus_settings, block.theme.name), style = MaterialTheme.typography.labelLarge)
                 }
             }
         },
         confirmButton = {
             if (block.mode == BlockMode.Pause) {
-                TextButton(onClick = onOpenAnyway, enabled = left == 0) { Text(if (left > 0) "Open anyway ($left)" else "Open anyway") }
+                TextButton(onClick = onOpenAnyway, enabled = left == 0) { Text(if (left > 0) stringResource(R.string.open_anyway, left) else stringResource(R.string.open_anyway_2)) }
             } else {
-                TextButton(onClick = onCancel) { Text("OK") }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.ok)) }
             }
         },
-        dismissButton = if (block.mode == BlockMode.Pause) ({ TextButton(onClick = onCancel) { Text("Don't open") } }) else null,
+        dismissButton = if (block.mode == BlockMode.Pause) ({ TextButton(onClick = onCancel) { Text(stringResource(R.string.don_t_open)) } }) else null,
     )
-}
-
-private fun minutesText(m: Int) = when {
-    m < 60 -> "$m min"
-    m % 60 == 0 -> "${m / 60} h"
-    else -> "${m / 60} h ${m % 60} min"
 }

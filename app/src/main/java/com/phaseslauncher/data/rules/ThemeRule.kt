@@ -1,11 +1,14 @@
 package com.phaseslauncher.data.rules
 
+import androidx.annotation.StringRes
+import com.phaseslauncher.R
+import com.phaseslauncher.data.Labeled
 import com.phaseslauncher.data.db.ThemeRuleEntity
-import org.json.JSONArray
-import org.json.JSONObject
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** Rule types, most specific first: when two themes have the same priority, the more specific match wins. */
 enum class RuleType { Controller, Bluetooth, Headphones, Location, Wifi, Calendar, Charging, Schedule }
@@ -168,18 +171,18 @@ data class CalendarEvent(
 )
 
 /** Which theme wins when several themes' conditions apply at once. */
-enum class AutoPriority(val label: String) { Low("Low"), Normal("Normal"), High("High"), Highest("Highest") }
+enum class AutoPriority(@StringRes override val labelRes: Int) : Labeled { Low(R.string.low), Normal(R.string.normal), High(R.string.high), Highest(R.string.highest) }
 
 /** How a theme's conditions combine. */
-enum class RuleMatch(val label: String) {
-    Any("Any condition is met"),
-    All("All conditions are met"),
+enum class RuleMatch(@StringRes override val labelRes: Int) : Labeled {
+    Any(R.string.any_condition_is_met),
+    All(R.string.all_conditions_are_met),
 }
 
 /** What happens when the theme's conditions stop applying. */
-enum class AutoEndAction(val label: String) {
-    SwitchBack("Switch back to the previous phase"),
-    Stay("Stay on this phase"),
+enum class AutoEndAction(@StringRes override val labelRes: Int) : Labeled {
+    SwitchBack(R.string.switch_back_to_the_previous_phase),
+    Stay(R.string.stay_on_this_phase),
 }
 
 /** How a theme switches automatically; see [ThemeRule]. */

@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.editor
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,8 +46,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.icons.IconPackInfo
 import com.phaseslauncher.data.icons.IconPackManager
@@ -76,7 +76,7 @@ fun CustomizeAppDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Customize ${app.defaultLabel}") },
+        title = { Text(stringResource(R.string.customize_2, app.defaultLabel)) },
         text = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {

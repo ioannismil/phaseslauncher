@@ -1,52 +1,24 @@
 package com.phaseslauncher.ui.drawer
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.graphics.BitmapFactory
+import android.graphics.Rect
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.Calculate
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.RadioButton
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.Constraints
-import com.phaseslauncher.data.search.Calculation
-import com.phaseslauncher.data.settings.DrawerSort
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
-import android.graphics.Rect
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -59,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -72,16 +45,23 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -93,9 +73,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -106,32 +90,50 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.phaseslauncher.DrawerState
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.apps.ProfileState
 import com.phaseslauncher.data.apps.ProfileType
+import com.phaseslauncher.data.search.Calculation
 import com.phaseslauncher.data.search.ContactResult
 import com.phaseslauncher.data.search.SettingsResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.phaseslauncher.data.settings.DrawerSort
 import com.phaseslauncher.ui.components.AppAction
 import com.phaseslauncher.ui.components.AppTileWithMenu
 import com.phaseslauncher.ui.components.LocalExternalDrag
 import com.phaseslauncher.ui.components.dragToHome
 import com.phaseslauncher.ui.components.drawerLabelStyle
+import com.phaseslauncher.ui.components.label
+import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val CloseDragThreshold = 96.dp
 
@@ -292,11 +294,11 @@ fun AppDrawer(
                                 )
                             }
                             item(key = "allHeader", span = { GridItemSpan(maxLineSpan) }) {
-                                SectionLabel(if (state.sort == DrawerSort.Name) stringResource(R.string.all_apps) else "All apps \u00b7 ${state.sort.label.lowercase()}")
+                                SectionLabel(if (state.sort == DrawerSort.Name) stringResource(R.string.all_apps) else stringResource(R.string.all_apps_2, state.sort.label.lowercase()))
                             }
                         }
                         if (query.isNotBlank() && state.apps.isEmpty() && state.calculation == null) {
-                            item(key = "noApps", span = { GridItemSpan(maxLineSpan) }) { SectionLabel("No apps match \u201c$query\u201d") }
+                            item(key = "noApps", span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.no_apps_match, query)) }
                         }
                         items(state.apps, key = { it.key }) { app ->
                             AppTileWithMenu(
@@ -432,6 +434,7 @@ private fun ProfileTabs(state: DrawerState, onSelect: (ProfileType) -> Unit) {
 /** Work profile paused / private space locked, with the button to change it. */
 @Composable
 private fun ProfileBanner(profile: ProfileState, onSetQuiet: (ProfileState, Boolean) -> Unit) {
+    val res = LocalResources.current
     val (text, action) = when {
         profile.type == ProfileType.Work && profile.isQuiet -> stringResource(R.string.work_apps_are_paused) to stringResource(R.string.turn_on)
         profile.type == ProfileType.Work -> null to stringResource(R.string.pause_work_apps)
@@ -463,10 +466,10 @@ private fun ProfileBanner(profile: ProfileState, onSetQuiet: (ProfileState, Bool
 }
 
 private val ProfileType.title: String
-    get() = when (this) {
-        ProfileType.Personal -> "Personal"
-        ProfileType.Work -> "Work"
-        ProfileType.Private -> "Private"
+    @Composable get() = when (this) {
+        ProfileType.Personal -> stringResource(R.string.personal)
+        ProfileType.Work -> stringResource(R.string.work)
+        ProfileType.Private -> stringResource(R.string.private_profile)
     }
 
 private val ProfileType.icon: ImageVector
@@ -532,7 +535,7 @@ private fun LazyGridScope.searchExtras(state: DrawerState, query: String, action
     item(key = "web", span = { GridItemSpan(maxLineSpan) }) {
         ResultRow(
             leading = { Icon(Icons.Outlined.TravelExplore, contentDescription = null, modifier = Modifier.size(28.dp)) },
-            title = "Search the web for \u201c${query.trim()}\u201d",
+            title = stringResource(R.string.search_the_web_for, query.trim()),
             onClick = { actions.onSearchWeb(query.trim()) },
         )
     }
@@ -553,13 +556,14 @@ private fun SectionLabel(text: String) {
 /** "= result" for a search that's arithmetic or a unit conversion. Tap to copy the result. */
 @Composable
 private fun CalculationCard(calculation: Calculation) {
+    val res = LocalResources.current
     val context = LocalContext.current
     Surface(
         onClick = {
             val clipboard = context.getSystemService(ClipboardManager::class.java)
-            clipboard?.setPrimaryClip(ClipData.newPlainText("Result", calculation.result))
+            clipboard?.setPrimaryClip(ClipData.newPlainText(res.getString(R.string.result), calculation.result))
             // Android 13+ shows its own confirmation.
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) Toast.makeText(context, res.getString(R.string.copied), Toast.LENGTH_SHORT).show()
         },
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.primaryContainer,

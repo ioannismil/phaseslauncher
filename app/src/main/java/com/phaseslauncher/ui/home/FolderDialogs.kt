@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.home
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.graphics.Rect
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -40,11 +38,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.phaseslauncher.R
 import com.phaseslauncher.data.items.FolderItem
 import com.phaseslauncher.data.items.FolderRepository
 import com.phaseslauncher.data.items.HomeItem
@@ -121,7 +121,7 @@ fun AddToFolderDialog(
     var name by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add $itemLabel to a folder") },
+        title = { Text(stringResource(R.string.add_to_a_folder, itemLabel)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 folders.forEach { folder ->

@@ -171,6 +171,7 @@ data class PendingLaunch(val block: FocusBlock, val proceed: () -> Unit)
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
+    private val res = container.appContext.resources
     private val appsRepository = container.appsRepository
     private val themeRepository = container.themeRepository
     private val favoritesRepository = container.favoritesRepository
@@ -416,9 +417,9 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                     return@combine HomeBanner(
                         id = "prompt:${theme.id}",
                         themeId = theme.id,
-                        title = "Switch to ${theme.name}?",
-                        body = RuleText.reason(prompt.rule),
-                        acceptLabel = "Switch",
+                        title = res.getString(R.string.switch_to_2, theme.name),
+                        body = RuleText.reason(res, prompt.rule),
+                        acceptLabel = res.getString(R.string.switch_action),
                         isAutoPrompt = true,
                     )
                 }
@@ -442,18 +443,17 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                 HomeBanner(
                     id = suggestion.id,
                     themeId = theme.id,
-                    title = "Add ${app.label} to ${theme.name}?",
-                    body = "You opened it ${suggestion.launches} times on ${theme.name} in the last two weeks.",
-                    acceptLabel = "Add",
+                    title = res.getString(R.string.add_to_2, app.label, theme.name),
+                    body = res.getQuantityString(R.plurals.you_opened_it_times_on_in_the_last_two_weeks, suggestion.launches, suggestion.launches, theme.name),
+                    acceptLabel = res.getString(R.string.add),
                 )
             }
             is Suggestion.Schedule -> HomeBanner(
                 id = suggestion.id,
                 themeId = theme.id,
-                title = "Switch to ${theme.name} automatically?",
-                body = "You switch to it around ${RuleText.minute(suggestion.rule.startMinute)} " +
-                    "(${suggestion.days} days lately). Schedule: ${RuleText.describe(suggestion.rule)}.",
-                acceptLabel = "Add schedule",
+                title = res.getString(R.string.switch_to_automatically, theme.name),
+                body = res.getQuantityString(R.plurals.you_switch_to_it_around_days_lately_schedule, suggestion.days, RuleText.minute(suggestion.rule.startMinute), suggestion.days, RuleText.describe(res, suggestion.rule)),
+                acceptLabel = res.getString(R.string.add_schedule),
                 canCustomize = true,
             )
             is Suggestion.SwitchForApp -> {
@@ -461,9 +461,9 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                 HomeBanner(
                     id = suggestion.id,
                     themeId = theme.id,
-                    title = "Switch to ${theme.name}?",
-                    body = "${app.label} is on ${theme.name}.",
-                    acceptLabel = "Switch",
+                    title = res.getString(R.string.switch_to_2, theme.name),
+                    body = res.getString(R.string.is_on, app.label, theme.name),
+                    acceptLabel = res.getString(R.string.switch_action),
                 )
             }
         }
@@ -489,11 +489,11 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         when (suggestion) {
             is Suggestion.AddApp -> viewModelScope.launch {
                 themeRepository.addApp(suggestion.themeId, suggestion.appKey)
-                message("Added to ${homeState.value.themes.firstOrNull { it.id == suggestion.themeId }?.name ?: "the phase"}")
+                message(res.getString(R.string.added_to, homeState.value.themes.firstOrNull { it.id == suggestion.themeId }?.name ?: res.getString(R.string.the_phase)))
             }
             is Suggestion.Schedule -> viewModelScope.launch {
                 themeRepository.addRule(suggestion.themeId, suggestion.rule)
-                message("Schedule added. Change it in the phase's settings.")
+                message(res.getString(R.string.schedule_added_change_it_in_the_phase_s_settings))
             }
             is Suggestion.SwitchForApp -> selectTheme(suggestion.themeId)
         }
@@ -515,13 +515,13 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     fun resetSuggestions() {
         updatePrefs { it.copy(dismissedSuggestions = emptyMap()) }
-        message("Dismissed suggestions can show again")
+        message(res.getString(R.string.dismissed_suggestions_can_show_again))
     }
 
     fun clearHistory() {
         viewModelScope.launch {
             history.clear()
-            message("Activity history cleared")
+            message(res.getString(R.string.activity_history_cleared))
         }
     }
 
@@ -537,7 +537,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     fun hideApp(app: AppInfo) {
         updatePrefs { it.copy(hiddenApps = it.hiddenApps + app.key) }
-        message("${app.label} hidden. Unhide it in Launcher settings.")
+        message(res.getString(R.string.hidden_unhide_it_in_launcher_settings, app.label))
     }
 
     suspend fun installedIconPacks(): List<IconPackInfo> = withContext(Dispatchers.IO) { container.iconPacks.installedPacks() }
@@ -557,8 +557,8 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     fun exportBackup(uri: Uri) {
         viewModelScope.launch {
             runCatching { container.backupRepository.exportTo(uri) }
-                .onSuccess { message("Backed up ${it.themes} phases and ${it.favorites} favorites") }
-                .onFailure { message("Backup failed: ${it.message}") }
+                .onSuccess { message(res.getString(R.string.backed_up, phasesCount(it.themes), favoritesCount(it.favorites))) }
+                .onFailure { message(res.getString(R.string.backup_failed, it.message)) }
         }
     }
 
@@ -567,8 +567,8 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
             // Widget ids belong to this phone's widget host; the restored themes start without widgets.
             widgets.removeAll()
             runCatching { container.backupRepository.importFrom(uri) }
-                .onSuccess { message("Restored ${it.themes} phases and ${it.favorites} favorites") }
-                .onFailure { message("Couldn't restore: ${it.message}") }
+                .onSuccess { message(res.getString(R.string.restored, phasesCount(it.themes), favoritesCount(it.favorites))) }
+                .onFailure { message(res.getString(R.string.couldn_t_restore, it.message)) }
         }
     }
 
@@ -649,7 +649,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
             }
             suggestSwitchFor(app, state)
         } else {
-            message("${app.label} is not available")
+            message(res.getString(R.string.is_not_available, app.label))
         }
     }
 
@@ -670,7 +670,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                 if (container.pinnedShortcuts.launch(item.shortcut, sourceBounds, options)) {
                     appInFront = true
                 } else {
-                    message("Couldn\u2019t open \u201c${item.label}\u201d. Its app may have removed it.")
+                    message(res.getString(R.string.couldn_t_open_its_app_may_have_removed_it, item.label))
                 }
             }
             is FolderItem -> Unit
@@ -695,7 +695,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         if (container.shortcutsRepository.launch(shortcut, sourceBounds, options)) {
             appInFront = true
         } else {
-            message("Couldn't open “${shortcut.label}”")
+            message(res.getString(R.string.couldn_t_open, shortcut.label))
         }
     }
 
@@ -750,7 +750,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val themes = homeState.value.themes
             if (themes.size <= 1) {
-                message("You need at least one phase")
+                message(res.getString(R.string.you_need_at_least_one_phase))
                 return@launch
             }
             widgets.removeForTheme(themeId)
@@ -814,9 +814,9 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
             runCatching { container.themeSharing.install(shared, resolution, options) }
                 .onSuccess { id ->
                     activate(id)
-                    message("Added ${options.name.ifBlank { shared.name }}")
+                    message(res.getString(R.string.added, options.name.ifBlank { shared.name }))
                 }
-                .onFailure { message("Couldn't add the phase: ${it.message}") }
+                .onFailure { message(res.getString(R.string.couldn_t_add_the_phase, it.message)) }
         }
     }
 
@@ -826,8 +826,8 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     fun importLauncherLayout(layout: LauncherLayout, options: LayoutImportOptions) {
         viewModelScope.launch {
             runCatching { container.launcherImporter.apply(layout, options) }
-                .onSuccess { count -> message(if (count == 1) "Imported 1 phase" else "Imported $count phases") }
-                .onFailure { message("Import failed: ${it.message}") }
+                .onSuccess { count -> message(res.getQuantityString(R.plurals.imported_phases, count, count)) }
+                .onFailure { message(res.getString(R.string.import_failed, it.message)) }
         }
     }
 
@@ -897,7 +897,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         val theme = state.activeTheme ?: return
         val inFolder = state.folders.values.firstOrNull { it.themeId == theme.id && app.key in it.itemKeys }
         if (inFolder != null) {
-            message("${app.label} is already in the folder \u201c${inFolder.name}\u201d")
+            message(res.getString(R.string.is_already_in_the_folder, app.label, inFolder.name))
             return
         }
         viewModelScope.launch {
@@ -1025,11 +1025,15 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun reportFavoriteResult(app: AppInfo, result: AddFavoriteResult) = when (result) {
         AddFavoriteResult.Added -> Unit
-        AddFavoriteResult.AlreadyFavorite -> message("${app.label} is already in the dock")
-        AddFavoriteResult.Full -> message("The dock holds ${ThemeDefaults.MAX_FAVORITES} apps. Remove one first.")
+        AddFavoriteResult.AlreadyFavorite -> message(res.getString(R.string.is_already_in_the_dock, app.label))
+        AddFavoriteResult.Full -> message(res.getQuantityString(R.plurals.the_dock_holds_apps_remove_one_first, ThemeDefaults.MAX_FAVORITES, ThemeDefaults.MAX_FAVORITES))
     }
 
     // endregion
+
+    private fun phasesCount(n: Int) = res.getQuantityString(R.plurals.phases_count, n, n)
+
+    private fun favoritesCount(n: Int) = res.getQuantityString(R.plurals.favorites_count, n, n)
 
     fun message(text: String) {
         _messages.trySend(text)

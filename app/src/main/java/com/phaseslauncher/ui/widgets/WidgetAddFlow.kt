@@ -1,13 +1,12 @@
 package com.phaseslauncher.ui.widgets
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.phaseslauncher.R
 import com.phaseslauncher.data.widgets.WidgetRepository
 
 /**
@@ -47,7 +46,7 @@ class WidgetAddFlow(
         if (resultCode != Activity.RESULT_OK) {
             repository.discardId(id)
             pending = null
-            if (requestCode == REQUEST_BIND) onFailed("Widget not added: permission wasn't granted")
+            if (requestCode == REQUEST_BIND) onFailed(activity.getString(R.string.widget_not_added_permission_wasn_t_granted))
             return true
         }
         if (requestCode == REQUEST_BIND) configureOrPlace() else place()

@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.settings
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,13 +29,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.settings.GestureAction
 import com.phaseslauncher.data.settings.GestureKind
 import com.phaseslauncher.ui.components.AppIcon
+import com.phaseslauncher.ui.components.label
 
 /**
  * One home-screen gesture and what it does. Choosing "Lock the screen" without the accessibility
@@ -62,7 +63,7 @@ fun GestureOption(
             Text(
                 when {
                     needsService -> stringResource(R.string.lock_the_screen_needs_the_accessibility_service)
-                    action.kind == GestureKind.OpenApp -> "Open ${action.appKey?.let(apps::get)?.label ?: "an app (not installed)"}"
+                    action.kind == GestureKind.OpenApp -> stringResource(R.string.open, action.appKey?.let(apps::get)?.label ?: stringResource(R.string.an_app_not_installed))
                     else -> action.kind.label
                 },
                 color = if (needsService) MaterialTheme.colorScheme.error else Color.Unspecified,

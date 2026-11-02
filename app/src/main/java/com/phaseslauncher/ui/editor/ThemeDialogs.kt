@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.editor
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -10,6 +8,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.phaseslauncher.R
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.ui.theme.imageVector
 
@@ -18,7 +18,7 @@ fun DeleteThemeDialog(theme: Theme, onConfirm: () -> Unit, onDismiss: () -> Unit
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(theme.icon.imageVector, contentDescription = null, tint = Color(theme.accentColor)) },
-        title = { Text("Delete “${theme.name}”?") },
+        title = { Text(stringResource(R.string.delete_2, theme.name)) },
         text = { Text(stringResource(R.string.the_theme_is_removed_its_apps_stay_installed_and)) },
         confirmButton = {
             TextButton(

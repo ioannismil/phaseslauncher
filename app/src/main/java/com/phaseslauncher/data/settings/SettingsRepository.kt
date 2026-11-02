@@ -1,6 +1,7 @@
 package com.phaseslauncher.data.settings
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -11,6 +12,8 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.phaseslauncher.R
+import com.phaseslauncher.data.Labeled
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -21,24 +24,24 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 /** Which screen edge the theme switcher bar sits on. */
 enum class SwitcherSide { Left, Right }
 
-enum class IconSize(val dp: Int, val label: String) { Small(48, "Small"), Medium(56, "Medium"), Large(64, "Large") }
+enum class IconSize(val dp: Int, @StringRes override val labelRes: Int) : Labeled { Small(48, R.string.small), Medium(56, R.string.medium), Large(64, R.string.large) }
 
 /**
  * How the date under the home clock is written. Each is a skeleton that Android turns into the
  * local pattern, so "30/10/2026" vs "10/30/2026" and month names follow the phone's language.
  */
 /** Where the time/date/battery block sits on the home screen. */
-enum class ClockPosition(val label: String) { Left("Left"), Center("Center"), Right("Right") }
+enum class ClockPosition(@StringRes override val labelRes: Int) : Labeled { Left(R.string.left), Center(R.string.center), Right(R.string.right) }
 
 /**
  * Where a theme's first app sits on home and which way the rest follow. Rows fill sideways from
  * that corner; bottom arrangements stack rows upward, so the first apps are nearest the thumb.
  */
-enum class IconArrangement(val label: String, val fromBottom: Boolean, val rightToLeft: Boolean) {
-    TopLeft("Top left, left to right", fromBottom = false, rightToLeft = false),
-    TopRight("Top right, right to left", fromBottom = false, rightToLeft = true),
-    BottomLeft("Bottom left, left to right", fromBottom = true, rightToLeft = false),
-    BottomRight("Bottom right, right to left", fromBottom = true, rightToLeft = true),
+enum class IconArrangement(@StringRes override val labelRes: Int, val fromBottom: Boolean, val rightToLeft: Boolean) : Labeled {
+    TopLeft(R.string.top_left_left_to_right, fromBottom = false, rightToLeft = false),
+    TopRight(R.string.top_right_right_to_left, fromBottom = false, rightToLeft = true),
+    BottomLeft(R.string.bottom_left_left_to_right, fromBottom = true, rightToLeft = false),
+    BottomRight(R.string.bottom_right_right_to_left, fromBottom = true, rightToLeft = true),
 }
 
 enum class DateFormatOption(val skeleton: String) {
@@ -50,31 +53,31 @@ enum class DateFormatOption(val skeleton: String) {
 }
 
 /** Light or dark colors for the launcher's own screens (drawer, settings, dialogs). */
-enum class AppearanceMode(val label: String) {
-    System("System"),
-    Light("Light"),
-    Dark("Dark"),
+enum class AppearanceMode(@StringRes override val labelRes: Int) : Labeled {
+    System(R.string.system),
+    Light(R.string.light),
+    Dark(R.string.dark),
 }
 
 /** How the drawer orders apps when not searching. */
-enum class DrawerSort(val label: String) {
-    Name("Name"),
-    MostUsed("Most used"),
-    Newest("Recently installed"),
+enum class DrawerSort(@StringRes override val labelRes: Int) : Labeled {
+    Name(R.string.name),
+    MostUsed(R.string.most_used),
+    Newest(R.string.recently_installed),
 }
 
 /** What a home-screen gesture does. */
-enum class GestureKind(val label: String) {
-    None("Do nothing"),
-    Drawer("Open the app drawer"),
-    Search("Search"),
-    Notifications("Notifications"),
-    QuickSettings("Quick settings"),
-    Lock("Lock the screen"),
-    ThemeSwitcher("Phase switcher"),
-    NextTheme("Next phase"),
-    PreviousTheme("Previous phase"),
-    OpenApp("Open an app"),
+enum class GestureKind(@StringRes override val labelRes: Int) : Labeled {
+    None(R.string.do_nothing),
+    Drawer(R.string.open_the_app_drawer),
+    Search(R.string.search),
+    Notifications(R.string.notifications),
+    QuickSettings(R.string.quick_settings),
+    Lock(R.string.lock_the_screen),
+    ThemeSwitcher(R.string.theme_switcher),
+    NextTheme(R.string.next_phase),
+    PreviousTheme(R.string.previous_phase),
+    OpenApp(R.string.open_an_app),
 }
 
 /** A gesture's action; [appKey] is the app for [GestureKind.OpenApp]. */

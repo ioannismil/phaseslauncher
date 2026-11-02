@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.widgets
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,12 +25,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.phaseslauncher.R
 import com.phaseslauncher.data.widgets.LauncherWidgetHostView
 import com.phaseslauncher.data.widgets.ThemeWidget
 import com.phaseslauncher.data.widgets.WidgetRepository
 import com.phaseslauncher.data.widgets.WidgetSize
+import com.phaseslauncher.ui.components.label
 
 /** What home-screen widgets need from the launcher. */
 class WidgetHostUi(

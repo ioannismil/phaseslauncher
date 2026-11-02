@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.editor
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,8 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.ui.theme.imageVector
@@ -44,7 +44,7 @@ fun AddToThemesDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add ${app.label} to…") },
+        title = { Text(stringResource(R.string.add_to, app.label)) },
         text = {
             if (themes.isEmpty()) {
                 Text(stringResource(R.string.create_a_theme_first_with_the_button_on_the_home))
