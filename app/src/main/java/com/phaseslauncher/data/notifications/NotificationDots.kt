@@ -40,6 +40,7 @@ data class NotificationPolicy(
 class NotificationDotsRepository(private val context: Context) {
 
     private val _dotKeys = MutableStateFlow<Set<String>>(emptySet())
+
     /** Keys from [dotKey]. */
     val dotKeys: StateFlow<Set<String>> = _dotKeys.asStateFlow()
 

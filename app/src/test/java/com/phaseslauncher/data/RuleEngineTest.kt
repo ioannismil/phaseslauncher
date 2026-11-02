@@ -11,12 +11,12 @@ import com.phaseslauncher.data.rules.ThemeAutomation
 import com.phaseslauncher.data.rules.ThemeRule
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.data.themes.ThemeIconKey
+import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDateTime
 
 class RuleEngineTest {
 

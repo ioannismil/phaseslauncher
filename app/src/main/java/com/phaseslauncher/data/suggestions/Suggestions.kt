@@ -5,11 +5,11 @@ import com.phaseslauncher.data.db.LaunchEventEntity
 import com.phaseslauncher.data.db.ThemeSwitchEntity
 import com.phaseslauncher.data.rules.ThemeRule
 import com.phaseslauncher.data.themes.Theme
-import kotlinx.coroutines.flow.Flow
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlinx.coroutines.flow.Flow
 
 /** Something the launcher noticed and offers to do. */
 sealed interface Suggestion {

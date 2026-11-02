@@ -92,6 +92,7 @@ fun GestureOption(
                                     picking = false
                                     when (kind) {
                                         GestureKind.OpenApp -> pickingApp = true
+
                                         else -> {
                                             onChange(GestureAction(kind))
                                             if (kind == GestureKind.Lock && !lockServiceOn) onNeedsLockService()

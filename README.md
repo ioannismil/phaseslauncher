@@ -61,7 +61,7 @@ Swipe in from the edge bar and the phases fan out in the style you choose in *Se
 
 Grab the latest APK from **[Releases](https://github.com/ioannismil/phaseslauncher/releases/latest)** and open it on your phone (Android 8.0 or newer). Each release installs over the one before, so updating is just installing the new one. With [Obtainium](https://github.com/ImranR98/Obtainium) you'll get updates automatically.
 
-Phases doesn't ask for internet access. It has no ads, no tracking and no account, and everything it learns about your habits stays on your phone.
+Phases doesn't ask for internet access. It has no ads, no tracking and no account, and everything it learns about your habits stays on your phone. It's also left out of Google's cloud backup; a phone-to-phone transfer, or *Settings → Backup* to a file, brings your phases to a new phone.
 
 ## Learn more
 
@@ -69,6 +69,7 @@ Phases doesn't ask for internet access. It has no ads, no tracking and no accoun
 - **[Switching from other apps](docs/automation.md):** Tasker, Samsung Modes and Routines, shortcuts and `phases://` links.
 - **[What's new](CHANGELOG.md):** the changes in each release.
 - **[Contributing](CONTRIBUTING.md):** building it, the code map and how releases are made.
+- **[Security](SECURITY.md):** how to report a problem privately.
 
 ## License
 

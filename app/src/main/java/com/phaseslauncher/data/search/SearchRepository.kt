@@ -11,6 +11,7 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.normalizedForSearch
 import kotlinx.coroutines.Dispatchers
@@ -65,8 +66,11 @@ class SearchRepository(private val context: Context) {
     }
 
     fun openContact(contact: ContactResult) = start(
-        Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.getLookupUri(contact.id, contact.lookupKey)
-            ?: ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contact.id)),
+        Intent(
+            Intent.ACTION_VIEW,
+            ContactsContract.Contacts.getLookupUri(contact.id, contact.lookupKey)
+                ?: ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contact.id),
+        ),
     )
 
     fun openSettings(result: SettingsResult) = start(Intent(result.action))
@@ -74,7 +78,7 @@ class SearchRepository(private val context: Context) {
     /** The device's web search (usually Google), falling back to the browser. */
     fun searchWeb(query: String) {
         val webSearch = Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, query)
-        if (!start(webSearch)) start(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(query))))
+        if (!start(webSearch)) start(Intent(Intent.ACTION_VIEW, ("https://www.google.com/search?q=" + Uri.encode(query)).toUri()))
     }
 
     private fun start(intent: Intent): Boolean = try {

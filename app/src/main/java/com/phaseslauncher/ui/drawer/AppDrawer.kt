@@ -237,7 +237,11 @@ fun AppDrawer(
                     // Go: open the top app, or search the web when no app matches.
                     onSearch = {
                         val top = state.apps.firstOrNull()
-                        if (top != null) onLaunch(top, null) else if (query.isNotBlank()) searchActions.onSearchWeb(query)
+                        if (top != null) {
+                            onLaunch(top, null)
+                        } else if (query.isNotBlank()) {
+                            searchActions.onSearchWeb(query)
+                        }
                     },
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -256,80 +260,82 @@ fun AppDrawer(
             Box(Modifier.fillMaxSize()) {
                 when {
                     state.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+
                     state.apps.isEmpty() && query.isBlank() -> Text(
                         text = stringResource(R.string.no_apps_here),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp),
                     )
+
                     else -> {
-                    // The A-Z rail: browsing by name with enough apps to need it.
-                    val showRail = query.isBlank() && state.sort == DrawerSort.Name && state.apps.size > RAIL_MIN_APPS
-                    val letters = remember(state.apps, showRail) { if (showRail) letterIndex(state.apps) else emptyList() }
-                    val scope = rememberCoroutineScope()
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 80.dp),
-                        state = gridState,
-                        contentPadding = WindowInsets.navigationBars.union(WindowInsets.ime)
-                            .only(WindowInsetsSides.Bottom).asPaddingValues(),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(start = 8.dp, end = if (showRail) RailWidth else 8.dp)
-                            .nestedScroll(pullToClose)
-                            // Dim a paused work profile's apps, like the stock launcher.
-                            .alpha(if (query.isBlank() && state.selectedProfileState?.isQuiet == true) 0.45f else 1f),
-                    ) {
-                        state.calculation?.let { calculation ->
-                            item(key = "calculation", span = { GridItemSpan(maxLineSpan) }) { CalculationCard(calculation) }
-                        }
-                        if (state.suggestions.isNotEmpty()) {
-                            item(key = "suggestedHeader", span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.suggested)) }
-                            items(state.suggestions, key = { "suggested-" + it.key }) { app ->
+                        // The A-Z rail: browsing by name with enough apps to need it.
+                        val showRail = query.isBlank() && state.sort == DrawerSort.Name && state.apps.size > RAIL_MIN_APPS
+                        val letters = remember(state.apps, showRail) { if (showRail) letterIndex(state.apps) else emptyList() }
+                        val scope = rememberCoroutineScope()
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(minSize = 80.dp),
+                            state = gridState,
+                            contentPadding = WindowInsets.navigationBars.union(WindowInsets.ime)
+                                .only(WindowInsetsSides.Bottom).asPaddingValues(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 8.dp, end = if (showRail) RailWidth else 8.dp)
+                                .nestedScroll(pullToClose)
+                                // Dim a paused work profile's apps, like the stock launcher.
+                                .alpha(if (query.isBlank() && state.selectedProfileState?.isQuiet == true) 0.45f else 1f),
+                        ) {
+                            state.calculation?.let { calculation ->
+                                item(key = "calculation", span = { GridItemSpan(maxLineSpan) }) { CalculationCard(calculation) }
+                            }
+                            if (state.suggestions.isNotEmpty()) {
+                                item(key = "suggestedHeader", span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.suggested)) }
+                                items(state.suggestions, key = { "suggested-" + it.key }) { app ->
+                                    AppTileWithMenu(
+                                        app = app,
+                                        labelStyle = drawerLabelStyle(),
+                                        onClick = { bounds -> onLaunch(app, bounds) },
+                                        actions = { appActions(app) },
+                                        modifier = Modifier.animateItem().dragToHome(app, LocalExternalDrag.current),
+                                    )
+                                }
+                                item(key = "allHeader", span = { GridItemSpan(maxLineSpan) }) {
+                                    SectionLabel(if (state.sort == DrawerSort.Name) stringResource(R.string.all_apps) else stringResource(R.string.all_apps_2, state.sort.label.lowercase()))
+                                }
+                            }
+                            if (query.isNotBlank() && state.apps.isEmpty() && state.calculation == null) {
+                                item(key = "noApps", span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.no_apps_match, query)) }
+                            }
+                            items(state.apps, key = { it.key }) { app ->
                                 AppTileWithMenu(
                                     app = app,
                                     labelStyle = drawerLabelStyle(),
                                     onClick = { bounds -> onLaunch(app, bounds) },
-                                    actions = { appActions(app) },
+                                    actions = {
+                                        keyboard?.hide()
+                                        appActions(app)
+                                    },
                                     modifier = Modifier.animateItem().dragToHome(app, LocalExternalDrag.current),
                                 )
                             }
-                            item(key = "allHeader", span = { GridItemSpan(maxLineSpan) }) {
-                                SectionLabel(if (state.sort == DrawerSort.Name) stringResource(R.string.all_apps) else stringResource(R.string.all_apps_2, state.sort.label.lowercase()))
+                            if (query.isNotBlank()) {
+                                searchExtras(state, query, searchActions)
                             }
                         }
-                        if (query.isNotBlank() && state.apps.isEmpty() && state.calculation == null) {
-                            item(key = "noApps", span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.no_apps_match, query)) }
-                        }
-                        items(state.apps, key = { it.key }) { app ->
-                            AppTileWithMenu(
-                                app = app,
-                                labelStyle = drawerLabelStyle(),
-                                onClick = { bounds -> onLaunch(app, bounds) },
-                                actions = {
-                                    keyboard?.hide()
-                                    appActions(app)
+                        if (showRail) {
+                            // Grid items before the apps: the suggestions and their two headers.
+                            val appsStart = if (state.suggestions.isNotEmpty()) state.suggestions.size + 2 else 0
+                            AlphabetRail(
+                                letters = letters.map { it.first },
+                                onLetter = { letter ->
+                                    val index = letters.firstOrNull { it.first == letter }?.second ?: return@AlphabetRail
+                                    scope.launch { gridState.scrollToItem(appsStart + index) }
                                 },
-                                modifier = Modifier.animateItem().dragToHome(app, LocalExternalDrag.current),
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                             )
                         }
-                        if (query.isNotBlank()) {
-                            searchExtras(state, query, searchActions)
-                        }
-                    }
-                    if (showRail) {
-                        // Grid items before the apps: the suggestions and their two headers.
-                        val appsStart = if (state.suggestions.isNotEmpty()) state.suggestions.size + 2 else 0
-                        AlphabetRail(
-                            letters = letters.map { it.first },
-                            onLetter = { letter ->
-                                val index = letters.firstOrNull { it.first == letter }?.second ?: return@AlphabetRail
-                                scope.launch { gridState.scrollToItem(appsStart + index) }
-                            },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
-                        )
-                    }
                     }
                 }
             }

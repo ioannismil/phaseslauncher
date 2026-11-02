@@ -180,7 +180,9 @@ fun OnboardingScreen(
             ) { current ->
                 when (current) {
                     Step.Welcome -> WelcomeStep()
+
                     Step.Favorites -> FavoritesStep(allApps, favorites)
+
                     Step.Themes -> ThemesStep(
                         choices = choices,
                         apps = allApps,
@@ -193,6 +195,7 @@ fun OnboardingScreen(
                         onCustomize = { customizing = it },
                         onImport = { pickBackup.launch(arrayOf("*/*")) },
                     )
+
                     Step.DefaultHome -> DefaultHomeStep()
                 }
             }
@@ -210,9 +213,11 @@ fun OnboardingScreen(
                 Spacer(Modifier.weight(1f))
                 when (step) {
                     Step.Welcome -> Button(onClick = { step = Step.Favorites }) { Text(stringResource(R.string.get_started)) }
+
                     Step.Favorites -> Button(onClick = { step = Step.Themes }) {
                         Text(if (favorites.isEmpty()) stringResource(R.string.skip) else stringResource(R.string.next))
                     }
+
                     Step.Themes -> {
                         val count = choices.count { it.selected && it.name.isNotBlank() }
                         Button(onClick = {
@@ -229,6 +234,7 @@ fun OnboardingScreen(
                             )
                         }
                     }
+
                     Step.DefaultHome -> Button(onClick = onFinished) { Text(stringResource(R.string.finish)) }
                 }
             }
@@ -371,7 +377,13 @@ private fun FavoritesStep(allApps: List<AppInfo>, favorites: MutableList<String>
                     app = app,
                     checked = checked,
                     enabled = checked || !full,
-                    onToggle = { if (checked) favorites -= app.key else if (!full) favorites += app.key },
+                    onToggle = {
+                        if (checked) {
+                            favorites -= app.key
+                        } else if (!full) {
+                            favorites += app.key
+                        }
+                    },
                 )
             }
         }

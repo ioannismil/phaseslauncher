@@ -39,6 +39,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -176,10 +177,15 @@ fun AutomationSection(
         val cancel = { editing = null }
         when (val rule = edit.rule) {
             is ThemeRule.Schedule -> ScheduleDialog(rule, done, cancel)
+
             is ThemeRule.Bluetooth -> BluetoothDialog(env, done, cancel)
+
             is ThemeRule.Wifi -> WifiDialog(env, rule.ssid.ifBlank { null }, done, cancel)
+
             is ThemeRule.Location -> LocationDialog(env, rule, isNew = edit.index == null, done, cancel)
+
             is ThemeRule.Calendar -> CalendarDialog(env, rule, done, cancel)
+
             // Nothing to set up for these.
             ThemeRule.Controller, ThemeRule.Headphones, ThemeRule.Charging -> cancel()
         }
@@ -197,6 +203,7 @@ fun AutomationSection(
             },
             onDismiss = { choosing = null },
         )
+
         "priority" -> ChoiceDialog(
             title = stringResource(R.string.priority),
             options = AutoPriority.entries.reversed(),
@@ -208,6 +215,7 @@ fun AutomationSection(
             },
             onDismiss = { choosing = null },
         )
+
         "delay" -> ChoiceDialog(
             title = stringResource(R.string.wait_before_switching),
             options = ThemeAutomation.DELAY_CHOICES,
@@ -219,6 +227,7 @@ fun AutomationSection(
             },
             onDismiss = { choosing = null },
         )
+
         "end" -> ChoiceDialog(
             title = stringResource(R.string.when_the_conditions_end),
             options = AutoEndAction.entries,
@@ -235,8 +244,11 @@ fun AutomationSection(
 
 @Composable
 private fun delayLabel(minutes: Int) =
-    if (minutes == 0) stringResource(R.string.switch_right_away)
-    else pluralStringResource(R.plurals.delay_minutes, minutes, minutes)
+    if (minutes == 0) {
+        stringResource(R.string.switch_right_away)
+    } else {
+        pluralStringResource(R.plurals.delay_minutes, minutes, minutes)
+    }
 
 /** Kinds without settings can only be added once; the rest as often as you like. */
 @Composable
@@ -249,8 +261,14 @@ private fun RuleTypeDialog(existing: Set<RuleType>, onPick: (RuleType) -> Unit, 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 listOf(
-                    RuleType.Schedule, RuleType.Location, RuleType.Wifi, RuleType.Calendar,
-                    RuleType.Bluetooth, RuleType.Headphones, RuleType.Controller, RuleType.Charging,
+                    RuleType.Schedule,
+                    RuleType.Location,
+                    RuleType.Wifi,
+                    RuleType.Calendar,
+                    RuleType.Bluetooth,
+                    RuleType.Headphones,
+                    RuleType.Controller,
+                    RuleType.Charging,
                 ).forEach { type ->
                     val enabled = type !in once || type !in existing
                     Column(
@@ -282,8 +300,8 @@ private fun RuleTypeDialog(existing: Set<RuleType>, onPick: (RuleType) -> Unit, 
 @Composable
 private fun ScheduleDialog(initial: ThemeRule.Schedule, onDone: (ThemeRule) -> Unit, onDismiss: () -> Unit) {
     var days by remember { mutableStateOf(initial.days) }
-    var start by remember { mutableStateOf(initial.startMinute) }
-    var end by remember { mutableStateOf(initial.endMinute) }
+    var start by remember { mutableIntStateOf(initial.startMinute) }
+    var end by remember { mutableIntStateOf(initial.endMinute) }
     var editingTime by remember { mutableStateOf<Boolean?>(null) } // true = start, false = end
 
     AlertDialog(
@@ -363,6 +381,7 @@ private fun BluetoothDialog(env: ThemeEditorEnvironment, onDone: (ThemeRule) -> 
                             TextButton(onClick = { permission.launch(Manifest.permission.BLUETOOTH_CONNECT) }) { Text(stringResource(R.string.allow)) }
                         }
                     }
+
                     devices.isEmpty() -> Text(stringResource(R.string.no_paired_bluetooth_devices_pair_one_in_settings))
                 }
                 devices.forEach { device ->
@@ -403,11 +422,13 @@ private fun WifiDialog(env: ThemeEditorEnvironment, initial: String?, onDone: (T
                         Text(stringResource(R.string.connected_to), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(onClick = { name = current }) { Text(current) }
                     }
+
                     canDetect -> Text(
                         stringResource(R.string.not_connected_to_wi_fi_right_now_type_the_networ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+
                     else -> {
                         Text(
                             stringResource(R.string.without_location_access_android_hides_network_na_2),
@@ -448,7 +469,7 @@ private fun LocationDialog(
     var name by rememberSaveable { mutableStateOf(initial.name) }
     var latitude by rememberSaveable { mutableStateOf(if (isNew) "" else initial.latitude.toString()) }
     var longitude by rememberSaveable { mutableStateOf(if (isNew) "" else initial.longitude.toString()) }
-    var radius by rememberSaveable { mutableStateOf(initial.radiusMeters) }
+    var radius by rememberSaveable { mutableIntStateOf(initial.radiusMeters) }
     var locating by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     var granted by remember { mutableStateOf(env.hasLocationPermission()) }
@@ -573,7 +594,7 @@ private fun CalendarDialog(env: ThemeEditorEnvironment, initial: ThemeRule.Calen
     var keywords by rememberSaveable { mutableStateOf(initial.keywords.joinToString(", ")) }
     var allDay by remember { mutableStateOf(initial.includeAllDay) }
     var busyOnly by remember { mutableStateOf(initial.busyOnly) }
-    var before by remember { mutableStateOf(initial.minutesBefore) }
+    var before by remember { mutableIntStateOf(initial.minutesBefore) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

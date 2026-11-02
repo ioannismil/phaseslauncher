@@ -104,6 +104,7 @@ class LauncherImporter(
                 val keys = items.flatMap { item ->
                     when (item) {
                         is ImportedItem.App -> listOf(item.key)
+
                         is ImportedItem.Folder -> if (options.keepFolders) {
                             val folderId = database.folderDao().insert(FolderEntity(themeId = id, name = item.name.ifBlank { context.getString(R.string.folder) }))
                             database.folderDao().setItems(folderId, item.keys)

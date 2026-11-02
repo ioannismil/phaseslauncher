@@ -93,12 +93,18 @@ fun HomeWidget(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.resize)) },
                 leadingIcon = { Icon(Icons.Outlined.OpenInFull, contentDescription = null) },
-                onClick = { onMenuOpenChange(false); onResize() },
+                onClick = {
+                    onMenuOpenChange(false)
+                    onResize()
+                },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.remove_widget)) },
                 leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-                onClick = { onMenuOpenChange(false); host.onRemove(widget) },
+                onClick = {
+                    onMenuOpenChange(false)
+                    host.onRemove(widget)
+                },
             )
         }
     }

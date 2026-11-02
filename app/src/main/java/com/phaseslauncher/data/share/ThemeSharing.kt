@@ -123,6 +123,7 @@ class ThemeSharing(
         theme.appKeys.forEach { key ->
             when {
                 ItemKeys.isApp(key) -> items.put(app(key))
+
                 ItemKeys.folderId(key) != null -> folders[key]?.let { folder ->
                     val apps = folder.itemKeys.filter(ItemKeys::isApp)
                     if (apps.isNotEmpty()) items.put(JSONObject().put("folder", folder.name).put("apps", JSONArray(apps.map(::app))))
@@ -147,14 +148,21 @@ class ThemeSharing(
                 val rule = setting.rule
                 when {
                     rule.isPersonal() && !options.includePersonalRules -> null
+
                     // Calendar ids are this phone's; the shared rule watches every calendar.
                     rule is ThemeRule.Calendar -> setting.copy(rule = rule.copy(calendarIds = emptySet()))
+
                     else -> setting
                 }
             }
-            json.put("rules", JSONArray(rules.map {
-                JSONObject().put("type", it.rule.type.name).put("config", ThemeRule.configOf(it.rule)).put("enabled", it.enabled)
-            }))
+            json.put(
+                "rules",
+                JSONArray(
+                    rules.map {
+                        JSONObject().put("type", it.rule.type.name).put("config", ThemeRule.configOf(it.rule)).put("enabled", it.enabled)
+                    },
+                ),
+            )
             json.put("automation", JSONObject(theme.automation.toJson()))
         }
         if (options.includeFocus && !theme.focus.isDefault) {
@@ -208,6 +216,7 @@ class ThemeSharing(
         val trimmed = text.trim()
         val json = when {
             trimmed.startsWith("{") -> JSONObject(trimmed)
+
             else -> {
                 val data = Regex("${Regex.escape(LINK_PREFIX)}([A-Za-z0-9_-]+)").find(trimmed)?.groupValues?.get(1)
                     ?: throw IllegalArgumentException(context.getString(R.string.this_isn_t_a_shared_phase))
@@ -246,7 +255,11 @@ class ThemeSharing(
         val mentioned = shared.allApps + (shared.labels.keys - shared.allApps.map { it.key }.toSet()).map { SharedApp(it, shared.labels[it].orEmpty()) }
         mentioned.forEach { app ->
             val match = byKey[app.key] ?: byPackage[app.packageName]?.firstOrNull()
-            if (match != null) keys[app.key] = match.key else if (app in shared.allApps) missing += app
+            if (match != null) {
+                keys[app.key] = match.key
+            } else if (app in shared.allApps) {
+                missing += app
+            }
         }
         return Resolution(keys, missing)
     }
@@ -275,6 +288,7 @@ class ThemeSharing(
             val keys = shared.items.mapNotNull { item ->
                 when (item) {
                     is SharedItem.App -> map[item.app.key]
+
                     is SharedItem.Folder -> {
                         val apps = item.apps.mapNotNull { map[it.key] }.distinct()
                         if (apps.isEmpty()) {
@@ -307,6 +321,7 @@ class ThemeSharing(
                         entry.optString("folder"),
                         entry.optJSONArray("apps").strings().map(::app),
                     )
+
                     else -> SharedItem.App(app(entry.toString()))
                 }
             }

@@ -17,8 +17,23 @@ import java.time.DayOfWeek
 
 /** Icons a theme can use. Stored by name; the UI maps each to a Material icon. */
 enum class ThemeIconKey {
-    Gaming, Work, Social, Music, Home, Fitness, Travel, Study,
-    Shopping, Photo, Code, Movie, Food, Night, Star, Heart;
+    Gaming,
+    Work,
+    Social,
+    Music,
+    Home,
+    Fitness,
+    Travel,
+    Study,
+    Shopping,
+    Photo,
+    Code,
+    Movie,
+    Food,
+    Night,
+    Star,
+    Heart,
+    ;
 
     companion object {
         fun fromName(name: String): ThemeIconKey = entries.firstOrNull { it.name == name } ?: Star
@@ -32,7 +47,8 @@ enum class SoundProfile(@StringRes override val labelRes: Int, val needsPolicyAc
     Vibrate(R.string.vibrate, false),
     Silent(R.string.silent, true),
     DndPriority(R.string.do_not_disturb_priority_only, true),
-    DndAlarms(R.string.do_not_disturb_alarms_only, true);
+    DndAlarms(R.string.do_not_disturb_alarms_only, true),
+    ;
 
     companion object {
         fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: Unchanged

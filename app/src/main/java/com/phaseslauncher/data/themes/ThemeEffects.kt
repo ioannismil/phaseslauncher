@@ -10,6 +10,8 @@ import android.net.Uri
 import android.provider.Settings
 import android.util.Log
 import com.phaseslauncher.data.settings.SettingsRepository
+import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -17,8 +19,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.util.UUID
 
 /**
  * Applies the active theme's wallpaper and sound profile whenever the active theme changes.
@@ -96,13 +96,18 @@ class ThemeEffects(
                     setFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
                     audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
                 }
+
                 SoundProfile.Vibrate -> {
                     setFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
                     audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
                 }
+
                 SoundProfile.Silent -> audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+
                 SoundProfile.DndPriority -> setFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+
                 SoundProfile.DndAlarms -> setFilter(NotificationManager.INTERRUPTION_FILTER_ALARMS)
+
                 SoundProfile.Unchanged -> Unit
             }
         }.onFailure { Log.w(TAG, "Could not apply sound profile $profile", it) }

@@ -14,6 +14,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.phaseslauncher.R
 import com.phaseslauncher.appContainer
+import com.phaseslauncher.data.runCatchingCancellable
 import com.phaseslauncher.data.settings.AppearanceMode
 import com.phaseslauncher.data.share.Resolution
 import com.phaseslauncher.data.share.SharedTheme
@@ -56,7 +57,7 @@ class ImportThemeActivity : ComponentActivity() {
                         resolution = resolution,
                         onImport = { options ->
                             container.appScope.launch {
-                                val message = runCatching { container.themeSharing.install(shared, resolution, options) }
+                                val message = runCatchingCancellable { container.themeSharing.install(shared, resolution, options) }
                                     .onSuccess { container.settingsRepository.setActiveThemeId(it) }
                                     .fold({ getString(R.string.added, options.name.ifBlank { shared.name }) }, { getString(R.string.couldn_t_add_the_phase, it.message) })
                                 withContext(Dispatchers.Main) { done(message) }
@@ -75,14 +76,17 @@ class ImportThemeActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> intent.data?.let { uri ->
                 if (uri.scheme == "phases") sharing.parse(uri.toString()) else readUri(uri)
             }
+
             Intent.ACTION_SEND -> {
                 val stream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
                 } else {
-                    @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
                 }
                 stream?.let(::readUri) ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.let(sharing::parse)
             }
+
             else -> null
         }
     }

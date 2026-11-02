@@ -8,9 +8,9 @@ import android.content.res.Resources
 import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.core.content.res.ResourcesCompat
+import java.util.concurrent.ConcurrentHashMap
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
-import java.util.concurrent.ConcurrentHashMap
 
 data class IconPackInfo(val packageName: String, val label: String)
 

@@ -46,7 +46,7 @@ Everything Phases can do, and where to find it. Back to the [README](../README.m
 - **Notification dots** need notification access; turning the switch on takes you to the system screen to grant it.
 - **Themed icons** (Android 13+): apps' monochrome icons, tinted with the active phase's color. Apps without one keep their own icon; icon packs and hand-picked icons take priority.
 - **Apps:** hidden apps (hidden from the drawer and its search, not from phases or the dock).
-- **Backup:** save phases (with folders), dock and settings to a JSON file, and restore from one. Pinned shortcuts aren't included: only the app that made one can pin it again.
+- **Backup:** save phases (with folders), dock and settings to a JSON file, and restore from one. Pinned shortcuts aren't included: only the app that made one can pin it again. Android's own cloud backup leaves Phases out on purpose (places, network names and app history stay on the phone); a direct phone-to-phone transfer when setting up a new phone does bring everything along.
 
 Work profile and Private Space (Android 15+) apps get their own drawer tabs, with pause/resume and lock/unlock.
 

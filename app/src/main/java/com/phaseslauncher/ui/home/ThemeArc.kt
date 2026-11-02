@@ -14,12 +14,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -300,9 +298,15 @@ fun ThemeEdgeBar(
             .semantics {
                 role = Role.Button
                 contentDescription = res.getString(R.string.tile_dialog_title)
-                onClick { state.openForTap(); true }
+                onClick {
+                    state.openForTap()
+                    true
+                }
                 customActions = themeNames.mapIndexed { index, name ->
-                    CustomAccessibilityAction(res.getString(R.string.switch_to, name)) { onRelease(index); true }
+                    CustomAccessibilityAction(res.getString(R.string.switch_to, name)) {
+                        onRelease(index)
+                        true
+                    }
                 }
             },
         contentAlignment = if (side == SwitcherSide.Right) Alignment.CenterEnd else Alignment.CenterStart,
@@ -384,7 +388,10 @@ fun ThemeArcOverlay(
                             .pointerInput(Unit) { detectTapGestures { state.close() } }
                             .semantics {
                                 contentDescription = res.getString(R.string.close_phase_switcher)
-                                onClick { state.close(); true }
+                                onClick {
+                                    state.close()
+                                    true
+                                }
                             }
                     } else {
                         Modifier

@@ -32,6 +32,8 @@ import android.view.InputDevice
 import androidx.core.content.ContextCompat
 import com.phaseslauncher.data.settings.SettingsRepository
 import com.phaseslauncher.data.themes.Theme
+import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,15 +45,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 /** A paired Bluetooth device, for picking a rule's trigger. */
 data class BluetoothDeviceInfo(val address: String, val name: String)
@@ -95,6 +95,7 @@ class AutoSwitcher(
     val ruleTheme: StateFlow<Long?> = _ruleTheme.asStateFlow()
 
     private val _prompt = MutableStateFlow<AutoPrompt?>(null)
+
     /** A switch waiting for the user's OK; shown on the home screen. */
     val prompt: StateFlow<AutoPrompt?> = _prompt.asStateFlow()
 
@@ -308,10 +309,13 @@ class AutoSwitcher(
         val update = {
             headphonesConnected.value = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.type in HEADPHONE_TYPES }
         }
-        audio.registerAudioDeviceCallback(object : AudioDeviceCallback() {
-            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) = update()
-            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) = update()
-        }, Handler(Looper.getMainLooper()))
+        audio.registerAudioDeviceCallback(
+            object : AudioDeviceCallback() {
+                override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) = update()
+                override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) = update()
+            },
+            Handler(Looper.getMainLooper()),
+        )
         update()
     }
 
@@ -375,12 +379,15 @@ class AutoSwitcher(
             val device: BluetoothDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
             } else {
-                @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
             } ?: return
             val address = runCatching { device.address }.getOrNull() ?: return
             when (intent.action) {
                 BluetoothDevice.ACTION_ACL_CONNECTED -> connectedBluetooth.update { it + address }
+
                 BluetoothDevice.ACTION_ACL_DISCONNECTED -> connectedBluetooth.update { it - address }
+
                 BluetoothAdapter.ACTION_STATE_CHANGED ->
                     if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF) connectedBluetooth.value = emptySet()
             }
@@ -404,15 +411,19 @@ class AutoSwitcher(
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: return
         listOf(BluetoothProfile.A2DP, BluetoothProfile.HEADSET).forEach { profile ->
             runCatching {
-                adapter.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
-                    override fun onServiceConnected(p: Int, proxy: BluetoothProfile) {
-                        val addresses = runCatching { proxy.connectedDevices.map { it.address } }.getOrDefault(emptyList())
-                        connectedBluetooth.update { it + addresses }
-                        adapter.closeProfileProxy(p, proxy)
-                    }
+                adapter.getProfileProxy(
+                    context,
+                    object : BluetoothProfile.ServiceListener {
+                        override fun onServiceConnected(p: Int, proxy: BluetoothProfile) {
+                            val addresses = runCatching { proxy.connectedDevices.map { it.address } }.getOrDefault(emptyList())
+                            connectedBluetooth.update { it + addresses }
+                            adapter.closeProfileProxy(p, proxy)
+                        }
 
-                    override fun onServiceDisconnected(p: Int) = Unit
-                }, profile)
+                        override fun onServiceDisconnected(p: Int) = Unit
+                    },
+                    profile,
+                )
             }.onFailure { Log.w(TAG, "Bluetooth scan failed", it) }
         }
     }
@@ -424,19 +435,24 @@ class AutoSwitcher(
     private fun watchControllers() {
         val inputManager = context.getSystemService(InputManager::class.java) ?: return
         val update = { controllerConnected.value = anyController() }
-        inputManager.registerInputDeviceListener(object : InputManager.InputDeviceListener {
-            override fun onInputDeviceAdded(deviceId: Int) = update()
-            override fun onInputDeviceRemoved(deviceId: Int) = update()
-            override fun onInputDeviceChanged(deviceId: Int) = update()
-        }, Handler(Looper.getMainLooper()))
+        inputManager.registerInputDeviceListener(
+            object : InputManager.InputDeviceListener {
+                override fun onInputDeviceAdded(deviceId: Int) = update()
+                override fun onInputDeviceRemoved(deviceId: Int) = update()
+                override fun onInputDeviceChanged(deviceId: Int) = update()
+            },
+            Handler(Looper.getMainLooper()),
+        )
         update()
     }
 
     private fun anyController(): Boolean = InputDevice.getDeviceIds().any { id ->
         val device = InputDevice.getDevice(id) ?: return@any false
         !device.isVirtual &&
-            (device.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD ||
-                device.sources and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK)
+            (
+                device.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD ||
+                    device.sources and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK
+                )
     }
 
     // endregion

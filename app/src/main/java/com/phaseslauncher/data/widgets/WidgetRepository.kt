@@ -37,7 +37,10 @@ data class ThemeWidget(
 
 /** Height presets offered when resizing a widget. */
 enum class WidgetSize(@StringRes override val labelRes: Int, val heightDp: Int) : Labeled {
-    Small(R.string.small, 110), Medium(R.string.medium, 180), Large(R.string.large, 260), ExtraLarge(R.string.extra_large, 360)
+    Small(R.string.small, 110),
+    Medium(R.string.medium, 180),
+    Large(R.string.large, 260),
+    ExtraLarge(R.string.extra_large, 360),
 }
 
 /**
@@ -149,8 +152,10 @@ class LauncherWidgetHostView(context: Context) : AppWidgetHostView(context) {
                 longPressed = false
                 postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
             }
+
             MotionEvent.ACTION_MOVE ->
                 if (abs(event.x - downX) > touchSlop || abs(event.y - downY) > touchSlop) removeCallbacks(longPressRunnable)
+
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(longPressRunnable)
         }
         // Once long-pressed, take the rest of the gesture so the widget doesn't also get a click.

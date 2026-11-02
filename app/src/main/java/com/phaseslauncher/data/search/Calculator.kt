@@ -85,8 +85,18 @@ object Calculator {
             while (true) {
                 skip()
                 when (s.getOrNull(i)) {
-                    '*' -> { i++; v *= factor() }
-                    '/' -> { i++; val d = factor(); require(d != 0.0); v /= d }
+                    '*' -> {
+                        i++
+                        v *= factor()
+                    }
+
+                    '/' -> {
+                        i++
+                        val d = factor()
+                        require(d != 0.0)
+                        v /= d
+                    }
+
                     else -> return v
                 }
             }
@@ -104,11 +114,20 @@ object Calculator {
 
         private fun unary(): Double {
             skip()
-            if (s.getOrNull(i) == '-') { i++; return -unary() }
-            if (s.getOrNull(i) == '+') { i++; return unary() }
+            if (s.getOrNull(i) == '-') {
+                i++
+                return -unary()
+            }
+            if (s.getOrNull(i) == '+') {
+                i++
+                return unary()
+            }
             var v = primary()
             skip()
-            if (s.getOrNull(i) == '%') { i++; v /= 100 }
+            if (s.getOrNull(i) == '%') {
+                i++
+                v /= 100
+            }
             return v
         }
 

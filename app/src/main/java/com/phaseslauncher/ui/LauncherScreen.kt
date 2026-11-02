@@ -160,8 +160,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     var incomingTheme by remember { mutableStateOf<IncomingTheme?>(null) }
     var pastingTheme by remember { mutableStateOf(false) }
     var incomingLayout by remember { mutableStateOf<LauncherLayout?>(null) }
-    val banner by viewModel.homeBanner.collectAsStateWithLifecycle()
-    val newApp by viewModel.newApp.collectAsStateWithLifecycle()
+    val banner by viewModel.prompts.homeBanner.collectAsStateWithLifecycle()
+    val newApp by viewModel.prompts.newApp.collectAsStateWithLifecycle()
     val pendingLaunch by viewModel.pendingLaunch.collectAsStateWithLifecycle()
     val uiScope = rememberCoroutineScope()
     val customizations by viewModel.customizations.collectAsStateWithLifecycle()
@@ -217,7 +217,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
         viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
     }
     LaunchedEffect(viewModel) {
-        viewModel.editDraft.collect { (themeId, draft) -> editor = EditorRequest(themeId, draft) }
+        viewModel.prompts.editDraft.collect { (themeId, draft) -> editor = EditorRequest(themeId, draft) }
     }
 
     val editorEnvironment = remember(viewModel) {
@@ -307,11 +307,13 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = app })
                     add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
                 }
+
                 is ShortcutItem -> {
                     add(AppAction(res.getString(R.string.remove_from_this_phase), Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromActiveTheme(item) })
                     add(AppAction(res.getString(R.string.add_to_folder), Icons.Outlined.CreateNewFolder) { addToFolderItem = item })
                     add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
                 }
+
                 is FolderItem -> {
                     add(AppAction(res.getString(R.string.rename), Icons.Outlined.Edit) { renamingFolder = item })
                     add(AppAction(res.getString(R.string.ungroup), Icons.Outlined.FolderOff) { viewModel.ungroupFolder(item) })
@@ -328,7 +330,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = item.app })
                     add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
                 }
+
                 is ShortcutItem -> add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
+
                 is FolderItem -> Unit
             }
         }
@@ -361,13 +365,17 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 if (theme.id != homeState.activeTheme?.id) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                 viewModel.selectTheme(theme.id)
             }
+
             extra == ArcExtra.NewTheme -> editor = EditorRequest(themeId = null)
+
             extra == ArcExtra.Settings -> showSettings = true
         }
     }
 
     when (showOnboarding) {
-        null -> return // Still loading; show just the wallpaper for a moment.
+        null -> return
+
+        // Still loading; show just the wallpaper for a moment.
         true -> {
             OnboardingScreen(
                 allApps = homeState.apps.values.toList(),
@@ -379,28 +387,38 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 },
                 onFinished = { showOnboarding = false },
                 editorEnv = editorEnvironment,
-                readLauncherBackup = viewModel::readLauncherBackup,
-                onImportLayout = viewModel::importLauncherLayout,
+                readLauncherBackup = viewModel.transfers::readLauncherBackup,
+                onImportLayout = viewModel.transfers::importLauncherLayout,
             )
             return
         }
+
         false -> Unit
     }
 
     val performGesture: (GestureAction) -> Unit = { action ->
         when (action.kind) {
             GestureKind.None -> Unit
+
             GestureKind.Drawer -> viewModel.openDrawer()
+
             GestureKind.Search -> viewModel.openDrawer(withKeyboard = true)
+
             GestureKind.Notifications -> SystemActions.expandNotifications(context)
+
             GestureKind.QuickSettings -> SystemActions.expandQuickSettings(context)
+
             GestureKind.Lock -> if (!LockScreenService.lock()) {
                 viewModel.message(res.getString(R.string.turn_on_phases_double_tap_to_lock_in_accessibili))
                 LockScreenService.openSettings(context)
             }
+
             GestureKind.ThemeSwitcher -> arcState.openForTap()
+
             GestureKind.NextTheme -> viewModel.stepTheme(1)
+
             GestureKind.PreviousTheme -> viewModel.stepTheme(-1)
+
             GestureKind.OpenApp -> action.appKey?.let(homeState.apps::get)?.let { launchApp(it, null) }
                 ?: viewModel.message(res.getString(R.string.the_app_for_this_gesture_isn_t_installed))
         }
@@ -475,9 +493,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 },
                 onAddDockApps = { pickingDockApps = true },
                 banner = banner,
-                onBannerAccept = viewModel::acceptBanner,
-                onBannerCustomize = viewModel::customizeBanner,
-                onBannerDismiss = viewModel::dismissBanner,
+                onBannerAccept = viewModel.prompts::acceptBanner,
+                onBannerCustomize = viewModel.prompts::customizeBanner,
+                onBannerDismiss = viewModel.prompts::dismissBanner,
                 modifier = Modifier
                     .graphicsLayer {
                         val zoom = homeZoom.value
@@ -491,18 +509,18 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                         if (prefs.doubleTap.kind != GestureKind.None) detectTapGestures(onDoubleTap = { performGesture(prefs.doubleTap) })
                     }
                     .pointerInput(Unit) {
-                    var dragged = 0f
-                    detectVerticalDragGestures(
-                        onDragStart = { dragged = 0f },
-                        onVerticalDrag = { _, delta -> dragged += delta },
-                        onDragEnd = {
-                            when {
-                                dragged < -swipeThresholdPx -> swipeUp()
-                                dragged > swipeThresholdPx -> swipeDown()
-                            }
-                        },
-                    )
-                },
+                        var dragged = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { dragged = 0f },
+                            onVerticalDrag = { _, delta -> dragged += delta },
+                            onDragEnd = {
+                                when {
+                                    dragged < -swipeThresholdPx -> swipeUp()
+                                    dragged > swipeThresholdPx -> swipeDown()
+                                }
+                            },
+                        )
+                    },
             )
 
             PhaseSwitcherOverlay(
@@ -565,8 +583,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     allApps = homeState.apps.values.toList(),
                     notificationDots = viewModel.notificationDots,
                     onUpdatePrefs = viewModel::updatePrefs,
-                    onExport = viewModel::exportBackup,
-                    onImport = viewModel::importBackup,
+                    onExport = viewModel.transfers::exportBackup,
+                    onImport = viewModel.transfers::importBackup,
                     onNewTheme = { editor = EditorRequest(themeId = null) },
                     onEditTheme = { editor = EditorRequest(it.id) },
                     onDeleteTheme = { deletingTheme = it },
@@ -580,21 +598,21 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     onAddWidget = { showWidgetPicker = true },
                     onImportThemeFile = { uri ->
                         uiScope.launch {
-                            viewModel.readSharedTheme(uri)
-                                .onSuccess { incomingTheme = IncomingTheme(it, viewModel.resolveSharedTheme(it)) }
+                            viewModel.transfers.readSharedTheme(uri)
+                                .onSuccess { incomingTheme = IncomingTheme(it, viewModel.transfers.resolveSharedTheme(it)) }
                                 .onFailure { viewModel.message(it.message ?: res.getString(R.string.couldn_t_open_the_phase)) }
                         }
                     },
                     onPasteTheme = { pastingTheme = true },
                     onImportLauncher = { uri ->
                         uiScope.launch {
-                            viewModel.readLauncherBackup(uri)
+                            viewModel.transfers.readLauncherBackup(uri)
                                 .onSuccess { incomingLayout = it }
                                 .onFailure { viewModel.message(it.message ?: res.getString(R.string.couldn_t_read_the_backup)) }
                         }
                     },
-                    onResetSuggestions = viewModel::resetSuggestions,
-                    onClearHistory = viewModel::clearHistory,
+                    onResetSuggestions = viewModel.prompts::resetSuggestions,
+                    onClearHistory = viewModel.prompts::clearHistory,
                 )
             }
         }
@@ -624,10 +642,10 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             theme = theme,
             actions = remember(viewModel, iconPacks) {
                 ShareActions(
-                    build = { t, options -> viewModel.shareJson(t, options, iconPacks.firstOrNull { it.packageName == t.iconPack }?.label) },
-                    link = viewModel::shareLink,
-                    qrCode = viewModel::qrCode,
-                    writeFile = viewModel::shareFile,
+                    build = { t, options -> viewModel.transfers.shareJson(t, options, iconPacks.firstOrNull { it.packageName == t.iconPack }?.label) },
+                    link = viewModel.transfers::shareLink,
+                    qrCode = viewModel.transfers::qrCode,
+                    writeFile = viewModel.transfers::shareFile,
                 )
             },
             onDismiss = { sharingTheme = null },
@@ -640,7 +658,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             resolution = incoming.resolution,
             onImport = { options ->
                 incomingTheme = null
-                viewModel.installSharedTheme(incoming.shared, incoming.resolution, options)
+                viewModel.transfers.installSharedTheme(incoming.shared, incoming.resolution, options)
             },
             onDismiss = { incomingTheme = null },
         )
@@ -649,10 +667,10 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     if (pastingTheme) {
         PasteThemeDialog(
             onParse = { text ->
-                viewModel.parseSharedTheme(text).fold(
+                viewModel.transfers.parseSharedTheme(text).fold(
                     onSuccess = {
                         pastingTheme = false
-                        incomingTheme = IncomingTheme(it, viewModel.resolveSharedTheme(it))
+                        incomingTheme = IncomingTheme(it, viewModel.transfers.resolveSharedTheme(it))
                         null
                     },
                     onFailure = { it.message ?: res.getString(R.string.that_isn_t_a_phase_link) },
@@ -667,7 +685,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             layout = layout,
             onImport = { options ->
                 incomingLayout = null
-                viewModel.importLauncherLayout(layout, options)
+                viewModel.transfers.importLauncherLayout(layout, options)
             },
             onDismiss = { incomingLayout = null },
         )
@@ -707,8 +725,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             title = stringResource(R.string.new_app_add_to_a_phase, app.label),
             message = stringResource(R.string.you_just_installed_it_tick_the_phases_it_belongs_on),
             dismissLabel = stringResource(R.string.skip),
-            onConfirm = { ids -> viewModel.answerNewApp(app, ids) },
-            onDismiss = { viewModel.answerNewApp(app, emptySet()) },
+            onConfirm = { ids -> viewModel.prompts.answerNewApp(app, ids) },
+            onDismiss = { viewModel.prompts.answerNewApp(app, emptySet()) },
         )
     }
 
@@ -820,7 +838,6 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             onDismiss = { customizingApp = null },
         )
     }
-
 }
 
 private const val RETURN_ZOOM_FROM = 0.92f

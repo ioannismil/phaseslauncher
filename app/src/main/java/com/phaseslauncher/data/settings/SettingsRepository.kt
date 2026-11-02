@@ -36,10 +36,6 @@ enum class SwitcherStyle(@StringRes override val labelRes: Int, @StringRes val d
 
 enum class IconSize(val dp: Int, @StringRes override val labelRes: Int) : Labeled { Small(48, R.string.small), Medium(56, R.string.medium), Large(64, R.string.large) }
 
-/**
- * How the date under the home clock is written. Each is a skeleton that Android turns into the
- * local pattern, so "30/10/2026" vs "10/30/2026" and month names follow the phone's language.
- */
 /** Where the time/date/battery block sits on the home screen. */
 enum class ClockPosition(@StringRes override val labelRes: Int) : Labeled { Left(R.string.left), Center(R.string.center), Right(R.string.right) }
 
@@ -54,6 +50,10 @@ enum class IconArrangement(@StringRes override val labelRes: Int, val fromBottom
     BottomRight(R.string.bottom_right_right_to_left, fromBottom = true, rightToLeft = true),
 }
 
+/**
+ * How the date under the home clock is written. Each is a skeleton that Android turns into the
+ * local pattern, so "30/10/2026" vs "10/30/2026" and month names follow the phone's language.
+ */
 enum class DateFormatOption(val skeleton: String) {
     Full("EEEEMMMMd"), // Friday, October 30
     Short("EEEMMMd"), // Fri, Oct 30

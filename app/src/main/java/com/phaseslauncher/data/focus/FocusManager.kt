@@ -10,10 +10,10 @@ import android.os.Process
 import android.provider.Settings
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.themes.Theme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Why an app can't simply open. */
 sealed interface FocusBlock {
@@ -47,11 +47,19 @@ class FocusManager(private val context: Context) {
 
     fun hasUsageAccess(): Boolean {
         val appOps = context.getSystemService(AppOpsManager::class.java) ?: return false
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
-        } else {
-            @Suppress("DEPRECATION")
-            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+        val op = AppOpsManager.OPSTR_GET_USAGE_STATS
+        val mode = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN -> appOps.checkOpNoThrow(op, Process.myUid(), context.packageName, null)
+
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                @Suppress("DEPRECATION") // the check for Android 10-16
+                appOps.unsafeCheckOpNoThrow(op, Process.myUid(), context.packageName)
+            }
+
+            else -> {
+                @Suppress("DEPRECATION")
+                appOps.checkOpNoThrow(op, Process.myUid(), context.packageName)
+            }
         }
         return mode == AppOpsManager.MODE_ALLOWED
     }

@@ -38,7 +38,8 @@ class HomeGridTest {
     fun placedItemsKeepTheirCellsAndOthersFillAroundThem() {
         val layout = HomeGrid.resolve(
             listOf(GridEntry("a", null), GridEntry("b", GridCell(0, 0)), GridEntry("c", GridCell(2, 3))),
-            columns = 4, rows = 6,
+            columns = 4,
+            rows = 6,
         )
         assertEquals(GridCell(0, 0), layout.at("b"))
         assertEquals(GridCell(2, 3), layout.at("c"))
@@ -49,7 +50,8 @@ class HomeGridTest {
     fun cellsOffTheGridOrAlreadyTakenAreReplaced() {
         val layout = HomeGrid.resolve(
             listOf(GridEntry("a", GridCell(1, 0)), GridEntry("b", GridCell(1, 0)), GridEntry("c", GridCell(5, 0))),
-            columns = 4, rows = 6,
+            columns = 4,
+            rows = 6,
         )
         assertEquals(GridCell(1, 0), layout.at("a"))
         assertNoOverlaps(layout)
@@ -60,7 +62,8 @@ class HomeGridTest {
     fun unplacedWidgetsAreFullWidthAboveTheApps() {
         val layout = HomeGrid.resolve(
             listOf(GridEntry(HomeGrid.widgetKey(7), null, width = 9, height = 2), GridEntry("a", null)),
-            columns = 4, rows = 6,
+            columns = 4,
+            rows = 6,
         )
         assertEquals(GridPlacement(HomeGrid.widgetKey(7), 0, 0, 4, 2), layout.first { it.key == HomeGrid.widgetKey(7) })
         assertEquals(GridCell(0, 2), layout.at("a"))
@@ -87,8 +90,10 @@ class HomeGridTest {
         val widget = HomeGrid.widgetKey(1)
         val start = listOf(
             GridPlacement(widget, 0, 0, 2, 2),
-            GridPlacement("a", 2, 0), GridPlacement("b", 3, 0),
-            GridPlacement("c", 2, 1), GridPlacement("d", 3, 1),
+            GridPlacement("a", 2, 0),
+            GridPlacement("b", 3, 0),
+            GridPlacement("c", 2, 1),
+            GridPlacement("d", 3, 1),
         )
         val moved = HomeGrid.move(start, widget, GridCell(2, 0), columns = 4)
         assertEquals(GridCell(2, 0), moved.at(widget))

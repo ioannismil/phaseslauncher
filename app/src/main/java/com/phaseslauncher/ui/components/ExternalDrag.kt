@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -15,7 +16,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.runtime.remember
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.items.GridPlacement
 
@@ -97,7 +97,8 @@ fun Modifier.dragToHome(app: AppInfo, state: ExternalDragState?): Modifier =
                                     return@withTimeoutOrNull false
                                 }
                             }
-                            @Suppress("UNREACHABLE_CODE") false
+                            @Suppress("UNREACHABLE_CODE")
+                            false
                         } ?: true
                         if (!held) return@awaitEachGesture
                         while (true) {
