@@ -101,4 +101,12 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    // Upgrades of the database from every exported schema (MigrationTest).
+    androidTestImplementation(libs.androidx.room.testing)
+
+    constraints {
+        // Lifecycle alone pulls 1.7, but room-testing needs 1.8, and instrumented tests run
+        // against the app's versions.
+        implementation(libs.kotlinx.serialization.core)
+    }
 }
