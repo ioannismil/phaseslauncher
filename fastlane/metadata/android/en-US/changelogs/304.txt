@@ -1,0 +1,3 @@
+• Phases is left out of Google's cloud backup, so your places, Wi-Fi and Bluetooth names and app history stay on your phone. Moving to a new phone with a direct phone-to-phone transfer still brings everything along, and Settings → Backup to a file works as before.
+
+• Leaving the screen in the middle of an import, backup or share no longer shows it as failed.
