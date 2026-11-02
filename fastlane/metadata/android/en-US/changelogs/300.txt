@@ -1,0 +1,8 @@
+The first public release.
+
+• Phases with their own apps, folders, widgets, wallpaper, icon pack and sound mode
+• Six phase switcher styles: arc, edge rail, picker wheel, dial, card stack, color bands
+• Automatic switching by schedule, place, Wi-Fi, calendar, Bluetooth and more
+• Focus: hold back distracting apps and notifications
+• Switching from Tasker, Samsung Modes and Routines, shortcuts and links
+• Share phases, back up everything, import from Nova and Lawnchair
