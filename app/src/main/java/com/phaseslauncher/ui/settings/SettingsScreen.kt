@@ -499,10 +499,10 @@ fun SettingsScreen(
             }
             item {
                 Column(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
-                    Row(Modifier.alpha(if (prefs.autoFitIcons) 0.38f else 1f), verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.grid_columns), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                         Text(
-                            if (prefs.autoFitIcons) stringResource(R.string.auto) else "${prefs.gridColumns}",
+                            "${prefs.gridColumns}",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -513,7 +513,6 @@ fun SettingsScreen(
                         onValueChange = { value -> onUpdatePrefs { it.copy(gridColumns = value.toInt()) } },
                         valueRange = range.first.toFloat()..range.last.toFloat(),
                         steps = range.last - range.first - 1,
-                        enabled = !prefs.autoFitIcons,
                     )
                     Spacer(Modifier.height(8.dp))
                     // Fitted home icons size themselves; the setting still sizes the dock.

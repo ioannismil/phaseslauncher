@@ -25,17 +25,11 @@ interface WidgetDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(widget: ThemeWidgetEntity)
 
-    @Query("UPDATE theme_widgets SET height_dp = :heightDp WHERE app_widget_id = :appWidgetId")
-    suspend fun setHeight(appWidgetId: Int, heightDp: Int)
+    @Query("UPDATE theme_widgets SET cell_x = :x, cell_y = :y, span_x = :spanX, span_y = :spanY WHERE app_widget_id = :appWidgetId")
+    suspend fun setPlacement(appWidgetId: Int, x: Int, y: Int, spanX: Int, spanY: Int)
 
     @Query("DELETE FROM theme_widgets WHERE app_widget_id = :appWidgetId")
     suspend fun delete(appWidgetId: Int)
-
-    @Query("UPDATE theme_widgets SET position = :position WHERE app_widget_id = :appWidgetId")
-    suspend fun setPosition(appWidgetId: Int, position: Int)
-
-    @Transaction
-    suspend fun reorder(orderedIds: List<Int>) = orderedIds.forEachIndexed { i, id -> setPosition(id, i) }
 }
 
 @Dao

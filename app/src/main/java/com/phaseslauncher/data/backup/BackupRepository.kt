@@ -57,6 +57,12 @@ class BackupRepository(
                     .put("icon", theme.iconKey)
                     .put("color", theme.accentColor)
                     .put("apps", JSONArray(themeDao.getThemeAppKeys(theme.id).filter { ItemKeys.shortcutId(it) == null }))
+                    // Where apps and folders sit on the home grid: key -> [column, row].
+                    .put("cells", JSONObject().apply {
+                        themeDao.getAssignments(theme.id)
+                            .filter { ItemKeys.shortcutId(it.appKey) == null && it.cellX != null && it.cellY != null }
+                            .forEach { put(it.appKey, JSONArray(listOf(it.cellX, it.cellY))) }
+                    })
                     .put("folders", JSONArray(database.folderDao().getForTheme(theme.id).map { folder ->
                         JSONObject()
                             .put("key", ItemKeys.folder(folder.id))
@@ -158,6 +164,13 @@ class BackupRepository(
                     }
                 }
                 themeDao.setApps(id, theme.optJSONArray("apps").strings().mapNotNull { key -> if (ItemKeys.isApp(key)) key else folderKeys[key] })
+                theme.optJSONObject("cells")?.let { cells ->
+                    cells.keys().forEach { key ->
+                        val cell = cells.optJSONArray(key) ?: return@forEach
+                        val restored = if (ItemKeys.isApp(key)) key else folderKeys[key] ?: return@forEach
+                        themeDao.setCell(id, restored, cell.optInt(0), cell.optInt(1))
+                    }
+                }
                 database.favoritesDao().setFavorites(theme.optJSONArray("dock").strings().take(ThemeDefaults.MAX_FAVORITES), id)
                 val rules = theme.optJSONArray("rules")
                 if (rules != null) {

@@ -22,6 +22,7 @@ import com.phaseslauncher.data.items.AppItem
 import com.phaseslauncher.data.items.Folder
 import com.phaseslauncher.data.items.FolderItem
 import com.phaseslauncher.data.items.FolderRepository
+import com.phaseslauncher.data.items.GridPlacement
 import com.phaseslauncher.data.items.HomeItem
 import com.phaseslauncher.data.items.ItemKeys
 import com.phaseslauncher.data.items.PinnedShortcut
@@ -884,10 +885,9 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** [visibleOrder] covers only the apps on screen; hidden (unavailable) ones keep their place at the end. */
-    fun reorderThemeApps(themeId: Long, visibleOrder: List<String>) {
-        val theme = homeState.value.themes.firstOrNull { it.id == themeId } ?: return
-        viewModelScope.launch { themeRepository.setThemeApps(themeId, withHidden(visibleOrder, theme.appKeys)) }
+    /** Saves where everything on the theme's home grid is, after a move or a widget resize. */
+    fun saveHomeLayout(themeId: Long, layout: List<GridPlacement>) {
+        viewModelScope.launch { themeRepository.saveLayout(themeId, layout) }
     }
 
     // endregion
@@ -913,14 +913,13 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     /**
      * [dragged] was dropped onto [target]'s middle on the theme's grid: into the folder, or both
-     * into a new folder where the target was. [order] is the grid order at the drop.
+     * into a new folder where the target was. [layout] is the grid at the drop; it's saved first so
+     * nothing else shifts when the dragged item leaves it.
      */
-    fun mergeItems(themeId: Long, order: List<String>, dragged: String, target: String) {
-        val state = homeState.value
-        val theme = state.themes.firstOrNull { it.id == themeId } ?: return
+    fun mergeItems(themeId: Long, layout: List<GridPlacement>, dragged: String, target: String) {
         if (ItemKeys.folderId(dragged) != null) return
         viewModelScope.launch {
-            themeRepository.setThemeApps(themeId, withHidden(order, theme.appKeys))
+            themeRepository.saveLayout(themeId, layout.filter { it.key != dragged })
             val folderId = ItemKeys.folderId(target) ?: folders.createWith(themeId, target, folderNameFor(dragged, target))
             folders.moveInto(folderId, dragged)
         }
@@ -942,13 +941,9 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                     folders.moveInto(folderId, app.key)
                 }
                 is HomeDrop.At -> {
-                    // The index counts the items on screen; place before the one there, keeping hidden ones in place.
-                    val visible = state.itemsFor(theme).map { it.key }.filter { it != app.key }
-                    val before = visible.getOrNull(drop.index)
-                    val keys = theme.appKeys.filter { it != app.key }.toMutableList()
-                    val at = before?.let(keys::indexOf)?.takeIf { it >= 0 } ?: keys.size
-                    keys.add(at, app.key)
-                    themeRepository.setThemeApps(theme.id, keys)
+                    // The layout already has the app in the cell it was dropped on.
+                    themeRepository.addApp(theme.id, app.key)
+                    themeRepository.saveLayout(theme.id, drop.layout)
                 }
                 null -> if (app.key !in theme.appKeys) themeRepository.addApp(theme.id, app.key)
             }
@@ -1008,19 +1003,6 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     fun removeWidget(appWidgetId: Int) {
         viewModelScope.launch { widgets.remove(appWidgetId) }
-    }
-
-    fun resizeWidget(appWidgetId: Int, heightDp: Int) {
-        viewModelScope.launch { widgets.setHeight(appWidgetId, heightDp) }
-    }
-
-    fun moveWidget(theme: Theme, appWidgetId: Int, delta: Int) {
-        val ids = homeState.value.widgetsFor(theme).map { it.appWidgetId }.toMutableList()
-        val from = ids.indexOf(appWidgetId)
-        val to = (from + delta).coerceIn(0, ids.lastIndex)
-        if (from < 0 || from == to) return
-        ids.add(to, ids.removeAt(from))
-        viewModelScope.launch { widgets.reorder(ids) }
     }
 
     // endregion

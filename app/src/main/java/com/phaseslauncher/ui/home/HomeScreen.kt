@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.phaseslauncher.HomeBanner
 import com.phaseslauncher.HomeState
 import com.phaseslauncher.data.apps.AppInfo
+import com.phaseslauncher.data.items.GridPlacement
 import com.phaseslauncher.data.items.HomeItem
 import com.phaseslauncher.data.settings.ClockPosition
 import com.phaseslauncher.data.settings.SwitcherSide
@@ -55,8 +56,8 @@ fun HomeScreen(
     onSwipeDown: () -> Unit,
     gridItemActions: (HomeItem) -> List<AppAction>,
     dockAppActions: (AppInfo) -> List<AppAction>,
-    onReorderThemeApps: (Theme, List<String>) -> Unit,
-    onMergeItems: (Theme, List<String>, String, String) -> Unit,
+    onThemeLayoutChange: (Theme, List<GridPlacement>) -> Unit,
+    onMergeItems: (Theme, List<GridPlacement>, String, String) -> Unit,
     onReorderFavorites: (List<String>) -> Unit,
     onEmptyLongPress: () -> Unit,
     onAddDockApps: () -> Unit,
@@ -138,7 +139,7 @@ fun HomeScreen(
                 itemActions = gridItemActions,
                 onCreateTheme = onCreateTheme,
                 onAddApps = onAddApps,
-                onReorder = onReorderThemeApps,
+                onLayoutChange = onThemeLayoutChange,
                 onMerge = onMergeItems,
                 onEmptyLongPress = onEmptyLongPress,
                 modifier = Modifier

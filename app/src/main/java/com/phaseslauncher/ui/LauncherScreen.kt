@@ -192,7 +192,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     }
     externalDrag.onDrop = { app, window ->
         val dock = externalDrag.dockBounds
-        if (dock != null && dock.contains(window)) viewModel.addFavorite(app) else viewModel.dropOnHome(app, externalDrag.gridDrop?.invoke(window))
+        if (dock != null && dock.contains(window)) viewModel.addFavorite(app) else viewModel.dropOnHome(app, externalDrag.gridDrop?.invoke(app.key, window))
     }
 
     // Coming back from an app, home zooms in slightly, as if the app shrank back into it.
@@ -424,10 +424,6 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
         WidgetHostUi(
             repository = viewModel.widgets,
             onRemove = { viewModel.removeWidget(it.appWidgetId) },
-            onResize = { widget, height -> viewModel.resizeWidget(widget.appWidgetId, height) },
-            onMove = { widget, delta ->
-                homeState.themes.firstOrNull { it.id == widget.themeId }?.let { viewModel.moveWidget(it, widget.appWidgetId, delta) }
-            },
         )
     }
 
@@ -470,8 +466,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 onSwipeDown = swipeDown,
                 gridItemActions = gridActions,
                 dockAppActions = dockActions,
-                onReorderThemeApps = { theme, keys -> viewModel.reorderThemeApps(theme.id, keys) },
-                onMergeItems = { theme, order, dragged, target -> viewModel.mergeItems(theme.id, order, dragged, target) },
+                onThemeLayoutChange = { theme, layout -> viewModel.saveHomeLayout(theme.id, layout) },
+                onMergeItems = { theme, layout, dragged, target -> viewModel.mergeItems(theme.id, layout, dragged, target) },
                 onReorderFavorites = viewModel::reorderFavorites,
                 onEmptyLongPress = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)

@@ -50,6 +50,15 @@ interface ThemeDao {
     @Query("SELECT app_key FROM theme_apps WHERE theme_id = :themeId ORDER BY position")
     suspend fun getThemeAppKeys(themeId: Long): List<String>
 
+    @Query("SELECT * FROM theme_apps WHERE theme_id = :themeId ORDER BY position")
+    suspend fun getAssignments(themeId: Long): List<ThemeAppEntity>
+
+    @Query("UPDATE theme_apps SET cell_x = :x, cell_y = :y WHERE theme_id = :themeId AND app_key = :appKey")
+    suspend fun setCell(themeId: Long, appKey: String, x: Int?, y: Int?)
+
+    @Query("UPDATE theme_apps SET position = :position WHERE theme_id = :themeId AND app_key = :appKey")
+    suspend fun setPosition(themeId: Long, appKey: String, position: Int)
+
     @Query("SELECT COALESCE(MAX(position), -1) FROM theme_apps WHERE theme_id = :themeId")
     suspend fun maxAppPosition(themeId: Long): Int
 
@@ -74,11 +83,12 @@ interface ThemeDao {
         insertAssignments(listOf(ThemeAppEntity(themeId, appKey, maxAppPosition(themeId) + 1)))
     }
 
-    /** Replaces the theme's apps with [orderedKeys], in that order. */
+    /** Replaces the theme's apps with [orderedKeys], in that order. Apps that stay keep their cells. */
     @Transaction
     suspend fun setApps(themeId: Long, orderedKeys: List<String>) {
+        val kept = getAssignments(themeId).associateBy { it.appKey }
         clearApps(themeId)
-        insertAssignments(orderedKeys.distinct().mapIndexed { i, key -> ThemeAppEntity(themeId, key, i) })
+        insertAssignments(orderedKeys.distinct().mapIndexed { i, key -> ThemeAppEntity(themeId, key, i, kept[key]?.cellX, kept[key]?.cellY) })
     }
 
     @Transaction

@@ -5,6 +5,9 @@ import com.phaseslauncher.data.db.LauncherDatabase
 import com.phaseslauncher.data.db.ThemeEntity
 import com.phaseslauncher.data.db.ThemeRuleEntity
 import com.phaseslauncher.data.focus.ThemeFocus
+import com.phaseslauncher.data.items.GridCell
+import com.phaseslauncher.data.items.GridPlacement
+import com.phaseslauncher.data.items.HomeGrid
 import com.phaseslauncher.data.rules.RuleSetting
 import com.phaseslauncher.data.rules.ThemeAutomation
 import com.phaseslauncher.data.rules.ThemeRule
@@ -15,16 +18,19 @@ class ThemeRepository(private val database: LauncherDatabase) {
 
     private val dao = database.themeDao()
     private val ruleDao = database.ruleDao()
+    private val widgetDao = database.widgetDao()
 
     /** All themes in switcher order, each with its ordered app keys and switching rules. */
     val themes: Flow<List<Theme>> =
         combine(dao.observeThemes(), dao.observeAssignments(), ruleDao.observeAll()) { themes, assignments, rules ->
-            val appsByTheme = assignments.groupBy({ it.themeId }, { it.appKey })
+            val assignmentsByTheme = assignments.groupBy { it.themeId }
             val rulesByTheme = rules.groupBy { it.themeId }
             themes.map { entity ->
+                val rows = assignmentsByTheme[entity.id].orEmpty()
                 entity.toTheme(
-                    appKeys = appsByTheme[entity.id].orEmpty(),
+                    appKeys = rows.map { it.appKey },
                     rules = rulesByTheme[entity.id].orEmpty().mapNotNull { it.toSetting() },
+                    cells = rows.mapNotNull { row -> row.cellX?.let { x -> row.cellY?.let { y -> row.appKey to GridCell(x, y) } } }.toMap(),
                 )
             }
         }
@@ -99,6 +105,24 @@ class ThemeRepository(private val database: LauncherDatabase) {
 
     suspend fun removeApp(themeId: Long, appKey: String) = dao.removeApp(themeId, appKey)
 
+    /**
+     * Saves where everything on the theme's home grid is: its items' and widgets' cells, and the
+     * items' order (row by row) for the editor and sharing. Items not in [layout] (apps that aren't
+     * available right now) keep their cells and go after the rest.
+     */
+    suspend fun saveLayout(themeId: Long, layout: List<GridPlacement>) = database.withTransaction {
+        val keys = dao.getThemeAppKeys(themeId)
+        val ordered = HomeGrid.readingOrder(layout)
+        val onGrid = ordered.filter { HomeGrid.widgetId(it.key) == null && it.key in keys }
+        val placedKeys = onGrid.mapTo(HashSet()) { it.key }
+        onGrid.forEachIndexed { i, p ->
+            dao.setPosition(themeId, p.key, i)
+            dao.setCell(themeId, p.key, p.x, p.y)
+        }
+        keys.filter { it !in placedKeys }.forEachIndexed { i, key -> dao.setPosition(themeId, key, onGrid.size + i) }
+        ordered.forEach { p -> HomeGrid.widgetId(p.key)?.let { widgetDao.setPlacement(it, p.x, p.y, p.width, p.height) } }
+    }
+
     private fun List<RuleSetting>.toEntities(themeId: Long) = map { ThemeRule.toEntity(themeId, it.rule, it.enabled) }
 
     private fun ThemeRuleEntity.toSetting(): RuleSetting? = ThemeRule.fromEntity(this)?.let { RuleSetting(it, enabled) }
@@ -107,7 +131,7 @@ class ThemeRepository(private val database: LauncherDatabase) {
 
     private fun ThemeFocus.toJsonOrEmpty() = if (isDefault) "" else toJson()
 
-    private fun ThemeEntity.toTheme(appKeys: List<String>, rules: List<RuleSetting>) = Theme(
+    private fun ThemeEntity.toTheme(appKeys: List<String>, rules: List<RuleSetting>, cells: Map<String, GridCell>) = Theme(
         id = id,
         name = name,
         icon = ThemeIconKey.fromName(iconKey),
@@ -121,5 +145,6 @@ class ThemeRepository(private val database: LauncherDatabase) {
         gridLayout = gridLayout,
         automation = ThemeAutomation.fromJson(automation),
         focus = ThemeFocus.fromJson(focus),
+        cells = cells,
     )
 }

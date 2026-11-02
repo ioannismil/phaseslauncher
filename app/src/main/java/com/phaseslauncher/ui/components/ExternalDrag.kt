@@ -17,14 +17,15 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.runtime.remember
 import com.phaseslauncher.data.apps.AppInfo
+import com.phaseslauncher.data.items.GridPlacement
 
 /** Where a dropped app lands on the home grid. */
 sealed interface HomeDrop {
     /** Onto the middle of this item: into the folder, or a new folder with this app. */
     data class Into(val key: String) : HomeDrop
 
-    /** Between items: at this index among the items on screen. */
-    data class At(val index: Int) : HomeDrop
+    /** Into a cell: the grid's layout with the app placed there (and anything it displaced moved). */
+    data class At(val layout: List<GridPlacement>) : HomeDrop
 }
 
 /**
@@ -40,8 +41,8 @@ class ExternalDragState {
     var position by mutableStateOf(Offset.Zero)
         private set
 
-    /** Set by the home grid while it's on screen; null over anything else. */
-    var gridDrop: ((Offset) -> HomeDrop?)? = null
+    /** Set by the home grid while it's on screen: where the app with this key lands; null over anything else. */
+    var gridDrop: ((appKey: String, window: Offset) -> HomeDrop?)? = null
     var dockBounds: Rect? = null
 
     internal var onStart: (AppInfo) -> Unit = {}

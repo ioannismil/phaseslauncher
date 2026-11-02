@@ -30,7 +30,7 @@ Most launchers show you everything, all the time. **Phases** shows you what you 
 
 ## What it does
 
-- **Phases.** Each one has its own apps, folders, widgets, wallpaper, colors, icon pack and sound mode (sound on, vibrate, silent, do not disturb). A dock of favorites stays put whichever phase you're on.
+- **Phases.** Each one has its own apps, folders, widgets, wallpaper, colors, icon pack and sound mode (sound on, vibrate, silent, do not disturb). Put apps and widgets anywhere on the grid, gaps and all. A dock of favorites stays put whichever phase you're on.
 - **Switch with a swipe.** Swipe in from the edge bar and pick a phase. Choose how they appear: an arc, an edge rail, a picker wheel, a dial, a card stack or color bands.
 - **Switch automatically.** Rules can change phase by time of day, Wi-Fi network, Bluetooth device or place.
 - **Stay focused.** A phase can hold back distracting apps and filter notifications until you switch away.
