@@ -80,7 +80,12 @@ jobs:
           apk="phases-$VERSION.apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           sha256sum "$apk" > "$apk.sha256"
+          # This version's CHANGELOG.md section, if there is one, goes above the generated notes.
+          awk -v v="$VERSION" '
+            /^## \[/ { if (on) exit; on = index($0, "## [" v "]") == 1; next }
+            on && !/^\[[^]]*\]: /' CHANGELOG.md > notes.md
           gh release create "v$VERSION" "$apk" "$apk.sha256" \
             --title "Phases $VERSION" \
             --target "$GITHUB_SHA" \
+            --notes-file notes.md \
             --generate-notes

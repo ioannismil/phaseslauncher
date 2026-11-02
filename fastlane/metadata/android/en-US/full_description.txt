@@ -1,0 +1,16 @@
+<p>Most launchers show you everything, all the time. <b>Phases</b> shows you what you need <i>right now</i>.</p>
+
+<p>A phase is a named set of apps with its own look and behavior. Your Work phase can show Mail and Calendar and silence the phone, while Weekend brings back the games and the music. Swipe in from the edge of the screen, slide to a phase, let go, and the whole home screen changes.</p>
+
+<p><b>What it does</b></p>
+<ul>
+<li><b>Phases:</b> each one has its own apps, folders, widgets, wallpaper, colors, icon pack and sound mode. A dock of favorites stays put whichever phase you're on.</li>
+<li><b>Switch with a swipe:</b> pick how phases appear. Choose from an arc, an edge rail, a picker wheel, a dial, a card stack or color bands.</li>
+<li><b>Switch automatically:</b> by time of day, Wi-Fi network, Bluetooth device, place, calendar event, headphones or charging.</li>
+<li><b>Stay focused:</b> a phase can hold back distracting apps, filter notifications and set daily limits.</li>
+<li><b>Works with your automations:</b> Tasker, Samsung Modes and Routines and shortcuts can switch phases too.</li>
+<li><b>Share and back up:</b> send a phase as a file, link or QR code, and save everything to a backup file.</li>
+<li><b>Bring your setup:</b> import home screens from Nova Launcher, Lawnchair and other Launcher3-based launchers.</li>
+</ul>
+
+<p>No ads, no tracking, no account. Everything Phases learns about your habits stays on your phone.</p>

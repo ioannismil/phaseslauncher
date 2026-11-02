@@ -1,0 +1,19 @@
+name: Feature idea
+description: Suggest something Phases could do.
+labels: [idea]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Phases is a hobby project that follows my own habits, so I can't promise to build every idea. I do read them all.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: The situation in your day, more than the feature. For example, "I want my phone to go quiet when I get to the gym."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could Phases help?
