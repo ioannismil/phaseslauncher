@@ -69,6 +69,7 @@ Phases doesn't ask for internet access. It has no ads, no tracking and no accoun
 - **[Switching from other apps](docs/automation.md):** Tasker, Samsung Modes and Routines, shortcuts and `phases://` links.
 - **[What's new](CHANGELOG.md):** the changes in each release.
 - **[Contributing](CONTRIBUTING.md):** building it, the code map and how releases are made.
+- **[Security](SECURITY.md):** how to report a problem privately.
 
 ## License
 
