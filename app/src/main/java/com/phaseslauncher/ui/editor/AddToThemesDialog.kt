@@ -30,7 +30,7 @@ import com.phaseslauncher.ui.theme.imageVector
 
 /**
  * Pick one or more themes for [app]. Themes that already contain it ([alreadyIn], counting apps
- * inside their folders) are shown checked and locked.
+ * inside their folders) are shown checked and locked. [message] goes above the list.
  */
 @Composable
 fun AddToThemesDialog(
@@ -39,17 +39,21 @@ fun AddToThemesDialog(
     alreadyIn: Set<Long>,
     onConfirm: (Set<Long>) -> Unit,
     onDismiss: () -> Unit,
+    title: String = stringResource(R.string.add_to, app.label),
+    message: String? = null,
+    dismissLabel: String = stringResource(R.string.cancel),
 ) {
     val selected = remember { mutableStateListOf<Long>() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.add_to, app.label)) },
+        title = { Text(title) },
         text = {
             if (themes.isEmpty()) {
                 Text(stringResource(R.string.create_a_theme_first_with_the_button_on_the_home))
             } else {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
+                    message?.let { Text(it, Modifier.padding(bottom = 8.dp)) }
                     themes.forEach { theme ->
                         val isIn = theme.id in alreadyIn
                         val checked = isIn || theme.id in selected
@@ -78,6 +82,6 @@ fun AddToThemesDialog(
         confirmButton = {
             TextButton(onClick = { onConfirm(selected.toSet()) }, enabled = selected.isNotEmpty()) { Text(stringResource(R.string.add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(dismissLabel) } },
     )
 }

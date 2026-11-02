@@ -154,6 +154,8 @@ data class LauncherPrefs(
     val suggestSchedules: Boolean = true,
     /** Offer to switch to an app's theme when it's opened from another theme. */
     val suggestSwitching: Boolean = true,
+    /** When an app is installed, ask which phases to put it on. */
+    val askForNewApps: Boolean = true,
     /** Lets other apps switch phases with [com.phaseslauncher.api.PhaseApi.ACTION_SWITCH_PHASE]. */
     val allowExternalSwitching: Boolean = false,
     /** Launches on a theme before an app is suggested for it. */
@@ -229,6 +231,7 @@ class SettingsRepository(context: Context) {
         suggestApps = this[SUGGEST_APPS] ?: true,
         suggestSchedules = this[SUGGEST_SCHEDULES] ?: true,
         suggestSwitching = this[SUGGEST_SWITCHING] ?: true,
+        askForNewApps = this[ASK_FOR_NEW_APPS] ?: true,
         allowExternalSwitching = this[ALLOW_EXTERNAL_SWITCHING] ?: false,
         suggestionMinLaunches = this[SUGGESTION_MIN_LAUNCHES] ?: 5,
         dismissedSuggestions = this[DISMISSED_SUGGESTIONS].orEmpty().mapNotNull { entry ->
@@ -267,6 +270,7 @@ class SettingsRepository(context: Context) {
         this[SUGGEST_APPS] = prefs.suggestApps
         this[SUGGEST_SCHEDULES] = prefs.suggestSchedules
         this[SUGGEST_SWITCHING] = prefs.suggestSwitching
+        this[ASK_FOR_NEW_APPS] = prefs.askForNewApps
         this[ALLOW_EXTERNAL_SWITCHING] = prefs.allowExternalSwitching
         this[SUGGESTION_MIN_LAUNCHES] = prefs.suggestionMinLaunches
         // Expired dismissals are dropped.
@@ -275,6 +279,14 @@ class SettingsRepository(context: Context) {
     }
 
     // region Bookkeeping for theme side effects (not user settings)
+
+    /** Apps installed after this (ms since epoch) haven't been offered a phase yet. null before the first run. */
+    val newAppsSeenUntil: Flow<Long?> = dataStore.data.map { it[NEW_APPS_SEEN_UNTIL] }.distinctUntilChanged()
+
+    /** Moves the mark forward to [time]; it never goes back. */
+    suspend fun markNewAppsSeen(time: Long) {
+        dataStore.edit { it[NEW_APPS_SEEN_UNTIL] = maxOf(it[NEW_APPS_SEEN_UNTIL] ?: 0L, time) }
+    }
 
     /** Wallpaper file last applied by a theme, so it isn't re-applied on every switch. */
     suspend fun lastAppliedWallpaper(): String? = dataStore.data.first()[LAST_WALLPAPER]
@@ -359,10 +371,12 @@ class SettingsRepository(context: Context) {
         val SUGGEST_APPS = booleanPreferencesKey("suggest_apps")
         val SUGGEST_SCHEDULES = booleanPreferencesKey("suggest_schedules")
         val SUGGEST_SWITCHING = booleanPreferencesKey("suggest_switching")
+        val ASK_FOR_NEW_APPS = booleanPreferencesKey("ask_for_new_apps")
         val ALLOW_EXTERNAL_SWITCHING = booleanPreferencesKey("allow_external_switching")
         val SUGGESTION_MIN_LAUNCHES = intPreferencesKey("suggestion_min_launches")
         val DISMISSED_SUGGESTIONS = stringSetPreferencesKey("dismissed_suggestions")
         val LAST_WALLPAPER = stringPreferencesKey("last_wallpaper")
+        val NEW_APPS_SEEN_UNTIL = longPreferencesKey("new_apps_seen_until")
         val SAVED_FILTER = intPreferencesKey("saved_interruption_filter")
         val SAVED_RINGER = intPreferencesKey("saved_ringer_mode")
         val AUTO_PREVIOUS = longPreferencesKey("auto_previous_theme")

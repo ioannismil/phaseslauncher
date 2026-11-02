@@ -518,6 +518,41 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         message(res.getString(R.string.dismissed_suggestions_can_show_again))
     }
 
+    /**
+     * The earliest app installed since the last one answered, not on any phase yet, to ask which
+     * phases it goes on. Personal profile only: work apps can arrive in batches, and the private
+     * space keeps its apps out of sight. Worked out from install times, so apps installed while
+     * the launcher wasn't running are asked about too.
+     */
+    val newApp: StateFlow<AppInfo?> =
+        combine(homeState, settingsRepository.newAppsSeenUntil, prefs.map { it.askForNewApps }.distinctUntilChanged()) { state, seenUntil, ask ->
+            if (!ask || seenUntil == null || state.isLoading || state.themes.isEmpty()) return@combine null
+            state.apps.values
+                .filter { it.profile == ProfileType.Personal && it.installTime > seenUntil && state.themesContaining(it.key).isEmpty() }
+                .minByOrNull { it.installTime }
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    init {
+        // On the first run only apps installed from now on count as new.
+        viewModelScope.launch {
+            if (settingsRepository.newAppsSeenUntil.first() == null) settingsRepository.markNewAppsSeen(System.currentTimeMillis())
+        }
+    }
+
+    /** Puts [app] on [themeIds] (none: skipped) and moves on to the next new app. */
+    fun answerNewApp(app: AppInfo, themeIds: Collection<Long>) {
+        viewModelScope.launch {
+            themeIds.forEach { themeRepository.addApp(it, app.key) }
+            settingsRepository.markNewAppsSeen(app.installTime)
+            if (themeIds.isNotEmpty()) {
+                val names = homeState.value.themes.filter { it.id in themeIds }.joinToString { it.name }
+                message(res.getString(R.string.added_to, names))
+            }
+        }
+    }
+
     fun clearHistory() {
         viewModelScope.launch {
             history.clear()

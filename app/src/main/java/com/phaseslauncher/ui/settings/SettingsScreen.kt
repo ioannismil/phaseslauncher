@@ -50,6 +50,7 @@ import androidx.compose.material.icons.outlined.FitScreen
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.InstallMobile
 import androidx.compose.material.icons.outlined.InvertColors
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Link
@@ -348,6 +349,14 @@ fun SettingsScreen(
                     if (prefs.suggestSwitching) stringResource(R.string.offer_to_switch_when_you_open_an_app_from_anothe) else stringResource(R.string.off),
                     prefs.suggestSwitching,
                 ) { on -> onUpdatePrefs { it.copy(suggestSwitching = on) } }
+            }
+            item {
+                SwitchOption(
+                    Icons.Outlined.InstallMobile,
+                    stringResource(R.string.new_apps),
+                    if (prefs.askForNewApps) stringResource(R.string.ask_which_phases_a_newly_installed_app_goes_on) else stringResource(R.string.off),
+                    prefs.askForNewApps,
+                ) { on -> onUpdatePrefs { it.copy(askForNewApps = on) } }
             }
             item {
                 Option(

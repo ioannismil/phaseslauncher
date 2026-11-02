@@ -105,6 +105,7 @@ class BackupRepository(
                 .put("suggestApps", prefs.suggestApps)
                 .put("suggestSchedules", prefs.suggestSchedules)
                 .put("suggestSwitching", prefs.suggestSwitching)
+                .put("askForNewApps", prefs.askForNewApps)
                 .put("allowExternalSwitching", prefs.allowExternalSwitching)
                 .put("suggestionMinLaunches", prefs.suggestionMinLaunches))
 
@@ -218,6 +219,7 @@ class BackupRepository(
                     suggestApps = s.optBoolean("suggestApps", current.suggestApps),
                     suggestSchedules = s.optBoolean("suggestSchedules", current.suggestSchedules),
                     suggestSwitching = s.optBoolean("suggestSwitching", current.suggestSwitching),
+                    askForNewApps = s.optBoolean("askForNewApps", current.askForNewApps),
                     allowExternalSwitching = s.optBoolean("allowExternalSwitching", current.allowExternalSwitching),
                     suggestionMinLaunches = s.optInt("suggestionMinLaunches", current.suggestionMinLaunches),
                 )
