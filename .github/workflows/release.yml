@@ -1,9 +1,12 @@
 # Publishes a signed release APK on the Releases page.
 #
-# First set versionName and versionCode in gradle.properties. Then either push a version tag:
-#   git tag v0.4.0 && git push origin v0.4.0
-# or run it from the Actions tab ("Release" → "Run workflow") with a version; that tags the
-# commit it runs on. Either way the version has to match gradle.properties.
+# Usually: Actions tab → "Release" → "Run workflow" on main, picking patch, minor or major.
+# That turns what's under [Unreleased] in CHANGELOG.md into the release (scripts/prepare_release.py
+# bumps gradle.properties, dates the changelog section and writes the store changelog), builds and
+# tests it, and only then pushes a "Release x.y.z" commit and its tag and publishes.
+#
+# A version tag pushed by hand (git tag v0.4.0 && git push origin v0.4.0) also publishes, as long
+# as gradle.properties already says that version.
 #
 # Needs these repository secrets: KEYSTORE_BASE64 (the keystore file, base64), KEYSTORE_PASSWORD,
 # KEY_ALIAS and KEY_PASSWORD.
@@ -14,9 +17,11 @@ on:
     tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
-      version:
-        description: Version to release, like 0.4.0
-        required: true
+      bump:
+        description: Which part of the version goes up (1.2.3 → patch 1.2.4, minor 1.3.0, major 2.0.0)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
   contents: write
@@ -29,17 +34,32 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Prepare the release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Run the release from main, not $GITHUB_REF_NAME"
+            exit 1
+          fi
+          version=$(python3 scripts/prepare_release.py "$BUMP")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898583+github-actions[bot]@users.noreply.github.com"
+          git add gradle.properties CHANGELOG.md fastlane/metadata/android/en-US/changelogs
+          git commit -qm "Release $version"
+          git tag "v$version"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
       - name: Check the version
         id: version
-        env:
-          INPUT: ${{ inputs.version }}
         run: |
-          v="${INPUT:-$GITHUB_REF_NAME}"
+          v="${RELEASE_VERSION:-$GITHUB_REF_NAME}"
           v="${v#v}"
           name=$(sed -n 's/^versionName=//p' gradle.properties)
           code=$(sed -n 's/^versionCode=//p' gradle.properties)
           if [ "$v" != "$name" ]; then
-            echo "::error::Releasing $v, but gradle.properties says versionName=$name. Bump it (and versionCode) first."
+            echo "::error::Releasing $v, but gradle.properties says versionName=$name"
             exit 1
           fi
           if ! [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
@@ -79,6 +99,10 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:testDebugUnitTest :app:assembleRelease
 
+      - name: Push the release commit and tag
+        if: github.event_name == 'workflow_dispatch'
+        run: git push --atomic origin HEAD:main "v$RELEASE_VERSION"
+
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -93,6 +117,6 @@ jobs:
             on && !/^\[[^]]*\]: /' CHANGELOG.md > notes.md
           gh release create "v$VERSION" "$apk" "$apk.sha256" \
             --title "Phases $VERSION" \
-            --target "$GITHUB_SHA" \
+            --target "$(git rev-parse HEAD)" \
             --notes-file notes.md \
             --generate-notes

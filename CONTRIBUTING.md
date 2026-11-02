@@ -36,20 +36,19 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 
 ## Releasing
 
-Every push to `main` and every pull request is built, tested and linted (*CI* workflow). To publish a version:
+Every push to `main` and every pull request is built, tested and linted (*CI* workflow).
 
-1. In [gradle.properties](gradle.properties), set `versionName=0.4.0` and `versionCode=400` (major × 10000 + minor × 100 + patch).
-2. Add a `## [0.4.0] - YYYY-MM-DD` section at the top of [CHANGELOG.md](CHANGELOG.md): a one-line headline, then the changes people will notice. For the store listings, put a short version of it (500 characters at most) in `fastlane/metadata/android/en-US/changelogs/400.txt`. Commit all three.
-3. Push a tag:
+As changes land, add them under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md): the changes people will notice, grouped under `### Added`, `### Changed` or `### Fixed`. A one-line **bold headline** at the top is optional.
 
-   ```
-   git tag v0.4.0
-   git push origin v0.4.0
-   ```
+To publish what's there: Actions tab → *Release* → *Run workflow* on `main`, and pick which part of the version goes up (patch, minor or major). The workflow:
 
-   or run *Release* from the Actions tab with the version.
+1. runs [scripts/prepare_release.py](scripts/prepare_release.py), which bumps `versionName` and `versionCode` in [gradle.properties](gradle.properties) (versionCode is major × 10000 + minor × 100 + patch), turns `[Unreleased]` into a dated version section with a fresh, empty `[Unreleased]` above it, updates the comparison links, and writes the store changelog (`fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`);
+2. tests and builds a signed APK;
+3. only then pushes a *Release x.y.z* commit and its tag to `main`, and publishes the APK on the Releases page. The release notes are that version's changelog section, followed by the PRs and commits since the last release.
 
-The *Release* workflow checks the tag matches gradle.properties, then builds a signed APK and publishes it on the Releases page. The release notes are that version's CHANGELOG section, followed by the commits since the last release. Without a section, only the commit list is used.
+It stops before changing anything if `[Unreleased]` is empty. You can also run the script locally (`python3 scripts/prepare_release.py patch`) to see what it would do; don't commit that, the workflow does it.
+
+Pushing a version tag by hand still publishes too, as long as gradle.properties already says that version.
 
 IzzyOnDroid picks up each new release from the Releases page, and F-Droid builds it from the tag, reading the version from gradle.properties.
 
