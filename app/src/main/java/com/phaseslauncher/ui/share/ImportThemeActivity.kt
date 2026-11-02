@@ -76,14 +76,17 @@ class ImportThemeActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> intent.data?.let { uri ->
                 if (uri.scheme == "phases") sharing.parse(uri.toString()) else readUri(uri)
             }
+
             Intent.ACTION_SEND -> {
                 val stream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
                 } else {
-                    @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
                 }
                 stream?.let(::readUri) ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.let(sharing::parse)
             }
+
             else -> null
         }
     }

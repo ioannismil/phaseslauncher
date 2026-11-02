@@ -28,7 +28,9 @@ class FavoritesRepository(private val dao: FavoritesDao) {
         val current = dao.getFavoriteKeys(dockId)
         when {
             appKey in current -> AddFavoriteResult.AlreadyFavorite
+
             current.size >= ThemeDefaults.MAX_FAVORITES -> AddFavoriteResult.Full
+
             else -> {
                 dao.setFavorites(current + appKey, dockId)
                 AddFavoriteResult.Added

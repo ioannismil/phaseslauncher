@@ -9,9 +9,9 @@ import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 /** An app shortcut ("New message", "Navigate home") shown in the app's long-press menu. */
 data class AppShortcut(val id: String, val label: String, val icon: ImageBitmap?, internal val info: ShortcutInfo)

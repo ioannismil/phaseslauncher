@@ -173,11 +173,13 @@ class AppContainer(context: Context) {
                 val focus = theme?.focus ?: return@combine null
                 val allowed = when (focus.notificationFilter) {
                     NotificationFilter.Off -> return@combine null
+
                     NotificationFilter.ThemeApps -> {
                         val dock = docks[if (theme.ownDock) theme.id else FavoriteEntity.SHARED_DOCK].orEmpty()
                         val inFolders = folders.values.filter { it.themeId == theme.id }.flatMap { it.itemKeys }
                         theme.appKeys + inFolders + dock + focus.allowedNotificationApps
                     }
+
                     NotificationFilter.Chosen -> focus.allowedNotificationApps
                 }
                 NotificationPolicy(

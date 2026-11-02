@@ -53,6 +53,7 @@ fun FocusPauseDialog(
         } else {
             stringResource(R.string.it_can_t_be_opened_while_is_on, block.theme.name)
         }
+
         is FocusBlock.OverLimit -> stringResource(R.string.used_of_today, minutes(block.usedMinutes), minutes(block.limitMinutes)) +
             if (block.mode == BlockMode.Pause) stringResource(R.string.opening_it_anyway_gives_you, minutes(focus.allowMinutes)) else ""
     }

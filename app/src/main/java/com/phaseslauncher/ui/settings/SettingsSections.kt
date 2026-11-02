@@ -192,7 +192,13 @@ internal fun LazyListScope.clockSection(
         SwitchOption(
             Icons.Outlined.BatteryStd,
             stringResource(R.string.battery_percentage),
-            if (prefs.showDate) stringResource(R.string.next_to_the_date) else if (prefs.showTime) stringResource(R.string.under_the_time) else stringResource(R.string.at_the_top),
+            if (prefs.showDate) {
+                stringResource(R.string.next_to_the_date)
+            } else if (prefs.showTime) {
+                stringResource(R.string.under_the_time)
+            } else {
+                stringResource(R.string.at_the_top)
+            },
             prefs.showBattery,
         ) { on -> onUpdatePrefs { it.copy(showBattery = on) } }
     }

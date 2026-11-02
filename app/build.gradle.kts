@@ -42,6 +42,7 @@ android {
             when {
                 // For measuring on a device: ./gradlew installRelease -PdebugSignedRelease
                 project.hasProperty("debugSignedRelease") -> signingConfig = signingConfigs.getByName("debug")
+
                 releaseStore != null -> signingConfig = signingConfigs.getByName("release")
             }
         }

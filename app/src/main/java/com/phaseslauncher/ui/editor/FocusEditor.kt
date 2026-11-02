@@ -76,6 +76,7 @@ fun FocusSection(
         usageAccess = env.hasUsageAccess()
     }
     val labels = remember(allApps) { allApps.associate { it.key to it.label } }
+
     @Composable
     fun appsLabel(keys: Set<String>, none: String) = when (keys.size) {
         0 -> none
@@ -149,9 +150,11 @@ fun FocusSection(
         stringResource(R.string.per_app),
         when (focus.appLimits.size) {
             0 -> stringResource(R.string.none)
+
             1 -> focus.appLimits.entries.first().let { (k, v) ->
                 stringResource(R.string.app_limit, labels[k] ?: pluralStringResource(R.plurals.apps_count, 1, 1), minutes(v))
             }
+
             else -> pluralStringResource(R.plurals.apps_count, focus.appLimits.size, focus.appLimits.size)
         },
     ) { editingLimits = true }
@@ -175,19 +178,23 @@ fun FocusSection(
             choosing = null
             onFocusChange(focus.copy(blockMode = it))
         }, { choosing = null })
+
         FocusChoice.Pause -> ChoiceDialog(stringResource(R.string.pause_for), ThemeFocus.PAUSE_CHOICES, focus.pauseSeconds, { seconds(it) }, {
             choosing = null
             onFocusChange(focus.copy(pauseSeconds = it))
         }, { choosing = null })
+
         FocusChoice.Allow -> ChoiceDialog(stringResource(R.string.then_let_it_open_for), ThemeFocus.ALLOW_CHOICES, focus.allowMinutes, { minutes(it) }, {
             choosing = null
             onFocusChange(focus.copy(allowMinutes = it))
         }, { choosing = null })
+
         FocusChoice.Filter -> ChoiceDialog(stringResource(R.string.allow_notifications_from), NotificationFilter.entries, focus.notificationFilter, { it.label }, {
             choosing = null
             onFocusChange(focus.copy(notificationFilter = it))
             if (it != NotificationFilter.Off && !notificationAccess) env.requestNotificationAccess()
         }, { choosing = null })
+
         FocusChoice.ThemeLimit -> ChoiceDialog(
             stringResource(R.string.all_of_this_phase_s_apps_together),
             listOf(0) + ThemeFocus.LIMIT_CHOICES,
@@ -199,14 +206,17 @@ fun FocusSection(
             },
             { choosing = null },
         )
+
         FocusChoice.LimitScope -> ChoiceDialog(stringResource(R.string.limits_count), LimitScope.entries, focus.limitScope, { it.label }, {
             choosing = null
             onFocusChange(focus.copy(limitScope = it))
         }, { choosing = null })
+
         FocusChoice.LimitMode -> ChoiceDialog(stringResource(R.string.when_time_s_up), BlockMode.entries, focus.limitMode, { it.label }, {
             choosing = null
             onFocusChange(focus.copy(limitMode = it))
         }, { choosing = null })
+
         null -> Unit
     }
 
@@ -215,10 +225,12 @@ fun FocusSection(
             pickingApps = null
             onFocusChange(focus.copy(blockedApps = it))
         }, { pickingApps = null })
+
         AppPick.Notifications -> AppPickerDialog(stringResource(R.string.allowed_notifications), allApps, focus.allowedNotificationApps, {
             pickingApps = null
             onFocusChange(focus.copy(allowedNotificationApps = it))
         }, { pickingApps = null })
+
         null -> Unit
     }
 

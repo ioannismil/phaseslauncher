@@ -176,10 +176,15 @@ fun AutomationSection(
         val cancel = { editing = null }
         when (val rule = edit.rule) {
             is ThemeRule.Schedule -> ScheduleDialog(rule, done, cancel)
+
             is ThemeRule.Bluetooth -> BluetoothDialog(env, done, cancel)
+
             is ThemeRule.Wifi -> WifiDialog(env, rule.ssid.ifBlank { null }, done, cancel)
+
             is ThemeRule.Location -> LocationDialog(env, rule, isNew = edit.index == null, done, cancel)
+
             is ThemeRule.Calendar -> CalendarDialog(env, rule, done, cancel)
+
             // Nothing to set up for these.
             ThemeRule.Controller, ThemeRule.Headphones, ThemeRule.Charging -> cancel()
         }
@@ -197,6 +202,7 @@ fun AutomationSection(
             },
             onDismiss = { choosing = null },
         )
+
         "priority" -> ChoiceDialog(
             title = stringResource(R.string.priority),
             options = AutoPriority.entries.reversed(),
@@ -208,6 +214,7 @@ fun AutomationSection(
             },
             onDismiss = { choosing = null },
         )
+
         "delay" -> ChoiceDialog(
             title = stringResource(R.string.wait_before_switching),
             options = ThemeAutomation.DELAY_CHOICES,
@@ -219,6 +226,7 @@ fun AutomationSection(
             },
             onDismiss = { choosing = null },
         )
+
         "end" -> ChoiceDialog(
             title = stringResource(R.string.when_the_conditions_end),
             options = AutoEndAction.entries,
@@ -235,8 +243,11 @@ fun AutomationSection(
 
 @Composable
 private fun delayLabel(minutes: Int) =
-    if (minutes == 0) stringResource(R.string.switch_right_away)
-    else pluralStringResource(R.plurals.delay_minutes, minutes, minutes)
+    if (minutes == 0) {
+        stringResource(R.string.switch_right_away)
+    } else {
+        pluralStringResource(R.plurals.delay_minutes, minutes, minutes)
+    }
 
 /** Kinds without settings can only be added once; the rest as often as you like. */
 @Composable
@@ -249,8 +260,14 @@ private fun RuleTypeDialog(existing: Set<RuleType>, onPick: (RuleType) -> Unit, 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 listOf(
-                    RuleType.Schedule, RuleType.Location, RuleType.Wifi, RuleType.Calendar,
-                    RuleType.Bluetooth, RuleType.Headphones, RuleType.Controller, RuleType.Charging,
+                    RuleType.Schedule,
+                    RuleType.Location,
+                    RuleType.Wifi,
+                    RuleType.Calendar,
+                    RuleType.Bluetooth,
+                    RuleType.Headphones,
+                    RuleType.Controller,
+                    RuleType.Charging,
                 ).forEach { type ->
                     val enabled = type !in once || type !in existing
                     Column(
@@ -363,6 +380,7 @@ private fun BluetoothDialog(env: ThemeEditorEnvironment, onDone: (ThemeRule) -> 
                             TextButton(onClick = { permission.launch(Manifest.permission.BLUETOOTH_CONNECT) }) { Text(stringResource(R.string.allow)) }
                         }
                     }
+
                     devices.isEmpty() -> Text(stringResource(R.string.no_paired_bluetooth_devices_pair_one_in_settings))
                 }
                 devices.forEach { device ->
@@ -403,11 +421,13 @@ private fun WifiDialog(env: ThemeEditorEnvironment, initial: String?, onDone: (T
                         Text(stringResource(R.string.connected_to), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(onClick = { name = current }) { Text(current) }
                     }
+
                     canDetect -> Text(
                         stringResource(R.string.not_connected_to_wi_fi_right_now_type_the_networ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+
                     else -> {
                         Text(
                             stringResource(R.string.without_location_access_android_hides_network_na_2),

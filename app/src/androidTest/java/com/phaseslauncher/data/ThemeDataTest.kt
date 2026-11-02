@@ -8,11 +8,11 @@ import com.phaseslauncher.data.db.FavoriteEntity
 import com.phaseslauncher.data.db.LauncherDatabase
 import com.phaseslauncher.data.focus.NotificationFilter
 import com.phaseslauncher.data.focus.ThemeFocus
+import com.phaseslauncher.data.items.FolderRepository
 import com.phaseslauncher.data.rules.AutoPriority
 import com.phaseslauncher.data.rules.RuleMatch
 import com.phaseslauncher.data.rules.RuleSetting
 import com.phaseslauncher.data.rules.ThemeAutomation
-import com.phaseslauncher.data.items.FolderRepository
 import com.phaseslauncher.data.rules.ThemeRule
 import com.phaseslauncher.data.themes.AddFavoriteResult
 import com.phaseslauncher.data.themes.FavoritesRepository

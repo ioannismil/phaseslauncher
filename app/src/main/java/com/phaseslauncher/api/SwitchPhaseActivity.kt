@@ -30,7 +30,9 @@ class SwitchPhaseActivity : Activity() {
                     PhaseShortcuts.reportUsed(app, result.theme)
                     null
                 }
+
                 PhaseApi.Result.NoPhaseGiven -> app.getString(R.string.no_phase_named_in_the_request)
+
                 is PhaseApi.Result.NotFound -> when (val target = result.target) {
                     is PhaseApi.Target.Name -> app.getString(R.string.no_phase_called, target.name)
                     is PhaseApi.Target.Id -> app.getString(R.string.that_phase_no_longer_exists)

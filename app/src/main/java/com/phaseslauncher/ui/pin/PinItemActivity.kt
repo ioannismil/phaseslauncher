@@ -82,10 +82,12 @@ class PinItemActivity : ComponentActivity() {
             val shortcuts = appContainer.pinnedShortcuts
             PinPreview(shortcuts.labelOf(info), shortcuts.render(info), isWidget = false)
         }
+
         LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET -> request.getAppWidgetProviderInfo(this)?.let { info ->
             val icon = runCatching { info.loadIcon(this, resources.displayMetrics.densityDpi)?.toBitmap()?.asImageBitmap() }.getOrNull()
             PinPreview(WidgetRepository.labelOf(this, info), icon, isWidget = true)
         }
+
         else -> null
     }
 
@@ -101,6 +103,7 @@ class PinItemActivity : ComponentActivity() {
                     }
                 }
             }
+
             LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET -> {
                 val info = request.getAppWidgetProviderInfo(this) ?: return done(getString(R.string.couldn_t_add_the_widget))
                 widgetTheme = theme

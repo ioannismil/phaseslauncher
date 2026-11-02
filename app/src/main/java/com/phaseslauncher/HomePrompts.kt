@@ -17,7 +17,10 @@ import com.phaseslauncher.data.apps.ProfileType
 import com.phaseslauncher.data.apps.filterApps
 import com.phaseslauncher.data.db.AppCustomizationEntity
 import com.phaseslauncher.data.db.FavoriteEntity
+import com.phaseslauncher.data.focus.FocusBlock
 import com.phaseslauncher.data.icons.IconPackInfo
+import com.phaseslauncher.data.importer.LauncherLayout
+import com.phaseslauncher.data.importer.LayoutImportOptions
 import com.phaseslauncher.data.items.AppItem
 import com.phaseslauncher.data.items.Folder
 import com.phaseslauncher.data.items.FolderItem
@@ -27,20 +30,10 @@ import com.phaseslauncher.data.items.HomeItem
 import com.phaseslauncher.data.items.ItemKeys
 import com.phaseslauncher.data.items.PinnedShortcut
 import com.phaseslauncher.data.items.ShortcutItem
-import com.phaseslauncher.data.focus.FocusBlock
-import com.phaseslauncher.data.importer.LauncherLayout
-import com.phaseslauncher.data.importer.LayoutImportOptions
+import com.phaseslauncher.data.rules.RuleSetting
 import com.phaseslauncher.data.rules.RuleText
 import com.phaseslauncher.data.rules.ThemeRule
 import com.phaseslauncher.data.runCatchingCancellable
-import com.phaseslauncher.data.share.ImportOptions
-import com.phaseslauncher.data.share.Resolution
-import com.phaseslauncher.data.share.ShareOptions
-import com.phaseslauncher.data.share.SharedTheme
-import com.phaseslauncher.data.suggestions.Suggestion
-import com.phaseslauncher.data.suggestions.SuggestionEngine
-import com.phaseslauncher.data.suggestions.SuggestionSettings
-import org.json.JSONObject
 import com.phaseslauncher.data.search.Calculation
 import com.phaseslauncher.data.search.Calculator
 import com.phaseslauncher.data.search.ContactResult
@@ -48,15 +41,23 @@ import com.phaseslauncher.data.search.SettingsResult
 import com.phaseslauncher.data.settings.DrawerSort
 import com.phaseslauncher.data.settings.LauncherPrefs
 import com.phaseslauncher.data.settings.SwitcherSide
+import com.phaseslauncher.data.share.ImportOptions
+import com.phaseslauncher.data.share.Resolution
+import com.phaseslauncher.data.share.ShareOptions
+import com.phaseslauncher.data.share.SharedTheme
+import com.phaseslauncher.data.suggestions.Suggestion
+import com.phaseslauncher.data.suggestions.SuggestionEngine
+import com.phaseslauncher.data.suggestions.SuggestionSettings
 import com.phaseslauncher.data.themes.AddFavoriteResult
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeDraft
 import com.phaseslauncher.data.themes.ThemeIconKey
 import com.phaseslauncher.data.themes.toDraft
-import com.phaseslauncher.data.rules.RuleSetting
 import com.phaseslauncher.data.widgets.ThemeWidget
 import com.phaseslauncher.ui.components.HomeDrop
+import java.text.Collator
+import kotlin.math.exp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -83,8 +84,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.Collator
-import kotlin.math.exp
+import org.json.JSONObject
 
 /**
  * The prompts on the home screen: suggestions (an app for a phase, a schedule, a switch), automatic
@@ -170,6 +170,7 @@ class HomePrompts(
                     acceptLabel = res.getString(R.string.add),
                 )
             }
+
             is Suggestion.Schedule -> HomeBanner(
                 id = suggestion.id,
                 themeId = theme.id,
@@ -178,6 +179,7 @@ class HomePrompts(
                 acceptLabel = res.getString(R.string.add_schedule),
                 canCustomize = true,
             )
+
             is Suggestion.SwitchForApp -> {
                 val app = apps[suggestion.appKey] ?: return null
                 HomeBanner(
@@ -213,10 +215,12 @@ class HomePrompts(
                 themeRepository.addApp(suggestion.themeId, suggestion.appKey)
                 onMessage(res.getString(R.string.added_to, homeState.value.themes.firstOrNull { it.id == suggestion.themeId }?.name ?: res.getString(R.string.the_phase)))
             }
+
             is Suggestion.Schedule -> scope.launch {
                 themeRepository.addRule(suggestion.themeId, suggestion.rule)
                 onMessage(res.getString(R.string.schedule_added_change_it_in_the_phase_s_settings))
             }
+
             is Suggestion.SwitchForApp -> onSwitchTo(suggestion.themeId)
         }
     }

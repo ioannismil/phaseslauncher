@@ -61,8 +61,11 @@ fun LauncherImportDialog(layout: LauncherLayout, onImport: (LayoutImportOptions)
                     buildString {
                         val pages = layout.pages.size
                         append(
-                            if (layout.dock.isNotEmpty()) pluralStringResource(R.plurals.found_pages_and_dock, pages, pages, layout.dock.size)
-                            else pluralStringResource(R.plurals.found_pages, pages, pages),
+                            if (layout.dock.isNotEmpty()) {
+                                pluralStringResource(R.plurals.found_pages_and_dock, pages, pages, layout.dock.size)
+                            } else {
+                                pluralStringResource(R.plurals.found_pages, pages, pages)
+                            },
                         )
                         if (layout.unmatched > 0) append(" ").append(pluralStringResource(R.plurals.apps_skipped, layout.unmatched, layout.unmatched))
                         append(" ").append(stringResource(R.string.widgets_aren_t_carried_over))

@@ -207,7 +207,10 @@ internal fun SwitcherFrame(
                             }
                             .semantics {
                                 contentDescription = res.getString(R.string.close_phase_switcher)
-                                onClick { state.close(); true }
+                                onClick {
+                                    state.close()
+                                    true
+                                }
                             }
                     } else {
                         Modifier

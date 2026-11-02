@@ -387,4 +387,3 @@ private fun SectionTitle(text: String) {
         modifier = Modifier.padding(top = 20.dp, bottom = 6.dp),
     )
 }
-

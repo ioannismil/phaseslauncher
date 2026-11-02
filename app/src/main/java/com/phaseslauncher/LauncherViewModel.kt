@@ -17,7 +17,10 @@ import com.phaseslauncher.data.apps.ProfileType
 import com.phaseslauncher.data.apps.filterApps
 import com.phaseslauncher.data.db.AppCustomizationEntity
 import com.phaseslauncher.data.db.FavoriteEntity
+import com.phaseslauncher.data.focus.FocusBlock
 import com.phaseslauncher.data.icons.IconPackInfo
+import com.phaseslauncher.data.importer.LauncherLayout
+import com.phaseslauncher.data.importer.LayoutImportOptions
 import com.phaseslauncher.data.items.AppItem
 import com.phaseslauncher.data.items.Folder
 import com.phaseslauncher.data.items.FolderItem
@@ -27,20 +30,10 @@ import com.phaseslauncher.data.items.HomeItem
 import com.phaseslauncher.data.items.ItemKeys
 import com.phaseslauncher.data.items.PinnedShortcut
 import com.phaseslauncher.data.items.ShortcutItem
-import com.phaseslauncher.data.focus.FocusBlock
-import com.phaseslauncher.data.importer.LauncherLayout
-import com.phaseslauncher.data.importer.LayoutImportOptions
+import com.phaseslauncher.data.rules.RuleSetting
 import com.phaseslauncher.data.rules.RuleText
 import com.phaseslauncher.data.rules.ThemeRule
 import com.phaseslauncher.data.runCatchingCancellable
-import com.phaseslauncher.data.share.ImportOptions
-import com.phaseslauncher.data.share.Resolution
-import com.phaseslauncher.data.share.ShareOptions
-import com.phaseslauncher.data.share.SharedTheme
-import com.phaseslauncher.data.suggestions.Suggestion
-import com.phaseslauncher.data.suggestions.SuggestionEngine
-import com.phaseslauncher.data.suggestions.SuggestionSettings
-import org.json.JSONObject
 import com.phaseslauncher.data.search.Calculation
 import com.phaseslauncher.data.search.Calculator
 import com.phaseslauncher.data.search.ContactResult
@@ -48,15 +41,23 @@ import com.phaseslauncher.data.search.SettingsResult
 import com.phaseslauncher.data.settings.DrawerSort
 import com.phaseslauncher.data.settings.LauncherPrefs
 import com.phaseslauncher.data.settings.SwitcherSide
+import com.phaseslauncher.data.share.ImportOptions
+import com.phaseslauncher.data.share.Resolution
+import com.phaseslauncher.data.share.ShareOptions
+import com.phaseslauncher.data.share.SharedTheme
+import com.phaseslauncher.data.suggestions.Suggestion
+import com.phaseslauncher.data.suggestions.SuggestionEngine
+import com.phaseslauncher.data.suggestions.SuggestionSettings
 import com.phaseslauncher.data.themes.AddFavoriteResult
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeDraft
 import com.phaseslauncher.data.themes.ThemeIconKey
 import com.phaseslauncher.data.themes.toDraft
-import com.phaseslauncher.data.rules.RuleSetting
 import com.phaseslauncher.data.widgets.ThemeWidget
 import com.phaseslauncher.ui.components.HomeDrop
+import java.text.Collator
+import kotlin.math.exp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -82,8 +83,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.Collator
-import kotlin.math.exp
+import org.json.JSONObject
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class LauncherViewModel(private val container: AppContainer) : ViewModel() {
@@ -271,6 +271,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     // region Focus
 
     private val _pendingLaunch = MutableStateFlow<PendingLaunch?>(null)
+
     /** A launch waiting on the pause screen (or refused); the UI shows why. */
     val pendingLaunch: StateFlow<PendingLaunch?> = _pendingLaunch.asStateFlow()
 
@@ -438,6 +439,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     fun open(item: HomeItem, sourceBounds: Rect?, options: Bundle?) {
         when (item) {
             is AppItem -> launch(item.app, sourceBounds, options)
+
             is ShortcutItem -> guarded(item.app) {
                 if (container.pinnedShortcuts.launch(item.shortcut, sourceBounds, options)) {
                     appInFront = true
@@ -445,6 +447,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                     message(res.getString(R.string.couldn_t_open_its_app_may_have_removed_it, item.label))
                 }
             }
+
             is FolderItem -> Unit
         }
     }
@@ -628,11 +631,13 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
                     val folderId = ItemKeys.folderId(drop.key) ?: folders.createWith(theme.id, drop.key, folderNameFor(app.key, drop.key))
                     folders.moveInto(folderId, app.key)
                 }
+
                 is HomeDrop.At -> {
                     // The layout already has the app in the cell it was dropped on.
                     themeRepository.addApp(theme.id, app.key)
                     themeRepository.saveLayout(theme.id, drop.layout)
                 }
+
                 null -> if (app.key !in theme.appKeys) themeRepository.addApp(theme.id, app.key)
             }
         }

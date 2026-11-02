@@ -33,24 +33,42 @@ object RuleText {
 
     fun describe(res: Resources, rule: ThemeRule): String = when (rule) {
         is ThemeRule.Schedule -> res.getString(
-            R.string.schedule_description, days(res, rule.days), minute(rule.startMinute), minute(rule.endMinute),
+            R.string.schedule_description,
+            days(res, rule.days),
+            minute(rule.startMinute),
+            minute(rule.endMinute),
         )
+
         is ThemeRule.Bluetooth -> rule.name.ifBlank { rule.address }
+
         ThemeRule.Controller -> res.getString(R.string.any_game_controller)
+
         ThemeRule.Headphones -> res.getString(R.string.headphones)
+
         is ThemeRule.Wifi -> rule.ssid
+
         ThemeRule.Charging -> res.getString(R.string.charging)
+
         is ThemeRule.Location -> res.getString(
-            R.string.within_2, rule.name.ifBlank { res.getString(R.string.a_place) }, distance(res, rule.radiusMeters),
+            R.string.within_2,
+            rule.name.ifBlank { res.getString(R.string.a_place) },
+            distance(res, rule.radiusMeters),
         )
+
         is ThemeRule.Calendar -> buildList {
             add(
-                if (rule.keywords.isEmpty()) res.getString(R.string.any_event)
-                else res.getString(R.string.events_with, rule.keywords.joinToString(res.getString(R.string.or))),
+                if (rule.keywords.isEmpty()) {
+                    res.getString(R.string.any_event)
+                } else {
+                    res.getString(R.string.events_with, rule.keywords.joinToString(res.getString(R.string.or)))
+                },
             )
             add(
-                if (rule.calendarIds.isEmpty()) res.getString(R.string.all_calendars_lower)
-                else res.getQuantityString(R.plurals.calendars_count, rule.calendarIds.size, rule.calendarIds.size),
+                if (rule.calendarIds.isEmpty()) {
+                    res.getString(R.string.all_calendars_lower)
+                } else {
+                    res.getQuantityString(R.plurals.calendars_count, rule.calendarIds.size, rule.calendarIds.size)
+                },
             )
             if (rule.minutesBefore > 0) add(res.getString(R.string.min_early, rule.minutesBefore))
             if (rule.includeAllDay) add(res.getString(R.string.all_day_too))

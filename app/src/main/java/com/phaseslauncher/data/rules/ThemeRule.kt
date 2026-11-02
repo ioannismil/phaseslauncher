@@ -111,17 +111,24 @@ sealed interface ThemeRule {
                     startMinute = json.getInt("start"),
                     endMinute = json.getInt("end"),
                 )
+
                 RuleType.Bluetooth -> Bluetooth(json.getString("address"), json.optString("name"))
+
                 RuleType.Controller -> Controller
+
                 RuleType.Wifi -> Wifi(json.getString("ssid"))
+
                 RuleType.Headphones -> Headphones
+
                 RuleType.Charging -> Charging
+
                 RuleType.Location -> Location(
                     name = json.optString("name"),
                     latitude = json.getDouble("lat"),
                     longitude = json.getDouble("lon"),
                     radiusMeters = json.optInt("radius", DEFAULT_RADIUS_M),
                 )
+
                 RuleType.Calendar -> Calendar(
                     calendarIds = json.optJSONArray("calendars")?.let { a -> List(a.length()) { a.getLong(it) }.toSet() }.orEmpty(),
                     keywords = json.optJSONArray("keywords")?.let { a -> List(a.length()) { a.getString(it) } }.orEmpty(),
@@ -137,19 +144,24 @@ sealed interface ThemeRule {
                 .put("days", JSONArray(rule.days.sorted().map { it.name }))
                 .put("start", rule.startMinute)
                 .put("end", rule.endMinute)
+
             is Bluetooth -> JSONObject().put("address", rule.address).put("name", rule.name)
+
             is Wifi -> JSONObject().put("ssid", rule.ssid)
+
             is Location -> JSONObject()
                 .put("name", rule.name)
                 .put("lat", rule.latitude)
                 .put("lon", rule.longitude)
                 .put("radius", rule.radiusMeters)
+
             is Calendar -> JSONObject()
                 .put("calendars", JSONArray(rule.calendarIds.sorted()))
                 .put("keywords", JSONArray(rule.keywords))
                 .put("allDay", rule.includeAllDay)
                 .put("busyOnly", rule.busyOnly)
                 .put("before", rule.minutesBefore)
+
             Controller, Headphones, Charging -> JSONObject()
         }
 

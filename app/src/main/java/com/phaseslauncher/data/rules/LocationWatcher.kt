@@ -13,13 +13,13 @@ import android.os.CancellationSignal
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
+import java.util.concurrent.Executor
+import kotlin.coroutines.resume
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.Executor
-import kotlin.coroutines.resume
 
 /**
  * Where the phone is, for place rules. Listens (at a low rate, on the network/fused provider) only

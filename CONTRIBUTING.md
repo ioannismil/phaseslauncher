@@ -14,6 +14,7 @@ Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or jus
 .\gradlew.bat installDebug                 # build + install on the running emulator/device
 .\gradlew.bat testDebugUnitTest            # JVM unit tests
 .\gradlew.bat connectedDebugAndroidTest    # instrumented tests (uninstalls the app afterwards)
+.\gradlew.bat spotlessApply               # format the code (CI checks it with spotlessCheck)
 ```
 
 ### Performance

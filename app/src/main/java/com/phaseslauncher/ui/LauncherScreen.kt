@@ -307,11 +307,13 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = app })
                     add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
                 }
+
                 is ShortcutItem -> {
                     add(AppAction(res.getString(R.string.remove_from_this_phase), Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromActiveTheme(item) })
                     add(AppAction(res.getString(R.string.add_to_folder), Icons.Outlined.CreateNewFolder) { addToFolderItem = item })
                     add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
                 }
+
                 is FolderItem -> {
                     add(AppAction(res.getString(R.string.rename), Icons.Outlined.Edit) { renamingFolder = item })
                     add(AppAction(res.getString(R.string.ungroup), Icons.Outlined.FolderOff) { viewModel.ungroupFolder(item) })
@@ -328,7 +330,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = item.app })
                     add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
                 }
+
                 is ShortcutItem -> add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(item.app, it) })
+
                 is FolderItem -> Unit
             }
         }
@@ -361,13 +365,17 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 if (theme.id != homeState.activeTheme?.id) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                 viewModel.selectTheme(theme.id)
             }
+
             extra == ArcExtra.NewTheme -> editor = EditorRequest(themeId = null)
+
             extra == ArcExtra.Settings -> showSettings = true
         }
     }
 
     when (showOnboarding) {
-        null -> return // Still loading; show just the wallpaper for a moment.
+        null -> return
+
+        // Still loading; show just the wallpaper for a moment.
         true -> {
             OnboardingScreen(
                 allApps = homeState.apps.values.toList(),
@@ -384,23 +392,33 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             )
             return
         }
+
         false -> Unit
     }
 
     val performGesture: (GestureAction) -> Unit = { action ->
         when (action.kind) {
             GestureKind.None -> Unit
+
             GestureKind.Drawer -> viewModel.openDrawer()
+
             GestureKind.Search -> viewModel.openDrawer(withKeyboard = true)
+
             GestureKind.Notifications -> SystemActions.expandNotifications(context)
+
             GestureKind.QuickSettings -> SystemActions.expandQuickSettings(context)
+
             GestureKind.Lock -> if (!LockScreenService.lock()) {
                 viewModel.message(res.getString(R.string.turn_on_phases_double_tap_to_lock_in_accessibili))
                 LockScreenService.openSettings(context)
             }
+
             GestureKind.ThemeSwitcher -> arcState.openForTap()
+
             GestureKind.NextTheme -> viewModel.stepTheme(1)
+
             GestureKind.PreviousTheme -> viewModel.stepTheme(-1)
+
             GestureKind.OpenApp -> action.appKey?.let(homeState.apps::get)?.let { launchApp(it, null) }
                 ?: viewModel.message(res.getString(R.string.the_app_for_this_gesture_isn_t_installed))
         }
@@ -491,18 +509,18 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                         if (prefs.doubleTap.kind != GestureKind.None) detectTapGestures(onDoubleTap = { performGesture(prefs.doubleTap) })
                     }
                     .pointerInput(Unit) {
-                    var dragged = 0f
-                    detectVerticalDragGestures(
-                        onDragStart = { dragged = 0f },
-                        onVerticalDrag = { _, delta -> dragged += delta },
-                        onDragEnd = {
-                            when {
-                                dragged < -swipeThresholdPx -> swipeUp()
-                                dragged > swipeThresholdPx -> swipeDown()
-                            }
-                        },
-                    )
-                },
+                        var dragged = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { dragged = 0f },
+                            onVerticalDrag = { _, delta -> dragged += delta },
+                            onDragEnd = {
+                                when {
+                                    dragged < -swipeThresholdPx -> swipeUp()
+                                    dragged > swipeThresholdPx -> swipeDown()
+                                }
+                            },
+                        )
+                    },
             )
 
             PhaseSwitcherOverlay(
@@ -820,7 +838,6 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             onDismiss = { customizingApp = null },
         )
     }
-
 }
 
 private const val RETURN_ZOOM_FROM = 0.92f

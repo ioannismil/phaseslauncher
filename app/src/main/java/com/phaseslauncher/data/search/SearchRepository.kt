@@ -65,8 +65,11 @@ class SearchRepository(private val context: Context) {
     }
 
     fun openContact(contact: ContactResult) = start(
-        Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.getLookupUri(contact.id, contact.lookupKey)
-            ?: ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contact.id)),
+        Intent(
+            Intent.ACTION_VIEW,
+            ContactsContract.Contacts.getLookupUri(contact.id, contact.lookupKey)
+                ?: ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contact.id),
+        ),
     )
 
     fun openSettings(result: SettingsResult) = start(Intent(result.action))

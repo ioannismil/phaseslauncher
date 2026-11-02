@@ -51,69 +51,90 @@ class BackupRepository(
         val json = JSONObject()
             .put("format", FORMAT)
             .put("version", VERSION)
-            .put("themes", JSONArray(themes.map { theme ->
-                JSONObject()
-                    .put("name", theme.name)
-                    .put("icon", theme.iconKey)
-                    .put("color", theme.accentColor)
-                    .put("apps", JSONArray(themeDao.getThemeAppKeys(theme.id).filter { ItemKeys.shortcutId(it) == null }))
-                    // Where apps and folders sit on the home grid: key -> [column, row].
-                    .put("cells", JSONObject().apply {
-                        themeDao.getAssignments(theme.id)
-                            .filter { ItemKeys.shortcutId(it.appKey) == null && it.cellX != null && it.cellY != null }
-                            .forEach { put(it.appKey, JSONArray(listOf(it.cellX, it.cellY))) }
-                    })
-                    .put("folders", JSONArray(database.folderDao().getForTheme(theme.id).map { folder ->
+            .put(
+                "themes",
+                JSONArray(
+                    themes.map { theme ->
                         JSONObject()
-                            .put("key", ItemKeys.folder(folder.id))
-                            .put("name", folder.name)
-                            .put("apps", JSONArray(database.folderDao().getItemKeys(folder.id).filter(ItemKeys::isApp)))
-                    }))
-                    .put("soundProfile", theme.soundProfile)
-                    .put("ownDock", theme.ownDock)
-                    .put("iconPack", theme.iconPack ?: JSONObject.NULL)
-                    .put("gridLayout", theme.gridLayout ?: JSONObject.NULL)
-                    .put("dock", JSONArray(database.favoritesDao().getFavoriteKeys(theme.id)))
-                    .put("automation", theme.automation)
-                    .put("focus", theme.focus)
-                    .put("rules", JSONArray(database.ruleDao().getForThemeOrdered(theme.id).map {
-                        JSONObject().put("type", it.type).put("config", it.config).put("enabled", it.enabled)
-                    }))
-            }))
+                            .put("name", theme.name)
+                            .put("icon", theme.iconKey)
+                            .put("color", theme.accentColor)
+                            .put("apps", JSONArray(themeDao.getThemeAppKeys(theme.id).filter { ItemKeys.shortcutId(it) == null }))
+                            // Where apps and folders sit on the home grid: key -> [column, row].
+                            .put(
+                                "cells",
+                                JSONObject().apply {
+                                    themeDao.getAssignments(theme.id)
+                                        .filter { ItemKeys.shortcutId(it.appKey) == null && it.cellX != null && it.cellY != null }
+                                        .forEach { put(it.appKey, JSONArray(listOf(it.cellX, it.cellY))) }
+                                },
+                            )
+                            .put(
+                                "folders",
+                                JSONArray(
+                                    database.folderDao().getForTheme(theme.id).map { folder ->
+                                        JSONObject()
+                                            .put("key", ItemKeys.folder(folder.id))
+                                            .put("name", folder.name)
+                                            .put("apps", JSONArray(database.folderDao().getItemKeys(folder.id).filter(ItemKeys::isApp)))
+                                    },
+                                ),
+                            )
+                            .put("soundProfile", theme.soundProfile)
+                            .put("ownDock", theme.ownDock)
+                            .put("iconPack", theme.iconPack ?: JSONObject.NULL)
+                            .put("gridLayout", theme.gridLayout ?: JSONObject.NULL)
+                            .put("dock", JSONArray(database.favoritesDao().getFavoriteKeys(theme.id)))
+                            .put("automation", theme.automation)
+                            .put("focus", theme.focus)
+                            .put(
+                                "rules",
+                                JSONArray(
+                                    database.ruleDao().getForThemeOrdered(theme.id).map {
+                                        JSONObject().put("type", it.type).put("config", it.config).put("enabled", it.enabled)
+                                    },
+                                ),
+                            )
+                    },
+                ),
+            )
             .put("favorites", JSONArray(favorites))
-            .put("settings", JSONObject()
-                .put("switcherSide", prefs.switcherSide.name)
-                .put("switcherStyle", prefs.switcherStyle.name)
-                .put("gridColumns", prefs.gridColumns)
-                .put("iconSize", prefs.iconSize.name)
-                .put("showLabels", prefs.showLabels)
-                .put("notificationDots", prefs.notificationDots)
-                .put("swipeUp", prefs.swipeUp.serialize())
-                .put("swipeDown", prefs.swipeDown.serialize())
-                .put("doubleTap", prefs.doubleTap.serialize())
-                .put("drawerSort", prefs.drawerSort.name)
-                .put("drawerKeyboard", prefs.drawerKeyboard)
-                .put("hiddenApps", JSONArray(prefs.hiddenApps.toList()))
-                .put("iconPack", prefs.iconPack ?: JSONObject.NULL)
-                .put("themedIcons", prefs.themedIcons)
-                .put("autoFitIcons", prefs.autoFitIcons)
-                .put("iconArrangement", prefs.iconArrangement.name)
-                .put("contactSearch", prefs.contactSearch)
-                .put("showTime", prefs.showTime)
-                .put("clockPosition", prefs.clockPosition.name)
-                .put("showDate", prefs.showDate)
-                .put("dateFormat", prefs.dateFormat.name)
-                .put("showBattery", prefs.showBattery)
-                .put("showStatusBar", prefs.showStatusBar)
-                .put("showThemeLabel", prefs.showThemeLabel)
-                .put("showDock", prefs.showDock)
-                .put("appearance", prefs.appearance.name)
-                .put("suggestApps", prefs.suggestApps)
-                .put("suggestSchedules", prefs.suggestSchedules)
-                .put("suggestSwitching", prefs.suggestSwitching)
-                .put("askForNewApps", prefs.askForNewApps)
-                .put("allowExternalSwitching", prefs.allowExternalSwitching)
-                .put("suggestionMinLaunches", prefs.suggestionMinLaunches))
+            .put(
+                "settings",
+                JSONObject()
+                    .put("switcherSide", prefs.switcherSide.name)
+                    .put("switcherStyle", prefs.switcherStyle.name)
+                    .put("gridColumns", prefs.gridColumns)
+                    .put("iconSize", prefs.iconSize.name)
+                    .put("showLabels", prefs.showLabels)
+                    .put("notificationDots", prefs.notificationDots)
+                    .put("swipeUp", prefs.swipeUp.serialize())
+                    .put("swipeDown", prefs.swipeDown.serialize())
+                    .put("doubleTap", prefs.doubleTap.serialize())
+                    .put("drawerSort", prefs.drawerSort.name)
+                    .put("drawerKeyboard", prefs.drawerKeyboard)
+                    .put("hiddenApps", JSONArray(prefs.hiddenApps.toList()))
+                    .put("iconPack", prefs.iconPack ?: JSONObject.NULL)
+                    .put("themedIcons", prefs.themedIcons)
+                    .put("autoFitIcons", prefs.autoFitIcons)
+                    .put("iconArrangement", prefs.iconArrangement.name)
+                    .put("contactSearch", prefs.contactSearch)
+                    .put("showTime", prefs.showTime)
+                    .put("clockPosition", prefs.clockPosition.name)
+                    .put("showDate", prefs.showDate)
+                    .put("dateFormat", prefs.dateFormat.name)
+                    .put("showBattery", prefs.showBattery)
+                    .put("showStatusBar", prefs.showStatusBar)
+                    .put("showThemeLabel", prefs.showThemeLabel)
+                    .put("showDock", prefs.showDock)
+                    .put("appearance", prefs.appearance.name)
+                    .put("suggestApps", prefs.suggestApps)
+                    .put("suggestSchedules", prefs.suggestSchedules)
+                    .put("suggestSwitching", prefs.suggestSwitching)
+                    .put("askForNewApps", prefs.askForNewApps)
+                    .put("allowExternalSwitching", prefs.allowExternalSwitching)
+                    .put("suggestionMinLaunches", prefs.suggestionMinLaunches),
+            )
 
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toString(2).toByteArray()) }
             ?: error(context.getString(R.string.could_not_open_the_file_for_writing))
@@ -174,15 +195,18 @@ class BackupRepository(
                 database.favoritesDao().setFavorites(theme.optJSONArray("dock").strings().take(ThemeDefaults.MAX_FAVORITES), id)
                 val rules = theme.optJSONArray("rules")
                 if (rules != null) {
-                    database.ruleDao().setRules(id, List(rules.length()) { j ->
-                        val rule = rules.getJSONObject(j)
-                        ThemeRuleEntity(
-                            themeId = id,
-                            type = rule.getString("type"),
-                            config = rule.getString("config"),
-                            enabled = rule.optBoolean("enabled", true),
-                        )
-                    })
+                    database.ruleDao().setRules(
+                        id,
+                        List(rules.length()) { j ->
+                            val rule = rules.getJSONObject(j)
+                            ThemeRuleEntity(
+                                themeId = id,
+                                type = rule.getString("type"),
+                                config = rule.getString("config"),
+                                enabled = rule.optBoolean("enabled", true),
+                            )
+                        },
+                    )
                 }
             }
             database.favoritesDao().setFavorites(favorites.take(ThemeDefaults.MAX_FAVORITES))

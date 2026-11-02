@@ -12,12 +12,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import com.phaseslauncher.data.db.LauncherDatabase
 import com.phaseslauncher.data.db.PinnedShortcutEntity
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.roundToInt
 
 /**
  * Shortcuts pinned by other apps ("Add to home screen" in Chrome, Maps, Contacts…).

@@ -10,10 +10,10 @@ import android.os.Process
 import android.provider.Settings
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.themes.Theme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Why an app can't simply open. */
 sealed interface FocusBlock {

@@ -13,12 +13,12 @@ import com.phaseslauncher.data.suggestions.SuggestionEngine
 import com.phaseslauncher.data.suggestions.SuggestionSettings
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.data.themes.ThemeIconKey
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class SuggestionEngineTest {
 

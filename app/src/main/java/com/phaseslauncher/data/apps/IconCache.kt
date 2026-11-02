@@ -13,6 +13,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toBitmap
 import com.phaseslauncher.data.db.AppCustomizationEntity
 import com.phaseslauncher.data.icons.IconPackManager
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -22,7 +23,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 /**
  * Renders app icons off the main thread and keeps them in memory, so scrolling the
@@ -40,6 +40,7 @@ class IconCache(
 
     private val densityDpi = context.resources.displayMetrics.densityDpi
     private val density = context.resources.displayMetrics.density
+
     @Volatile private var iconSizePx = (DEFAULT_SIZE_DP * density).roundToInt()
     private val loadDispatcher = Dispatchers.IO.limitedParallelism(4)
 
@@ -48,10 +49,12 @@ class IconCache(
     }
 
     @Volatile private var iconPack: String? = null
+
     @Volatile private var customIcons: Map<String, AppCustomizationEntity> = emptyMap()
 
     /** Accent color for themed icons, or null when they're off. */
     @Volatile private var themedTint: Int? = null
+
     @Volatile private var darkTheme = false
 
     /** Bumped when icons are invalidated so visible icons re-read the cache. */

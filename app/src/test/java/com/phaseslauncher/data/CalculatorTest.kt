@@ -1,11 +1,11 @@
 package com.phaseslauncher.data
 
 import com.phaseslauncher.data.search.Calculator
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
-import java.util.Locale
 
 class CalculatorTest {
 

@@ -67,6 +67,7 @@ fun HomeItemTile(
             showLabel = showLabel,
             modifier = modifier,
         )
+
         else -> TileWithMenu(key = item.key, title = item.label, actions = actions, menuState = menuState, modifier = modifier) { onLongClick ->
             val dots = LocalNotificationDots.current
             LauncherTile(

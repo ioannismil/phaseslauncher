@@ -24,6 +24,10 @@ import com.phaseslauncher.data.share.SharedItem
 import com.phaseslauncher.data.share.ThemeSharing
 import com.phaseslauncher.data.themes.ThemeIconKey
 import com.phaseslauncher.data.themes.ThemeRepository
+import java.io.File
+import java.util.zip.Deflater
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.json.JSONArray
@@ -35,10 +39,6 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
-import java.util.zip.Deflater
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 /**
  * What Phases reads from outside: phases shared as links or files (which any app can hand it),

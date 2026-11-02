@@ -208,8 +208,15 @@ private fun rememberVerticalSwipeConnection(onSwipeUp: () -> Unit, onSwipeDown: 
                     pulled = available.y
                 }
                 when {
-                    pulled < -thresholdPx -> { fired = true; currentOnSwipeUp.value() }
-                    pulled > thresholdPx -> { fired = true; currentOnSwipeDown.value() }
+                    pulled < -thresholdPx -> {
+                        fired = true
+                        currentOnSwipeUp.value()
+                    }
+
+                    pulled > thresholdPx -> {
+                        fired = true
+                        currentOnSwipeDown.value()
+                    }
                 }
                 return Offset.Zero
             }

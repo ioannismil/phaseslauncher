@@ -37,8 +37,10 @@ class SwitchPhaseReceiver : BroadcastReceiver() {
                 }
                 when (val outcome = PhaseApi.switch(container, intent)) {
                     is PhaseApi.Result.Switched -> result(Activity.RESULT_OK, outcome.theme.name)
+
                     PhaseApi.Result.NoPhaseGiven ->
                         result(RESULT_NOT_FOUND, "Name the phase in the \"${PhaseApi.EXTRA_PHASE}\" extra")
+
                     is PhaseApi.Result.NotFound -> {
                         val reason = when (val target = outcome.target) {
                             is PhaseApi.Target.Name -> "No phase called \"${target.name}\""

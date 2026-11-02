@@ -19,6 +19,8 @@ import android.os.UserHandle
 import android.os.UserManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import java.text.Collator
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -30,8 +32,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.Collator
-import java.util.concurrent.ConcurrentHashMap
 
 /** A package was added, changed, removed or became (un)available for [user]. */
 data class PackageEvent(val packageName: String, val user: UserHandle, val removed: Boolean = false)

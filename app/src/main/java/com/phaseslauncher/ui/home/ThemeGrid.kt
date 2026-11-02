@@ -140,6 +140,7 @@ fun ThemeGrid(
                 onClick = onCreateTheme,
                 onLongPress = onEmptyLongPress,
             )
+
             else -> {
                 val items = state.itemsFor(theme)
                 val widgets = state.widgetsFor(theme)
@@ -275,6 +276,7 @@ private class GridDragState {
         val merge = mergeTarget
         val result = when {
             merge != null -> DragResult.Merge(base, dragging, merge)
+
             else -> HomeGrid.move(base, dragging, geometry.nearestCell(topLeft), geometry.columns)
                 .takeIf { it != base }
                 ?.let(DragResult::Moved)
@@ -333,9 +335,13 @@ private fun ItemGrid(
     var resizing by remember { mutableStateOf<String?>(null) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val labelHeight = if (!layout.showLabels) 0f else with(density) {
-            val line = if (labelStyle.lineHeight.isSp) labelStyle.lineHeight else labelStyle.fontSize * 1.4f
-            TilePadding.labelGap.value + line.toDp().value
+        val labelHeight = if (!layout.showLabels) {
+            0f
+        } else {
+            with(density) {
+                val line = if (labelStyle.lineHeight.isSp) labelStyle.lineHeight else labelStyle.fontSize * 1.4f
+                TilePadding.labelGap.value + line.toDp().value
+            }
         }
         val metrics = GridMetrics(
             gridPaddingHorizontal = GRID_PADDING_H * 2f,
@@ -454,6 +460,7 @@ private fun ItemGrid(
                 // Where the dragged item (or an app carried from the drawer) would land.
                 val landing = when {
                     drag.key != null && drag.mergeTarget == null -> shown.firstOrNull { it.key == drag.key }
+
                     externalDrag?.isDragging == true -> {
                         val at = externalDrag.position - contentOrigin[0]
                         if (!viewport[0].contains(externalDrag.position)) {
@@ -466,6 +473,7 @@ private fun ItemGrid(
                             if (overMiddle) null else GridPlacement("", cell.x, cell.y)
                         }
                     }
+
                     else -> null
                 }
                 if (landing != null) {
@@ -528,6 +536,7 @@ private fun ItemGrid(
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                             }
+
                             widget != null -> HomeWidget(
                                 widget = widget,
                                 menuOpen = openWidgetMenu == widget.appWidgetId,
@@ -586,7 +595,8 @@ private fun Modifier.gridGestures(
                     return@withTimeoutOrNull false
                 }
             }
-            @Suppress("UNREACHABLE_CODE") false
+            @Suppress("UNREACHABLE_CODE")
+            false
         } ?: true
         if (!heldStill) return@awaitEachGesture
         if (hit == null) {
