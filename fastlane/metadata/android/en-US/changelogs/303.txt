@@ -1,0 +1,6 @@
+• Put apps, folders and widgets anywhere on a phase's home screen: long-press and drag to any cell, gaps and all. Whatever's in the way moves to the nearest free spot.
+• Widgets sit in the grid next to apps and can be resized in cells (long-press → Resize).
+
+• Fit icons to the screen keeps your column count and only shrinks icons so your rows fit.
+• Icon arrangement now decides where apps go until you place them yourself.
+• Backups include where everything is on the home screen.
