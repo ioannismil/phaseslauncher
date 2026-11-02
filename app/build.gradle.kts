@@ -14,9 +14,9 @@ android {
         applicationId = "com.phaseslauncher"
         minSdk = 26
         targetSdk = 37
-        // Release builds on CI pass these from the git tag (see .github/workflows/release.yml).
-        versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.2.0"
+        // Set in gradle.properties, where F-Droid reads them too.
+        versionCode = providers.gradleProperty("versionCode").get().toInt()
+        versionName = providers.gradleProperty("versionName").get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -54,6 +54,13 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // Leave out the dependency list AGP otherwise adds to the signing block, encrypted for
+    // Google Play only. F-Droid and IzzyOnDroid reject APKs that carry it.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 }
 

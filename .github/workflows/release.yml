@@ -1,8 +1,9 @@
 # Publishes a signed release APK on the Releases page.
 #
-# Either push a version tag:   git tag v0.4.0 && git push origin v0.4.0
+# First set versionName and versionCode in gradle.properties. Then either push a version tag:
+#   git tag v0.4.0 && git push origin v0.4.0
 # or run it from the Actions tab ("Release" → "Run workflow") with a version; that tags the
-# commit it runs on.
+# commit it runs on. Either way the version has to match gradle.properties.
 #
 # Needs these repository secrets: KEYSTORE_BASE64 (the keystore file, base64), KEYSTORE_PASSWORD,
 # KEY_ALIAS and KEY_PASSWORD.
@@ -28,21 +29,30 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Work out the version
+      - name: Check the version
         id: version
         env:
           INPUT: ${{ inputs.version }}
         run: |
           v="${INPUT:-$GITHUB_REF_NAME}"
           v="${v#v}"
+          name=$(sed -n 's/^versionName=//p' gradle.properties)
+          code=$(sed -n 's/^versionCode=//p' gradle.properties)
+          if [ "$v" != "$name" ]; then
+            echo "::error::Releasing $v, but gradle.properties says versionName=$name. Bump it (and versionCode) first."
+            exit 1
+          fi
           if ! [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             echo "::error::The version must look like 1.2.3, not '$v'"
             exit 1
           fi
           # 1.2.3 -> 10203, so every release installs over the one before.
-          code=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))
+          want=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))
+          if [ "$code" != "$want" ]; then
+            echo "::error::versionCode for $v should be $want, but gradle.properties says $code"
+            exit 1
+          fi
           echo "name=$v" >> "$GITHUB_OUTPUT"
-          echo "code=$code" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v6
         with:
@@ -67,10 +77,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: >
-          ./gradlew :app:testDebugUnitTest :app:assembleRelease
-          -PversionName=${{ steps.version.outputs.name }}
-          -PversionCode=${{ steps.version.outputs.code }}
+        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease
 
       - name: Publish the release
         env:
