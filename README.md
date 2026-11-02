@@ -14,7 +14,7 @@
   <a href="https://github.com/ioannismil/phaseslauncher/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ioannismil/phaseslauncher/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin and Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/ioannismil/phaseslauncher?color=lightgrey"></a>
+  <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/github/license/ioannismil/phaseslauncher?color=lightgrey"></a>
 </p>
 
 ---
@@ -68,4 +68,4 @@ Phases doesn't ask for internet access. It has no ads, no tracking and no accoun
 
 ## License
 
-[MIT](LICENSE). Fork it, change it, borrow from it.
+[Apache License 2.0](LICENSE). You can use, change and share Phases, including in commercial work. If you distribute it or anything built on it, you have to credit me: keep the [NOTICE](NOTICE) file and show it where your app lists open-source credits.

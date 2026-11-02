@@ -2,6 +2,8 @@
 
 Phases is a hobby project that follows my own habits, so I may not take every feature. Bug reports and small fixes are very welcome. For anything bigger, open an issue first so we can talk it over before you put time in.
 
+By sending a pull request you agree that your contribution is licensed under the [Apache License 2.0](LICENSE), like the rest of Phases.
+
 ## Build and run
 
 Kotlin · Jetpack Compose · Material 3 · Room · DataStore · minSdk 26, target/compile SDK 37.
