@@ -82,7 +82,6 @@
     <string name="apps">Apps</string>
     <string name="apps_1_selected">Apps · 1 selected</string>
     <string name="apps_for_a_phase">Apps for a phase</string>
-    <string name="apps_selected">Apps · %1$d selected</string>
     <string name="apps_travel_by_name_whoever_adds_it_gets_the_app">Apps travel by name: whoever adds it gets the apps they have installed, and a list of the rest.</string>
     <string name="ask_first">Ask first</string>
     <string name="at_a_place">At a place</string>
@@ -233,7 +232,6 @@
     <string name="hide_blocked_apps_from_the_drawer">Hide blocked apps from the drawer</string>
     <string name="high">High</string>
     <string name="highest">Highest</string>
-    <string name="hm">Hm</string>
     <string name="home">Home</string>
     <string name="home_grid">Home grid</string>
     <string name="home_grid_for_this_theme">Home grid for this phase</string>
@@ -707,5 +705,9 @@
     <plurals name="and_more">
         <item quantity="one">and %1$d more</item>
         <item quantity="other">and %1$d more</item>
+    </plurals>
+    <plurals name="apps_selected">
+        <item quantity="one">Apps · %1$d selected</item>
+        <item quantity="other">Apps · %1$d selected</item>
     </plurals>
 </resources>

@@ -45,7 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -191,7 +191,7 @@ private fun IconPickerSheet(
 
 @Composable
 private fun PackIcon(manager: IconPackManager, pack: String, name: String, modifier: Modifier) {
-    val density = LocalContext.current.resources.displayMetrics.densityDpi
+    val density = LocalResources.current.displayMetrics.densityDpi
     val bitmap by produceState<ImageBitmap?>(null, pack, name) {
         value = withContext(Dispatchers.IO) {
             runCatching { manager.drawable(pack, name, density)?.toBitmap(144, 144)?.asImageBitmap() }.getOrNull()

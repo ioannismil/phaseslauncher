@@ -1,7 +1,5 @@
 package com.phaseslauncher.ui.home
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -33,7 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,13 +41,14 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.phaseslauncher.R
 import com.phaseslauncher.data.settings.DateFormatOption
 import com.phaseslauncher.ui.theme.LocalWallpaperContent
 import com.phaseslauncher.ui.theme.onWallpaper
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 /**
  * Time, with the date and battery level underneath; each part is optional. Ticks on the
@@ -77,9 +78,9 @@ fun ClockHeader(
         }
     }
 
-    // Re-read on every tick so 12/24h and locale changes apply without a restart.
-    val locale = Locale.getDefault()
-    val timePattern = DateFormat.getBestDateTimePattern(locale, if (DateFormat.is24HourFormat(context)) stringResource(R.string.hm) else "hm")
+    // The locale comes from the configuration, so a language change recomposes; 12/24h is re-read on every tick.
+    val locale = LocalConfiguration.current.locales[0]
+    val timePattern = DateFormat.getBestDateTimePattern(locale, if (DateFormat.is24HourFormat(context)) "Hm" else "hm")
         .replace("a", "").trim()
 
     Column(

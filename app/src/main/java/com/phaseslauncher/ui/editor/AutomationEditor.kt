@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -297,7 +298,7 @@ private fun ScheduleDialog(initial: ThemeRule.Schedule, onDone: (ThemeRule) -> U
                         FilterChip(
                             selected = day in days,
                             onClick = { days = if (day in days) days - day else days + day },
-                            label = { Text(day.getDisplayName(TextStyle.SHORT, Locale.getDefault())) },
+                            label = { Text(day.getDisplayName(TextStyle.SHORT, LocalConfiguration.current.locales[0])) },
                         )
                     }
                 }

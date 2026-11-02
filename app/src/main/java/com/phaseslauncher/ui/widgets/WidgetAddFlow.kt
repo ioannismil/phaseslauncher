@@ -55,7 +55,7 @@ class WidgetAddFlow(
 
     private fun configureOrPlace() {
         val (id, info) = pending ?: return
-        val configurationOptional = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+        val configurationOptional = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL != 0
         if (info.configure == null || configurationOptional) {
             place()

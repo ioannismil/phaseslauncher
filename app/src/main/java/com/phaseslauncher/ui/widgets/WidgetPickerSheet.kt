@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -115,10 +116,10 @@ fun WidgetPickerSheet(
 @Composable
 private fun WidgetCard(option: WidgetOption, onClick: () -> Unit) {
     val context = LocalContext.current
-    val preview by produceState<ImageBitmap?>(null, option.info) {
+    val density = LocalResources.current.displayMetrics.densityDpi
+    val preview by produceState<ImageBitmap?>(null, option.info, density) {
         value = withContext(Dispatchers.IO) {
             runCatching {
-                val density = context.resources.displayMetrics.densityDpi
                 (option.info.loadPreviewImage(context, density) ?: option.info.loadIcon(context, density))
                     ?.let { d ->
                         val w = d.intrinsicWidth.coerceIn(1, 600)

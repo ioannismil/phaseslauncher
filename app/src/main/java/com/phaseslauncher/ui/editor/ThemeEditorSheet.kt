@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -199,7 +200,7 @@ fun ThemeEditorSheet(
                             when (appCount) {
                                 0 -> stringResource(R.string.apps)
                                 1 -> stringResource(R.string.apps_1_selected)
-                                else -> stringResource(R.string.apps_selected, appCount)
+                                else -> pluralStringResource(R.plurals.apps_selected, appCount, appCount)
                             },
                         )
                         OutlinedTextField(

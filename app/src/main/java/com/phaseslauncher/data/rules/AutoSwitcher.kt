@@ -296,6 +296,7 @@ class AutoSwitcher(
         runCatching { context.getSystemService(WifiManager::class.java)?.connectionInfo?.ssid?.cleanSsid() }.getOrNull()
 
     /** Android quotes network names and hides them as "<unknown ssid>" without permission. */
+    @SuppressLint("InlinedApi") // UNKNOWN_SSID is a constant inlined at compile time
     private fun String.cleanSsid(): String? = removeSurrounding("\"").takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID }
 
     // endregion

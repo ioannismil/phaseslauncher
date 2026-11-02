@@ -1,5 +1,6 @@
 package com.phaseslauncher.data.widgets
 
+import android.annotation.SuppressLint
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
@@ -147,6 +148,7 @@ class LauncherWidgetHostView(context: Context) : AppWidgetHostView(context) {
         return longPressed
     }
 
+    @SuppressLint("ClickableViewAccessibility") // taps go to super.onTouchEvent, which calls performClick
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
             removeCallbacks(longPressRunnable)
