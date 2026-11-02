@@ -4,6 +4,12 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+- Phases is left out of Google's cloud backup, so your places, Wi-Fi and Bluetooth names and app history stay on your phone. Moving to a new phone with a direct phone-to-phone transfer still brings everything along, and *Settings → Backup* to a file works as before.
+
+### Fixed
+- Leaving the screen in the middle of an import, backup or share no longer shows it as failed.
+
 ## [0.3.3] - 2026-11-02
 
 ### Added
