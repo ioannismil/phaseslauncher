@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.themelauncher.baselineprofile"
+    namespace = "com.phaseslauncher.baselineprofile"
     compileSdk = 37
 
     defaultConfig {

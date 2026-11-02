@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ThemeLauncher"
+rootProject.name = "Phases"
 include(":app")
 include(":baselineprofile")

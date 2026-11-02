@@ -62,13 +62,13 @@
     </queries>
 
     <application
-        android:name=".ThemeLauncherApp"
+        android:name=".PhasesApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ThemeLauncher">
+        android:theme="@style/Theme.Phases">
 
         <activity
             android:name=".MainActivity"
@@ -101,7 +101,7 @@
             android:excludeFromRecents="true"
             android:exported="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.ThemeLauncher.PinItem">
+            android:theme="@style/Theme.Phases.PinItem">
             <intent-filter>
                 <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
             </intent-filter>
@@ -110,19 +110,19 @@
             </intent-filter>
         </activity>
 
-        <!-- Shared themes: a themelauncher:// link (e.g. from a QR code), a theme file, or text with a link. -->
+        <!-- Shared themes: a phases:// link (e.g. from a QR code), a theme file, or text with a link. -->
         <activity
             android:name=".ui.share.ImportThemeActivity"
             android:autoRemoveFromRecents="true"
             android:excludeFromRecents="true"
             android:exported="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.ThemeLauncher.PinItem">
+            android:theme="@style/Theme.Phases.PinItem">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="themelauncher" android:host="theme" />
+                <data android:scheme="phases" android:host="phase" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

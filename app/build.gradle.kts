@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.themelauncher"
+    namespace = "com.phaseslauncher"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.themelauncher"
+        applicationId = "com.phaseslauncher"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
