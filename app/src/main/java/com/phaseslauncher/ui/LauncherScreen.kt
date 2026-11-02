@@ -161,6 +161,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     var pastingTheme by remember { mutableStateOf(false) }
     var incomingLayout by remember { mutableStateOf<LauncherLayout?>(null) }
     val banner by viewModel.homeBanner.collectAsStateWithLifecycle()
+    val newApp by viewModel.newApp.collectAsStateWithLifecycle()
     val pendingLaunch by viewModel.pendingLaunch.collectAsStateWithLifecycle()
     val uiScope = rememberCoroutineScope()
     val customizations by viewModel.customizations.collectAsStateWithLifecycle()
@@ -698,6 +699,20 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 viewModel.addAppToThemes(app, ids)
             },
             onDismiss = { addToThemesApp = null },
+        )
+    }
+
+    // Asked on the home screen, not over the drawer, settings, setup or another dialog.
+    newApp?.takeIf { !drawerOpen && !showSettings && showOnboarding == false && addToThemesApp == null && pendingLaunch == null }?.let { app ->
+        AddToThemesDialog(
+            app = app,
+            themes = homeState.themes,
+            alreadyIn = emptySet(),
+            title = stringResource(R.string.new_app_add_to_a_phase, app.label),
+            message = stringResource(R.string.you_just_installed_it_tick_the_phases_it_belongs_on),
+            dismissLabel = stringResource(R.string.skip),
+            onConfirm = { ids -> viewModel.answerNewApp(app, ids) },
+            onDismiss = { viewModel.answerNewApp(app, emptySet()) },
         )
     }
 

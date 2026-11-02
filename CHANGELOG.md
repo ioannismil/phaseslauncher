@@ -4,6 +4,9 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+- When you install an app, Phases asks which phases it goes on: tick them and tap *Add*, or *Skip*. Turn it off in Settings → Suggestions → New apps.
+
 ## [0.3.1] - 2026-11-02
 
 **A new icon.** Four parts of the day around the moon, in the phase colors.

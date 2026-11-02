@@ -85,6 +85,7 @@
     <string name="apps_for_a_phase">Apps for a phase</string>
     <string name="apps_travel_by_name_whoever_adds_it_gets_the_app">Apps travel by name: whoever adds it gets the apps they have installed, and a list of the rest.</string>
     <string name="ask_first">Ask first</string>
+    <string name="ask_which_phases_a_newly_installed_app_goes_on">Ask which phases a newly installed app goes on</string>
     <string name="at_a_place">At a place</string>
     <string name="at_the_start">At the start</string>
     <string name="at_the_top">At the top</string>
@@ -326,6 +327,8 @@
     <string name="needs_usage_access_to_know_how_long_you_ve_used">Needs usage access to know how long you\'ve used apps today.</string>
     <string name="network_name">Network name</string>
     <string name="never">Never</string>
+    <string name="new_app_add_to_a_phase">Add %1$s to a phase?</string>
+    <string name="new_apps">New apps</string>
     <string name="new_folder">New folder</string>
     <string name="new_notifications">New notifications</string>
     <string name="new_theme">New phase</string>
@@ -624,6 +627,7 @@
     <string name="work">Work</string>
     <string name="work_apps_are_paused">Work apps are paused</string>
     <string name="you_can_change_everything_later_by_long_pressing">You can change everything later by long-pressing a phase.</string>
+    <string name="you_just_installed_it_tick_the_phases_it_belongs_on">You just installed it. Tick the phases it belongs on.</string>
     <string name="you_need_at_least_one_phase">You need at least one phase</string>
     <string name="you_re_all_set">You\'re all set</string>
     <string name="you_re_at">You\'re at %1$s</string>
