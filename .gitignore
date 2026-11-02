@@ -10,3 +10,6 @@
 .cxx/
 .kotlin/
 /baselineprofile/build/
+# Signing keys never go in the repo; CI gets the release key from the repository's secrets.
+*.jks
+*.keystore

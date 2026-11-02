@@ -1,0 +1,86 @@
+# Publishes a signed release APK on the Releases page.
+#
+# Either push a version tag:   git tag v0.4.0 && git push origin v0.4.0
+# or run it from the Actions tab ("Release" → "Run workflow") with a version; that tags the
+# commit it runs on.
+#
+# Needs these repository secrets: KEYSTORE_BASE64 (the keystore file, base64), KEYSTORE_PASSWORD,
+# KEY_ALIAS and KEY_PASSWORD.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, like 0.4.0
+        required: true
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Work out the version
+        id: version
+        env:
+          INPUT: ${{ inputs.version }}
+        run: |
+          v="${INPUT:-$GITHUB_REF_NAME}"
+          v="${v#v}"
+          if ! [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::The version must look like 1.2.3, not '$v'"
+            exit 1
+          fi
+          # 1.2.3 -> 10203, so every release installs over the one before.
+          code=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))
+          echo "name=$v" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Unpack the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::The KEYSTORE_BASE64 secret isn't set, so the release can't be signed"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Test and build
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: >
+          ./gradlew :app:testDebugUnitTest :app:assembleRelease
+          -PversionName=${{ steps.version.outputs.name }}
+          -PversionCode=${{ steps.version.outputs.code }}
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          apk="phases-$VERSION.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          sha256sum "$apk" > "$apk.sha256"
+          gh release create "v$VERSION" "$apk" "$apk.sha256" \
+            --title "Phases $VERSION" \
+            --target "$GITHUB_SHA" \
+            --generate-notes

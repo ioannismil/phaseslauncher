@@ -14,10 +14,24 @@ android {
         applicationId = "com.phaseslauncher"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.2.0"
+        // Release builds on CI pass these from the git tag (see .github/workflows/release.yml).
+        versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // The release key, when the environment provides it (CI does, from the repo's secrets).
+    val releaseStore = providers.environmentVariable("SIGNING_STORE_FILE").orNull
+    signingConfigs {
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = providers.environmentVariable("SIGNING_STORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("SIGNING_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("SIGNING_KEY_PASSWORD").get()
+            }
+        }
     }
 
     buildTypes {
@@ -25,8 +39,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // For measuring on a device: ./gradlew installRelease -PdebugSignedRelease
-            if (project.hasProperty("debugSignedRelease")) signingConfig = signingConfigs.getByName("debug")
+            when {
+                // For measuring on a device: ./gradlew installRelease -PdebugSignedRelease
+                project.hasProperty("debugSignedRelease") -> signingConfig = signingConfigs.getByName("debug")
+                releaseStore != null -> signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

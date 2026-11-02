@@ -4,6 +4,23 @@ An Android home-screen launcher built around **phases**: named sets of apps (Gam
 
 Kotlin · Jetpack Compose · Material 3 · Room · DataStore · minSdk 26, target/compile SDK 37.
 
+## Download
+
+Get the latest APK from [Releases](https://github.com/ioannismil/phaseslauncher/releases/latest) and open it on your phone (Android 8.0+). Each release installs over the one before.
+
+## Releasing
+
+Every push to `main` and every pull request is built, tested and linted (*CI* workflow). To publish a version, push a tag:
+
+```
+git tag v0.4.0
+git push origin v0.4.0
+```
+
+or run *Release* from the Actions tab with the version. The *Release* workflow builds a signed APK and publishes it on the Releases page with notes generated from the commits since the last release.
+
+Signing uses the repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. Keep a backup of the keystore: Android only installs updates signed with the same key.
+
 ## Build and run
 
 Requires JDK 17 and an Android Studio recent enough for AGP 9.4 / API 37, or just the command line:
