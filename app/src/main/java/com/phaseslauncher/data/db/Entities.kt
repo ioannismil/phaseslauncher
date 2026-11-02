@@ -49,7 +49,11 @@ data class ThemeEntity(
 data class ThemeAppEntity(
     @ColumnInfo(name = "theme_id") val themeId: Long,
     @ColumnInfo(name = "app_key") val appKey: String,
+    /** Reading order on the home grid (row by row), which the editor and sharing list them in. */
     val position: Int,
+    /** The item's cell on the home grid; null until it's placed (it then takes the first free one). */
+    @ColumnInfo(name = "cell_x") val cellX: Int? = null,
+    @ColumnInfo(name = "cell_y") val cellY: Int? = null,
 )
 
 /** A dock slot. [dockId] is [SHARED_DOCK] for the dock shared by all themes, else a theme id. */
@@ -83,7 +87,13 @@ data class ThemeWidgetEntity(
     /** Flattened provider ComponentName, kept to detect widgets whose app was uninstalled. */
     val provider: String,
     val position: Int,
+    /** Height before widgets had a size in cells; still decides [spanY] for widgets not yet placed. */
     @ColumnInfo(name = "height_dp") val heightDp: Int,
+    /** Top-left cell and size in cells on the home grid; null until it's placed. */
+    @ColumnInfo(name = "cell_x") val cellX: Int? = null,
+    @ColumnInfo(name = "cell_y") val cellY: Int? = null,
+    @ColumnInfo(name = "span_x") val spanX: Int? = null,
+    @ColumnInfo(name = "span_y") val spanY: Int? = null,
 )
 
 /** A user's custom name and/or icon for one app. */

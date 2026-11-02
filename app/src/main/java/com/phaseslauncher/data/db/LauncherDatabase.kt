@@ -21,7 +21,7 @@ import androidx.room.RoomDatabase
         LaunchEventEntity::class,
         ThemeSwitchEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         // v2: per-theme wallpaper/sound/dock, widgets, app customizations, usage, rules.
@@ -32,6 +32,8 @@ import androidx.room.RoomDatabase
         AutoMigration(from = 3, to = 4),
         // v5: per-theme automation and focus settings, launch and switch history for suggestions.
         AutoMigration(from = 4, to = 5),
+        // v6: cells on the home grid for items and widgets (free placement).
+        AutoMigration(from = 5, to = 6),
     ],
 )
 abstract class LauncherDatabase : RoomDatabase() {

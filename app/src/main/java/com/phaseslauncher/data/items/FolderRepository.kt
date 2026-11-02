@@ -29,8 +29,11 @@ class FolderRepository(private val database: LauncherDatabase) {
     suspend fun createWith(themeId: Long, itemKey: String, name: String): Long = database.withTransaction {
         val folderId = dao.insert(FolderEntity(themeId = themeId, name = name.trim().ifBlank { DEFAULT_NAME }))
         val folderKey = ItemKeys.folder(folderId)
+        val item = themeDao.getAssignments(themeId).firstOrNull { it.appKey == itemKey }
         val keys = themeDao.getThemeAppKeys(themeId)
         themeDao.setApps(themeId, if (itemKey in keys) keys.map { if (it == itemKey) folderKey else it } else keys + folderKey)
+        // The folder takes the item's cell.
+        if (item?.cellX != null) themeDao.setCell(themeId, folderKey, item.cellX, item.cellY)
         dao.addItem(folderId, itemKey)
         folderId
     }
@@ -66,7 +69,11 @@ class FolderRepository(private val database: LauncherDatabase) {
         val others = keys.filter { it != folderKey }.toSet()
         val inserted = contents.filter { it !in others }
         val newKeys = if (folderKey in keys) keys.flatMap { if (it == folderKey) inserted else listOf(it) } else keys + inserted
+        val cell = themeDao.getAssignments(folder.themeId).firstOrNull { it.appKey == folderKey }
         themeDao.setApps(folder.themeId, newKeys)
+        // The first app takes the folder's cell; the others find free ones.
+        val first = inserted.firstOrNull()
+        if (first != null && cell?.cellX != null) themeDao.setCell(folder.themeId, first, cell.cellX, cell.cellY)
         dao.delete(folderId)
     }
 

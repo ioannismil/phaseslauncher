@@ -21,8 +21,19 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/** A widget placed on a theme. */
-data class ThemeWidget(val appWidgetId: Int, val themeId: Long, val heightDp: Int)
+/**
+ * A widget placed on a theme. [cellX], [cellY] (its top-left) and [spanX], [spanY] (its size) are in
+ * home grid cells; null until it's been placed, when it's full width and as tall as [heightDp].
+ */
+data class ThemeWidget(
+    val appWidgetId: Int,
+    val themeId: Long,
+    val heightDp: Int,
+    val cellX: Int? = null,
+    val cellY: Int? = null,
+    val spanX: Int? = null,
+    val spanY: Int? = null,
+)
 
 /** Height presets offered when resizing a widget. */
 enum class WidgetSize(@StringRes override val labelRes: Int, val heightDp: Int) : Labeled {
@@ -40,9 +51,9 @@ class WidgetRepository(context: Context, private val dao: WidgetDao) {
     val host = LauncherWidgetHost(appContext, HOST_ID)
     private val userManager = appContext.getSystemService(UserManager::class.java)
 
-    /** Theme id → its widgets, top to bottom. */
+    /** Theme id → its widgets, in the order they were added. */
     val widgets: Flow<Map<Long, List<ThemeWidget>>> = dao.observeAll().map { rows ->
-        rows.groupBy({ it.themeId }, { ThemeWidget(it.appWidgetId, it.themeId, it.heightDp) })
+        rows.groupBy({ it.themeId }, { ThemeWidget(it.appWidgetId, it.themeId, it.heightDp, it.cellX, it.cellY, it.spanX, it.spanY) })
     }
 
     /** Every widget available to add, across personal and work profiles, sorted by app then name. */
@@ -77,9 +88,7 @@ class WidgetRepository(context: Context, private val dao: WidgetDao) {
 
     suspend fun removeAll() = dao.getAll().forEach { remove(it.appWidgetId) }
 
-    suspend fun setHeight(appWidgetId: Int, heightDp: Int) = dao.setHeight(appWidgetId, heightDp)
-
-    suspend fun reorder(orderedIds: List<Int>) = dao.reorder(orderedIds)
+    suspend fun setPlacement(appWidgetId: Int, x: Int, y: Int, spanX: Int, spanY: Int) = dao.setPlacement(appWidgetId, x, y, spanX, spanY)
 
     /** Drops widgets whose app was uninstalled (the system no longer knows the id). */
     suspend fun pruneOrphans() {

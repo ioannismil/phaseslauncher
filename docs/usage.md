@@ -24,12 +24,13 @@ Everything Phases can do, and where to find it. Back to the [README](../README.m
 | Phase arc | Release on **+** / **Settings** | New phase / Launcher settings |
 | Anywhere on home | Swipe up / swipe down / double-tap | Configurable in Launcher settings → Gestures (default: app drawer / notifications / nothing) |
 | App (grid, dock, drawer) | Long-press | App shortcuts (e.g. New tab) + app menu (drawer: hide, uninstall) |
-| App (grid, dock) | Long-press, then drag | Reorder |
+| App, folder or widget (home) | Long-press, then drag | Put it in any cell; whatever's there moves to the nearest free spot |
+| App (dock) | Long-press, then drag | Reorder |
 | Empty space | Long-press | All apps, new phase, add widget, wallpaper, launcher settings |
-| Widget | Long-press | Resize, move up/down, remove |
+| Widget | Long-press | Resize (width and height in cells), remove |
 | App (grid, dock, drawer) | Long-press → Customize… | Rename, or pick an icon from an icon pack |
 | App or shortcut (grid) | Long-press → Add to folder…, or drag onto another app or a folder and hold | Put it in a folder on this phase (new or existing) |
-| App (drawer) | Long-press, then drag | Carry it to home: drop between apps, onto an app or folder, or onto the dock |
+| App (drawer) | Long-press, then drag | Carry it to home: drop it in a cell, onto an app or folder, or onto the dock |
 | Drawer | Drag the A–Z letters on the right | Jump to apps by first letter (when sorted A–Z) |
 | Folder | Tap / long-press | Open it / Rename, Ungroup. Inside: long-press an app to move it out or remove it, long-press and drag to reorder |
 | Another app's "Add to home screen" | Pick a phase | The shortcut (or widget) goes on that phase |
@@ -41,7 +42,7 @@ Everything Phases can do, and where to find it. Back to the [README](../README.m
 - **Clock & status bar:** time, date (with a choice of format) and battery percentage each on or off independently — any mix, e.g. only the time or only the battery (all off hides the header so apps use the full height); phase-name pill on/off (off: switch phases from the edge bar); position Left / Center / Right (the pill follows); status bar shown or hidden while Phases is on screen (swipe down from the top edge to see it briefly). The percentage in the system status bar itself can't be changed by apps.
 - **Gestures:** swipe up, swipe down and double-tap can each open the drawer, search, notifications, quick settings, lock the screen (needs the accessibility service), open the phase switcher, go to the next/previous phase, open an app, or do nothing.
 - **App drawer:** sort A–Z (with a letter rail), most used or recently installed; optionally open the keyboard whenever the drawer opens.
-- **Home screen:** fit icons to the screen (columns and icon size chosen so the phase fits without scrolling; the icon size setting then sizes the dock), grid columns (3–6), icon size, app labels, notification dots, swipe down for notifications, wallpaper, default home app.
+- **Home screen:** grid columns (3–6), fit icons to the screen (icons shrink so the rows you use fit without scrolling; the icon size setting then sizes the dock), icon arrangement (where apps go until you place them yourself), icon size, app labels, notification dots, swipe down for notifications, wallpaper, default home app.
 - **Notification dots** need notification access; turning the switch on takes you to the system screen to grant it.
 - **Themed icons** (Android 13+): apps' monochrome icons, tinted with the active phase's color. Apps without one keep their own icon; icon packs and hand-picked icons take priority.
 - **Apps:** hidden apps (hidden from the drawer and its search, not from phases or the dock).
@@ -51,7 +52,7 @@ Work profile and Private Space (Android 15+) apps get their own drawer tabs, wit
 
 ## Per-phase options (phase editor)
 
-- **Widgets:** each phase has its own widgets, shown above its apps.
+- **Widgets:** each phase has its own widgets. Place them anywhere on its grid like apps, and resize them in cells.
 - **Wallpaper:** applied when you switch to the phase. Phases without one keep whatever wallpaper is set (Android doesn't let launchers read and restore your previous wallpaper).
 - **Own dock:** the phase gets its own favorites instead of the shared dock.
 - **Sound:** Sound on, Vibrate, Silent, or Do Not Disturb (priority / alarms only). Switching to a phase that doesn't change sound restores your own settings. Silent and DND need Do Not Disturb access.

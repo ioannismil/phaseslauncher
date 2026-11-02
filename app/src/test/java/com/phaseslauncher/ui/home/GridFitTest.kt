@@ -3,61 +3,57 @@ package com.phaseslauncher.ui.home
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.ceil
 
 class GridFitTest {
 
     private val metrics = GridMetrics(labelHeight = 22f)
 
-    /** Total height the grid needs for [fit], using the same formula as the layout. */
-    private fun neededHeight(count: Int, fit: GridFit): Float {
-        val rows = ceil(count / fit.columns.toFloat()).toInt()
-        val row = fit.iconSizeDp + metrics.tilePaddingVertical + metrics.labelHeight
-        return metrics.gridPaddingVertical + rows * row + (rows - 1) * metrics.rowSpacing
-    }
+    /** Total height [rows] rows need at [iconDp], using the same formula as the layout. */
+    private fun neededHeight(rows: Int, iconDp: Int): Float = metrics.gridPaddingVertical + rows * metrics.rowHeight(iconDp.toFloat())
 
-    private fun neededWidth(fit: GridFit): Float =
-        metrics.gridPaddingHorizontal + fit.columns * (fit.iconSizeDp + metrics.tilePaddingHorizontal)
+    private fun neededWidth(columns: Int, iconDp: Int): Float =
+        metrics.gridPaddingHorizontal + columns * (iconDp + metrics.tilePaddingHorizontal)
 
     @Test
-    fun fewAppsGetTheLargestIconsInTheFewestColumns() {
-        val fit = fitGrid(2, 360f, 520f, metrics)
-        assertEquals(GridFit(3, 88), fit)
+    fun fewRowsGetTheLargestIcons() {
+        assertEquals(88, fitIconSize(rows = 2, columns = 3, widthDp = 360f, heightDp = 520f, metrics = metrics))
     }
 
     @Test
     fun resultAlwaysFitsWhenPossible() {
-        for (count in 1..60) {
-            val fit = fitGrid(count, 360f, 520f, metrics)
-            if (fit.iconSizeDp > 36) {
-                assertTrue("count=$count $fit too tall", neededHeight(count, fit) <= 520f)
-                assertTrue("count=$count $fit too wide", neededWidth(fit) <= 360f)
+        for (columns in 3..6) {
+            for (rows in 1..12) {
+                val size = fitIconSize(rows, columns, 360f, 520f, metrics)
+                if (size > 36) {
+                    assertTrue("rows=$rows columns=$columns $size too tall", neededHeight(rows, size) <= 520f)
+                    assertTrue("rows=$rows columns=$columns $size too wide", neededWidth(columns, size) <= 360f)
+                }
             }
         }
     }
 
     @Test
-    fun iconsShrinkAsAppsAreAdded() {
+    fun iconsShrinkAsRowsAreAdded() {
         var previous = Int.MAX_VALUE
-        for (count in listOf(4, 12, 24, 40)) {
-            val size = fitGrid(count, 360f, 520f, metrics).iconSizeDp
-            assertTrue("count=$count: $size > $previous", size <= previous)
+        for (rows in 1..10) {
+            val size = fitIconSize(rows, 4, 360f, 520f, metrics)
+            assertTrue("rows=$rows: $size > $previous", size <= previous)
             previous = size
         }
     }
 
     @Test
-    fun manyAppsUseMoreColumns() {
-        assertTrue(fitGrid(40, 360f, 520f, metrics).columns > fitGrid(6, 360f, 520f, metrics).columns)
+    fun moreColumnsMeanNarrowerIcons() {
+        assertTrue(fitIconSize(2, 6, 360f, 520f, metrics) < fitIconSize(2, 3, 360f, 520f, metrics))
     }
 
     @Test
-    fun tooManyAppsFallBackToTheSmallestIcons() {
-        assertEquals(GridFit(8, 36), fitGrid(400, 360f, 520f, metrics))
+    fun tooManyRowsFallBackToTheSmallestIcons() {
+        assertEquals(36, fitIconSize(rows = 40, columns = 4, widthDp = 360f, heightDp = 520f, metrics = metrics))
     }
 
     @Test
-    fun noAppsIsHarmless() {
-        assertEquals(GridFit(3, 88), fitGrid(0, 360f, 520f, metrics))
+    fun noRowsIsHarmless() {
+        assertEquals(88, fitIconSize(rows = 0, columns = 4, widthDp = 360f, heightDp = 520f, metrics = metrics))
     }
 }

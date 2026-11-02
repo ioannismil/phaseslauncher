@@ -7,6 +7,7 @@ import com.phaseslauncher.R
 import com.phaseslauncher.data.Labeled
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.focus.ThemeFocus
+import com.phaseslauncher.data.items.GridCell
 import com.phaseslauncher.data.rules.AutoEndAction
 import com.phaseslauncher.data.rules.RuleMatch
 import com.phaseslauncher.data.rules.RuleSetting
@@ -66,6 +67,8 @@ data class Theme(
     val gridLayout: String? = null,
     val automation: ThemeAutomation = ThemeAutomation(),
     val focus: ThemeFocus = ThemeFocus(),
+    /** Where items sit on the home grid, by key; items without a cell take the first free one. */
+    val cells: Map<String, GridCell> = emptyMap(),
 ) {
     /** The rules that count when switching automatically. */
     val activeRules: List<ThemeRule> get() = rules.filter { it.enabled }.map { it.rule }

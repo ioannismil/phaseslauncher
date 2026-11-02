@@ -89,7 +89,6 @@
     <string name="at_a_place">At a place</string>
     <string name="at_the_start">At the start</string>
     <string name="at_the_top">At the top</string>
-    <string name="auto">Auto</string>
     <string name="automation_apps">Automation apps</string>
     <string name="automation_apps_help">Send the broadcast %1$s to the package %2$s, with the phase\'s name in the extra “%3$s”. Apps that run app shortcuts, like Samsung Modes and Routines, can use the “Switch to …” shortcuts instead; those work without this setting.</string>
     <string name="back">Back</string>
@@ -153,7 +152,6 @@
     <string name="create_theme">Create phase</string>
     <string name="create_your_first_theme">Create your first phase</string>
     <string name="create_your_themes">Create your phases</string>
-    <string name="current_size">Current size</string>
     <string name="customize">Customize…</string>
     <string name="customize_2">Customize %1$s</string>
     <string name="customize_3">Customize</string>
@@ -228,6 +226,7 @@
     <string name="group_your_apps_into_themes_like_gaming_or_work">Group your apps into phases like Gaming or Work and switch between them with one tap. </string>
     <string name="headphones">Headphones</string>
     <string name="headphones_connected">Headphones connected</string>
+    <string name="height">Height</string>
     <string name="hidden_apps">Hidden apps</string>
     <string name="hidden_apps_don_t_appear_in_the_drawer_or_its_se">Hidden apps don\'t appear in the drawer or its search. They stay in your phases and dock.</string>
     <string name="hidden_apps_get_the_room">Hidden; apps get the room</string>
@@ -247,13 +246,13 @@
     <string name="how_it_switches">How it switches</string>
     <string name="icon">Icon</string>
     <string name="icon_arrangement">Icon arrangement</string>
-    <string name="icon_arrangement_description">Which corner the first app of a phase starts in, and which way the rest follow.</string>
+    <string name="icon_arrangement_description">Where apps go until you move them yourself: which corner the first one starts in, and which way the rest follow.</string>
     <string name="icon_pack">Icon pack</string>
     <string name="icon_pack_for_this_theme">Icon pack for this phase</string>
     <string name="icon_pack_not_installed">Icon pack (not installed)</string>
     <string name="icon_packs_made_for_nova_adw_or_apex_launchers_w">Icon packs made for Nova, ADW or Apex launchers work here.</string>
     <string name="icon_size">Icon size</string>
-    <string name="icons_grow_or_shrink_so_each_theme_fits_without">Icons grow or shrink so each phase fits without scrolling</string>
+    <string name="icons_grow_or_shrink_so_each_theme_fits_without">Icons grow or shrink so the rows you use fit without scrolling</string>
     <string name="icons_take_the_color_of_the_theme_you_re_on_apps">Icons take the color of the phase you\'re on (apps that support it)</string>
     <string name="import_a_phase_file">Import a phase file</string>
     <string name="import_dock">Import dock</string>
@@ -308,9 +307,9 @@
     <string name="most_used">Most used</string>
     <string name="move_down">Move down</string>
     <string name="move_down_2">Move %1$s down</string>
-    <string name="move_earlier">Move earlier</string>
-    <string name="move_later">Move later</string>
+    <string name="move_left">Move left</string>
     <string name="move_out_of_folder">Move out of folder</string>
+    <string name="move_right">Move right</string>
     <string name="move_up">Move up</string>
     <string name="move_up_2">Move %1$s up</string>
     <string name="music">Music</string>
@@ -319,6 +318,7 @@
     <string name="n_of_max">%1$d of %2$d</string>
     <string name="name">Name</string>
     <string name="name_e_g_gym">Name (e.g. Gym)</string>
+    <string name="narrower">Narrower</string>
     <string name="needs_android_13_or_newer">Needs Android 13 or newer</string>
     <string name="needs_do_not_disturb_access_to_work">Needs Do Not Disturb access to work.</string>
     <string name="needs_notification_access_tap_to_allow">Needs notification access — tap to allow</string>
@@ -364,7 +364,7 @@
     <string name="notifications">Notifications</string>
     <string name="nova_novabackup_lawnchair_and_other_launcher3_ba">Nova (.novabackup), Lawnchair and other Launcher3-based backups</string>
     <string name="off">Off</string>
-    <string name="off_fixed_columns_and_icon_size">Off — fixed columns and icon size</string>
+    <string name="off_fixed_columns_and_icon_size">Off — icons stay the size you pick</string>
     <string name="off_only_their_notification_dots_are_hidden">Off: only their notification dots are hidden</string>
     <string name="offer_to_switch_when_you_open_an_app_from_anothe">Offer to switch when you open an app from another phase</string>
     <string name="ok">OK</string>
@@ -441,6 +441,8 @@
     <string name="replaces_your_current_themes_dock_and_settings">Replaces your current phases, dock and settings</string>
     <string name="reset_focus_settings">Reset focus settings</string>
     <string name="reset_to_default">Reset to default</string>
+    <string name="resize">Resize</string>
+    <string name="resize_widget">Resize widget</string>
     <string name="restore">Restore</string>
     <string name="restore_from_backup">Restore from backup</string>
     <string name="restore_from_backup_2">Restore from backup?</string>
@@ -481,6 +483,7 @@
     <string name="share_phase">Share phase</string>
     <string name="shared_phase">Shared phase</string>
     <string name="shortcut_from">%1$s, shortcut from %2$s</string>
+    <string name="shorter">Shorter</string>
     <string name="show_a_pause_screen_first">Show a pause screen first</string>
     <string name="show_any_mix_at_the_top_of_the_home_screen">Show any mix at the top of the home screen.</string>
     <string name="show_dismissed_suggestions_again">Show dismissed suggestions again</string>
@@ -547,6 +550,7 @@
     <string name="switching_to_a_theme_that_doesn_t_change_sound_p">Switching to a phase that doesn\'t change sound puts back your own settings.</string>
     <string name="system">System</string>
     <string name="take_a_breath_still_want_it_it_will_open_freely">Take a breath. Still want it? It will open freely for %1$s.</string>
+    <string name="taller">Taller</string>
     <string name="tap_the_search_bar_to_search_the_search_gesture">Tap the search bar to search; the Search gesture always opens it</string>
     <string name="tap_to_add_apps_to_the_dock">Tap to add apps to the dock</string>
     <string name="tasker_and_similar_apps_can_switch_phases">Tasker and similar apps can switch phases in the background</string>
@@ -616,8 +620,10 @@
     <string name="wi_fi">Wi-Fi</string>
     <string name="wi_fi_network">Wi-Fi network</string>
     <string name="wi_fi_networks_bluetooth_devices_and_places">Wi-Fi networks, Bluetooth devices and places</string>
+    <string name="wider">Wider</string>
     <string name="widget_not_added_permission_wasn_t_granted">Widget not added: permission wasn\'t granted</string>
     <string name="widgets_aren_t_carried_over">Widgets aren\'t carried over.</string>
+    <string name="width">Width</string>
     <string name="wins_over_phases_with_a_lower_one_when_both_appl">%1$s – wins over phases with a lower one when both apply</string>
     <string name="wired_usb_or_bluetooth">Wired, USB or Bluetooth</string>
     <string name="within">Within</string>

@@ -4,6 +4,17 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-02
+
+### Added
+- Put apps, folders and widgets anywhere on a phase's home screen: long-press and drag to any cell, gaps and all. Whatever's in the way moves to the nearest free spot.
+- Widgets sit in the grid next to apps and can be resized in cells (long-press → *Resize*).
+
+### Changed
+- *Fit icons to the screen* keeps your column count and only shrinks icons so your rows fit.
+- *Icon arrangement* now decides where apps go until you place them yourself.
+- Backups include where everything is on the home screen.
+
 ## [0.3.2] - 2026-11-02
 
 **New apps find their phase.** Install an app and Phases asks where it goes.
