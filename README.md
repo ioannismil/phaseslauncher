@@ -17,6 +17,10 @@
   <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/github/license/ioannismil/phaseslauncher?color=lightgrey"></a>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/hero.webp" width="300" alt="Swiping in from the screen edge to switch from the Work phase to Music, Photos and back, each with its own wallpaper and apps">
+</p>
+
 ---
 
 Most launchers show you everything, all the time. **Phases** shows you what you need *right now*. A phase is a named set of apps with its own look and behavior: your Work phase can show Mail and Calendar and silence the phone, while Weekend brings back the games and the music. Swipe in from the edge of the screen, slide to a phase, let go, and the whole home screen changes.
