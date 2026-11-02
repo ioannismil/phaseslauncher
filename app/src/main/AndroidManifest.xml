@@ -132,6 +132,32 @@
             </intent-filter>
         </activity>
 
+        <!-- Switching phases from other apps (see api/PhaseApi.kt). The broadcast is for Tasker and the
+             like and works only while the user allows it in settings; the activity backs the "Switch to"
+             app shortcuts and phases://switch links, for apps that open shortcuts or activities. -->
+        <!-- No permission on purpose: Tasker and the like can't hold one; the setting guards it instead. -->
+        <receiver
+            android:name=".api.SwitchPhaseReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.phaseslauncher.action.SWITCH_PHASE" />
+            </intent-filter>
+        </receiver>
+        <activity
+            android:name=".api.SwitchPhaseActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="phases" android:host="switch" />
+            </intent-filter>
+        </activity>
+
         <!-- Theme files handed to the share sheet. -->
         <provider
             android:name="androidx.core.content.FileProvider"

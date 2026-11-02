@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -53,6 +54,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SettingsBackupRestore
+import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.SwipeDown
@@ -111,6 +113,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.phaseslauncher.R
+import com.phaseslauncher.api.PhaseApi
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.icons.IconPackInfo
 import com.phaseslauncher.data.notifications.NotificationDotsRepository
@@ -344,6 +347,27 @@ fun SettingsScreen(
                 )
             }
             item { Option(Icons.Outlined.DeleteSweep, stringResource(R.string.clear_activity_history), stringResource(R.string.forget_the_launches_and_switches_suggestions_lea), onClick = onClearHistory) }
+
+            item { SectionHeader(stringResource(R.string.automation_apps)) }
+            item {
+                SwitchOption(
+                    Icons.Outlined.SettingsRemote,
+                    stringResource(R.string.other_apps_can_switch_phases),
+                    if (prefs.allowExternalSwitching) stringResource(R.string.tasker_and_similar_apps_can_switch_phases) else stringResource(R.string.off),
+                    prefs.allowExternalSwitching,
+                ) { on -> onUpdatePrefs { it.copy(allowExternalSwitching = on) } }
+            }
+            item {
+                // Selectable, so the action and package can be copied into Tasker.
+                SelectionContainer {
+                    Text(
+                        stringResource(R.string.automation_apps_help, PhaseApi.ACTION_SWITCH_PHASE, context.packageName, PhaseApi.EXTRA_PHASE),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    )
+                }
+            }
 
             item { SectionHeader(stringResource(R.string.clock_status_bar)) }
             item {

@@ -1,9 +1,11 @@
 package com.phaseslauncher
 
 import android.app.Application
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.StrictMode
-import android.content.Context
+import android.util.Log
+import com.phaseslauncher.api.PhaseShortcuts
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.data.apps.AppsRepository
 import com.phaseslauncher.data.apps.IconCache
@@ -41,6 +43,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -102,6 +105,16 @@ class AppContainer(context: Context) {
         }
 
     init {
+        // A "Switch to …" app shortcut per phase, for automation apps.
+        appScope.launch {
+            themeRepository.themes
+                .map { themes -> themes.map { Triple(it.id, it.name, it.accentColor) } to themes }
+                .distinctUntilChangedBy { it.first }
+                .collect { (_, themes) ->
+                    runCatching { PhaseShortcuts.update(appContext, themes) }
+                        .onFailure { Log.w("PhaseShortcuts", "Could not update shortcuts", it) }
+                }
+        }
         appScope.launch {
             appsRepository.packageEvents.collect {
                 iconCache.invalidate(it.packageName)

@@ -87,6 +87,18 @@ Work profile and Private Space (Android 15+) apps get their own drawer tabs, wit
 
 **Quick Settings tile:** add the "Phase" tile to switch phases from the notification shade.
 
+## Switching from other apps (Tasker, Samsung Modes and Routines)
+
+Other apps can switch phases, so Phases can follow your system modes instead of competing with them. A switch from another app acts like picking the phase yourself: the phase's wallpaper and sound apply, and rules that apply at that moment don't undo it. These switches don't feed schedule suggestions.
+
+- **Broadcast** (Tasker, MacroDroid, Automate, adb): first turn on Settings → Automation apps → *Other apps can switch phases*. It's off by default, because a phase can silence the phone and hold back apps. Then send:
+  - action `com.phaseslauncher.action.SWITCH_PHASE`, package `com.phaseslauncher` (Android only delivers it with the package set);
+  - extra `phase` with the phase's name (any case), or `phase_id` with its id.
+
+  In Tasker: *Send Intent* → Action as above, Extra `phase:Work`, Package `com.phaseslauncher`, Target *Broadcast Receiver*. From adb: `adb shell am broadcast -a com.phaseslauncher.action.SWITCH_PHASE -p com.phaseslauncher --es phase Work`. The result code is `-1` on success, `1` if no phase matches and `2` if the setting is off, with the reason as the result data.
+- **App shortcuts:** each phase gets a "Switch to …" shortcut, kept in step with your phases. Apps that run app shortcuts, such as Samsung Modes and Routines and Google Assistant, can use them, and they show when you long-press Phases in an app list. They don't need the setting.
+- **Link / activity:** `phases://switch?phase=Work` (or `?phase_id=12`) opened as an activity, for example with Tasker's *Send Intent*, Target *Activity*. Also works without the setting. Android doesn't let background apps start activities, so this only runs from something on screen or from an automation app the system trusts.
+
 ## Search
 
 The drawer shows suggested apps (from what you open most and most recently). Searching also finds contacts (optional permission), system settings pages, and offers a web search; Go opens the top app or searches the web. Arithmetic ("12*(3+4)", "15% of 80", "80 + 15%") and unit conversions ("10 km to mi", "70 f to c") show the answer on top; tap it to copy.
@@ -97,7 +109,7 @@ The drawer shows suggested apps (from what you open most and most recently). Sea
 - `data/notifications` — notification dots listener; `data/backup` — JSON export/import; `data/system` — notification shade, lock-screen accessibility service
 - `data/items` — folders, pinned shortcuts ("Add to home screen") and the item keys phases store; `ui/pin` — the phase picker shown for those requests
 - `data/widgets` — app widget host; `data/icons` — icon packs, custom names/icons; `data/search` — contacts, settings, web
-- `data/rules` — automatic switching rules, `RuleEngine` (which phase wins), calendar and location watchers, schedule alarm; `data/focus` — per-phase focus settings and the launch gate; `data/suggestions` — history and `SuggestionEngine`; `data/share` — phase files, links, QR codes; `data/importer` — other launchers' backups; `ui/tile` — Quick Settings tile; `data/themes/ThemeEffects` — per-phase wallpaper and sound
+- `data/rules` — automatic switching rules, `RuleEngine` (which phase wins), calendar and location watchers, schedule alarm; `data/focus` — per-phase focus settings and the launch gate; `data/suggestions` — history and `SuggestionEngine`; `data/share` — phase files, links, QR codes; `data/importer` — other launchers' backups; `ui/tile` — Quick Settings tile; `api` — switching from other apps (broadcast, shortcuts, links); `data/themes/ThemeEffects` — per-phase wallpaper and sound
 - `data/db`, `data/themes`, `data/settings` — Room (phases, assignments, favorites), repositories, DataStore
 - `LauncherViewModel` — combines everything into `HomeState` / `DrawerState`
 - `ui/home`, `ui/drawer`, `ui/editor`, `ui/onboarding` — screens; `ui/components/Reorder.kt` — drag-to-reorder

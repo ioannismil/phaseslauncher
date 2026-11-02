@@ -141,6 +141,8 @@ data class LauncherPrefs(
     val suggestSchedules: Boolean = true,
     /** Offer to switch to an app's theme when it's opened from another theme. */
     val suggestSwitching: Boolean = true,
+    /** Lets other apps switch phases with [com.phaseslauncher.api.PhaseApi.ACTION_SWITCH_PHASE]. */
+    val allowExternalSwitching: Boolean = false,
     /** Launches on a theme before an app is suggested for it. */
     val suggestionMinLaunches: Int = 5,
     /** Dismissed suggestion ids and until when (ms since epoch; [Long.MAX_VALUE] for good). */
@@ -212,6 +214,7 @@ class SettingsRepository(context: Context) {
         suggestApps = this[SUGGEST_APPS] ?: true,
         suggestSchedules = this[SUGGEST_SCHEDULES] ?: true,
         suggestSwitching = this[SUGGEST_SWITCHING] ?: true,
+        allowExternalSwitching = this[ALLOW_EXTERNAL_SWITCHING] ?: false,
         suggestionMinLaunches = this[SUGGESTION_MIN_LAUNCHES] ?: 5,
         dismissedSuggestions = this[DISMISSED_SUGGESTIONS].orEmpty().mapNotNull { entry ->
             val until = entry.substringAfterLast('|').toLongOrNull() ?: return@mapNotNull null
@@ -247,6 +250,7 @@ class SettingsRepository(context: Context) {
         this[SUGGEST_APPS] = prefs.suggestApps
         this[SUGGEST_SCHEDULES] = prefs.suggestSchedules
         this[SUGGEST_SWITCHING] = prefs.suggestSwitching
+        this[ALLOW_EXTERNAL_SWITCHING] = prefs.allowExternalSwitching
         this[SUGGESTION_MIN_LAUNCHES] = prefs.suggestionMinLaunches
         // Expired dismissals are dropped.
         val now = System.currentTimeMillis()
@@ -336,6 +340,7 @@ class SettingsRepository(context: Context) {
         val SUGGEST_APPS = booleanPreferencesKey("suggest_apps")
         val SUGGEST_SCHEDULES = booleanPreferencesKey("suggest_schedules")
         val SUGGEST_SWITCHING = booleanPreferencesKey("suggest_switching")
+        val ALLOW_EXTERNAL_SWITCHING = booleanPreferencesKey("allow_external_switching")
         val SUGGESTION_MIN_LAUNCHES = intPreferencesKey("suggestion_min_launches")
         val DISMISSED_SUGGESTIONS = stringSetPreferencesKey("dismissed_suggestions")
         val LAST_WALLPAPER = stringPreferencesKey("last_wallpaper")

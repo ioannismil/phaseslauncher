@@ -102,6 +102,7 @@ class BackupRepository(
                 .put("suggestApps", prefs.suggestApps)
                 .put("suggestSchedules", prefs.suggestSchedules)
                 .put("suggestSwitching", prefs.suggestSwitching)
+                .put("allowExternalSwitching", prefs.allowExternalSwitching)
                 .put("suggestionMinLaunches", prefs.suggestionMinLaunches))
 
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toString(2).toByteArray()) }
@@ -212,6 +213,7 @@ class BackupRepository(
                     suggestApps = s.optBoolean("suggestApps", current.suggestApps),
                     suggestSchedules = s.optBoolean("suggestSchedules", current.suggestSchedules),
                     suggestSwitching = s.optBoolean("suggestSwitching", current.suggestSwitching),
+                    allowExternalSwitching = s.optBoolean("allowExternalSwitching", current.allowExternalSwitching),
                     suggestionMinLaunches = s.optInt("suggestionMinLaunches", current.suggestionMinLaunches),
                 )
             }
