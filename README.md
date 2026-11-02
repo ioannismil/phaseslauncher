@@ -14,7 +14,7 @@
   <a href="https://github.com/ioannismil/phaseslauncher/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ioannismil/phaseslauncher/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin and Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
-  <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/github/license/ioannismil/phaseslauncher?color=lightgrey"></a>
+  <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/badge/license-Apache%202.0-lightgrey"></a>
 </p>
 
 <p align="center">
