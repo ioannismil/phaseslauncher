@@ -4,6 +4,8 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-02
+
 ### Added
 - Put apps, folders and widgets anywhere on a phase's home screen: long-press and drag to any cell, gaps and all. Whatever's in the way moves to the nearest free spot.
 - Widgets sit in the grid next to apps and can be resized in cells (long-press → *Resize*).
