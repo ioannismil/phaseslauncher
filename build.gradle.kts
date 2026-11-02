@@ -20,6 +20,7 @@ spotless {
         "ktlint_function_naming_ignore_when_annotated_with" to "Composable",
         // Keep expression bodies wrapped as written; with no line limit this rule would join them.
         "ktlint_standard_function-signature" to "disabled",
+        "ktlint_standard_no-unused-imports" to "enabled",
     )
     kotlin {
         target("**/src/**/*.kt")

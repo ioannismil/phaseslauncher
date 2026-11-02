@@ -3,7 +3,6 @@ package com.phaseslauncher.ui.share
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +38,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.phaseslauncher.R
 import com.phaseslauncher.data.rules.RuleText
 import com.phaseslauncher.data.share.ImportOptions
@@ -178,13 +178,13 @@ fun PasteThemeDialog(onParse: (String) -> String?, onDismiss: () -> Unit) {
 }
 
 private fun openStore(context: Context, packageName: String) {
-    val market = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val market = Intent(Intent.ACTION_VIEW, "market://details?id=$packageName".toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     try {
         context.startActivity(market)
     } catch (_: ActivityNotFoundException) {
         runCatching {
             context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$packageName"))
+                Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=$packageName".toUri())
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
         }

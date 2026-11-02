@@ -2,7 +2,6 @@ package com.phaseslauncher.data.apps
 
 import android.content.Context
 import android.graphics.drawable.AdaptiveIconDrawable
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Process
@@ -11,6 +10,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.drawable.toDrawable
 import com.phaseslauncher.data.db.AppCustomizationEntity
 import com.phaseslauncher.data.icons.IconPackManager
 import kotlin.math.roundToInt
@@ -153,7 +153,7 @@ class IconCache(
         } else {
             ColorUtils.blendARGB(accent, WHITE, 0.82f) to ColorUtils.blendARGB(accent, BLACK, 0.5f)
         }
-        return AdaptiveIconDrawable(ColorDrawable(background), mono.mutate().apply { setTint(foreground) })
+        return AdaptiveIconDrawable(background.toDrawable(), mono.mutate().apply { setTint(foreground) })
     }
 
     private companion object {

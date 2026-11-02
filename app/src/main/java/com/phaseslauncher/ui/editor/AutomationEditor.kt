@@ -39,6 +39,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -299,8 +300,8 @@ private fun RuleTypeDialog(existing: Set<RuleType>, onPick: (RuleType) -> Unit, 
 @Composable
 private fun ScheduleDialog(initial: ThemeRule.Schedule, onDone: (ThemeRule) -> Unit, onDismiss: () -> Unit) {
     var days by remember { mutableStateOf(initial.days) }
-    var start by remember { mutableStateOf(initial.startMinute) }
-    var end by remember { mutableStateOf(initial.endMinute) }
+    var start by remember { mutableIntStateOf(initial.startMinute) }
+    var end by remember { mutableIntStateOf(initial.endMinute) }
     var editingTime by remember { mutableStateOf<Boolean?>(null) } // true = start, false = end
 
     AlertDialog(
@@ -468,7 +469,7 @@ private fun LocationDialog(
     var name by rememberSaveable { mutableStateOf(initial.name) }
     var latitude by rememberSaveable { mutableStateOf(if (isNew) "" else initial.latitude.toString()) }
     var longitude by rememberSaveable { mutableStateOf(if (isNew) "" else initial.longitude.toString()) }
-    var radius by rememberSaveable { mutableStateOf(initial.radiusMeters) }
+    var radius by rememberSaveable { mutableIntStateOf(initial.radiusMeters) }
     var locating by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     var granted by remember { mutableStateOf(env.hasLocationPermission()) }
@@ -593,7 +594,7 @@ private fun CalendarDialog(env: ThemeEditorEnvironment, initial: ThemeRule.Calen
     var keywords by rememberSaveable { mutableStateOf(initial.keywords.joinToString(", ")) }
     var allDay by remember { mutableStateOf(initial.includeAllDay) }
     var busyOnly by remember { mutableStateOf(initial.busyOnly) }
-    var before by remember { mutableStateOf(initial.minutesBefore) }
+    var before by remember { mutableIntStateOf(initial.minutesBefore) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

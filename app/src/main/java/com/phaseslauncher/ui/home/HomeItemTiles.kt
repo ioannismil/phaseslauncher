@@ -25,7 +25,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.phaseslauncher.R
 import com.phaseslauncher.data.items.AppItem
 import com.phaseslauncher.data.items.FolderItem
@@ -80,7 +79,6 @@ fun HomeItemTile(
                 description = when (item) {
                     is FolderItem -> stringResource(R.string.folder_description, item.label, pluralStringResource(R.plurals.apps_count, item.items.size, item.items.size))
                     is ShortcutItem -> stringResource(R.string.shortcut_from, item.label, item.app.label)
-                    else -> null
                 },
                 accessibilityActions = accessibilityActions,
                 // A folder shows a dot when any app inside it has one.
