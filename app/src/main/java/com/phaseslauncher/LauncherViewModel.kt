@@ -85,91 +85,6 @@ import kotlinx.coroutines.withContext
 import java.text.Collator
 import kotlin.math.exp
 
-data class DrawerState(
-    val isLoading: Boolean = true,
-    val apps: List<AppInfo> = emptyList(),
-    /** Personal plus any work profile / private space; tabs are shown when there's more than one. */
-    val profiles: List<ProfileState> = emptyList(),
-    val selectedProfile: ProfileType = ProfileType.Personal,
-    /** Frequently and recently used apps, shown above the list when not searching. */
-    val suggestions: List<AppInfo> = emptyList(),
-    val contacts: List<ContactResult> = emptyList(),
-    val settingsResults: List<SettingsResult> = emptyList(),
-    /** Offer to enable contact search (searching, contact search on, permission not granted). */
-    val askContactsPermission: Boolean = false,
-    val sort: DrawerSort = DrawerSort.Name,
-    /** The query worked out as arithmetic or a unit conversion, if it is one. */
-    val calculation: Calculation? = null,
-) {
-    val selectedProfileState: ProfileState? get() = profiles.firstOrNull { it.type == selectedProfile }
-}
-
-data class HomeState(
-    val isLoading: Boolean = true,
-    val themes: List<Theme> = emptyList(),
-    val activeTheme: Theme? = null,
-    /** The dock being shown: the active theme's own dock, or the shared one. */
-    val favorites: List<AppInfo> = emptyList(),
-    val dockId: Long = FavoriteEntity.SHARED_DOCK,
-    /** Widgets per theme id. */
-    val widgets: Map<Long, List<ThemeWidget>> = emptyMap(),
-    /** Every launchable app by key (custom names applied). */
-    val apps: Map<String, AppInfo> = emptyMap(),
-    /** Pinned shortcuts whose app is launchable, by key. */
-    val shortcuts: Map<String, ShortcutItem> = emptyMap(),
-    val folders: Map<String, Folder> = emptyMap(),
-) {
-    val canAddFavorite: Boolean get() = favorites.size < ThemeDefaults.MAX_FAVORITES
-
-    /** A theme's apps, shortcuts and folders in order; unavailable ones (and empty folders) are skipped. */
-    fun itemsFor(theme: Theme): List<HomeItem> = theme.appKeys.mapNotNull { resolve(it, allowFolder = true) }
-
-    fun foldersFor(theme: Theme): List<FolderItem> = itemsFor(theme).filterIsInstance<FolderItem>()
-
-    /** Themes that contain [appKey], directly or in one of their folders. */
-    fun themesContaining(appKey: String): Set<Long> =
-        themes.filter { appKey in it.appKeys }.mapTo(HashSet()) { it.id } +
-            folders.values.filter { appKey in it.itemKeys }.map { it.themeId }
-
-    /** [theme]'s app keys, including the apps in its folders. */
-    fun appKeysOf(theme: Theme): Set<String> =
-        theme.appKeys.filter(ItemKeys::isApp).toSet() + folders.values.filter { it.themeId == theme.id }.flatMap { it.itemKeys }
-
-    /** Apps in [theme]'s folders, with their folder's name. */
-    fun folderMembers(theme: Theme): Map<String, String> =
-        folders.values.filter { it.themeId == theme.id }.flatMap { f -> f.itemKeys.map { it to f.name } }.toMap()
-
-    /** Launchable apps and shortcuts on [theme], counting what's inside its folders. */
-    fun itemCount(theme: Theme): Int = itemsFor(theme).sumOf { if (it is FolderItem) it.items.size else 1 }
-
-    private fun resolve(key: String, allowFolder: Boolean): HomeItem? = when {
-        ItemKeys.isApp(key) -> apps[key]?.let(::AppItem)
-        ItemKeys.shortcutId(key) != null -> shortcuts[key]
-        allowFolder -> folders[key]?.let { folder ->
-            FolderItem(folder, folder.itemKeys.mapNotNull { resolve(it, allowFolder = false) }).takeIf { it.items.isNotEmpty() }
-        }
-        else -> null
-    }
-
-    fun widgetsFor(theme: Theme): List<ThemeWidget> = widgets[theme.id].orEmpty()
-}
-
-/** A prompt on the home screen: an automatic switch waiting for an OK, or a suggestion. */
-data class HomeBanner(
-    val id: String,
-    val themeId: Long,
-    val title: String,
-    val body: String,
-    val acceptLabel: String,
-    /** Offers "Customize…" to open the theme editor with the change in place. */
-    val canCustomize: Boolean = false,
-    /** An automatic switch ("Ask first"), rather than a suggestion. */
-    val isAutoPrompt: Boolean = false,
-)
-
-/** A launch held back by a theme's focus settings. */
-data class PendingLaunch(val block: FocusBlock, val proceed: () -> Unit)
-
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
@@ -390,177 +305,15 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     // endregion
 
-    // region Suggestions and automatic-switch prompts
+    // region Backup, sharing and importing
 
-    /** A suggestion made at launch time ("Switch to Gaming?"), shown once home is back. */
-    private val liveSuggestion = MutableStateFlow<Suggestion?>(null)
+    val transfers = PhaseTransfers(container, viewModelScope, homeState, onActivate = ::activate, onMessage = ::message)
 
-    private val computedSuggestions: Flow<List<Suggestion>> =
-        combine(
-            themeRepository.themes,
-            history.launches(),
-            history.switches(),
-            prefs.map { SuggestionSettings(it.suggestApps, it.suggestSchedules, it.suggestSwitching, it.suggestionMinLaunches) }
-                .distinctUntilChanged(),
-            combine(container.folderRepository.folders, favoritesRepository.docks, ::Pair),
-        ) { themes, launches, switches, settings, (folders, docks) ->
-            val appsOf = { theme: Theme ->
-                theme.appKeys.toSet() + folders.values.filter { it.themeId == theme.id }.flatMap { it.itemKeys }
-            }
-            val dockOf = { theme: Theme -> docks[if (theme.ownDock) theme.id else FavoriteEntity.SHARED_DOCK].orEmpty().toSet() }
-            SuggestionEngine.compute(themes, launches, switches, settings, appsOf, dockOf)
-        }.flowOn(Dispatchers.Default)
+    // endregion
 
-    val homeBanner: StateFlow<HomeBanner?> =
-        combine(autoSwitcher.prompt, liveSuggestion, computedSuggestions, prefs, homeState) { prompt, live, computed, prefs, state ->
-            val themes = state.themes.associateBy { it.id }
-            if (prompt != null) {
-                themes[prompt.themeId]?.let { theme ->
-                    return@combine HomeBanner(
-                        id = "prompt:${theme.id}",
-                        themeId = theme.id,
-                        title = res.getString(R.string.switch_to_2, theme.name),
-                        body = RuleText.reason(res, prompt.rule),
-                        acceptLabel = res.getString(R.string.switch_action),
-                        isAutoPrompt = true,
-                    )
-                }
-            }
-            val now = System.currentTimeMillis()
-            val active = state.activeTheme?.id
-            (listOfNotNull(live) + computed)
-                .filter { (prefs.dismissedSuggestions[it.id] ?: 0L) <= now }
-                // A switch suggestion is moot once you're on that theme.
-                .filterNot { it is Suggestion.SwitchForApp && it.themeId == active }
-                .firstNotNullOfOrNull { bannerFor(it, themes, state.apps) }
-        }
-            .flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    // region Prompts (suggestions, automatic switches asking first, new apps)
 
-    private fun bannerFor(suggestion: Suggestion, themes: Map<Long, Theme>, apps: Map<String, AppInfo>): HomeBanner? {
-        val theme = themes[suggestion.themeId] ?: return null
-        return when (suggestion) {
-            is Suggestion.AddApp -> {
-                val app = apps[suggestion.appKey] ?: return null
-                HomeBanner(
-                    id = suggestion.id,
-                    themeId = theme.id,
-                    title = res.getString(R.string.add_to_2, app.label, theme.name),
-                    body = res.getQuantityString(R.plurals.you_opened_it_times_on_in_the_last_two_weeks, suggestion.launches, suggestion.launches, theme.name),
-                    acceptLabel = res.getString(R.string.add),
-                )
-            }
-            is Suggestion.Schedule -> HomeBanner(
-                id = suggestion.id,
-                themeId = theme.id,
-                title = res.getString(R.string.switch_to_automatically, theme.name),
-                body = res.getQuantityString(R.plurals.you_switch_to_it_around_days_lately_schedule, suggestion.days, RuleText.minute(suggestion.rule.startMinute), suggestion.days, RuleText.describe(res, suggestion.rule)),
-                acceptLabel = res.getString(R.string.add_schedule),
-                canCustomize = true,
-            )
-            is Suggestion.SwitchForApp -> {
-                val app = apps[suggestion.appKey] ?: return null
-                HomeBanner(
-                    id = suggestion.id,
-                    themeId = theme.id,
-                    title = res.getString(R.string.switch_to_2, theme.name),
-                    body = res.getString(R.string.is_on, app.label, theme.name),
-                    acceptLabel = res.getString(R.string.switch_action),
-                )
-            }
-        }
-    }
-
-    private fun currentSuggestion(id: String): Suggestion? =
-        liveSuggestion.value?.takeIf { it.id == id } ?: lastComputed.firstOrNull { it.id == id }
-
-    private var lastComputed: List<Suggestion> = emptyList()
-
-    init {
-        viewModelScope.launch { computedSuggestions.collect { lastComputed = it } }
-    }
-
-    /** Opens the editor for a theme with a change already made (e.g. a suggested schedule) to fine-tune. */
-    private val _editDraft = Channel<Pair<Long, ThemeDraft>>(Channel.BUFFERED)
-    val editDraft: Flow<Pair<Long, ThemeDraft>> = _editDraft.receiveAsFlow()
-
-    fun acceptBanner(banner: HomeBanner) {
-        if (banner.isAutoPrompt) return autoSwitcher.acceptPrompt()
-        val suggestion = currentSuggestion(banner.id) ?: return
-        liveSuggestion.value = null
-        when (suggestion) {
-            is Suggestion.AddApp -> viewModelScope.launch {
-                themeRepository.addApp(suggestion.themeId, suggestion.appKey)
-                message(res.getString(R.string.added_to, homeState.value.themes.firstOrNull { it.id == suggestion.themeId }?.name ?: res.getString(R.string.the_phase)))
-            }
-            is Suggestion.Schedule -> viewModelScope.launch {
-                themeRepository.addRule(suggestion.themeId, suggestion.rule)
-                message(res.getString(R.string.schedule_added_change_it_in_the_phase_s_settings))
-            }
-            is Suggestion.SwitchForApp -> selectTheme(suggestion.themeId)
-        }
-    }
-
-    fun customizeBanner(banner: HomeBanner) {
-        val suggestion = currentSuggestion(banner.id) as? Suggestion.Schedule ?: return
-        val theme = homeState.value.themes.firstOrNull { it.id == suggestion.themeId } ?: return
-        _editDraft.trySend(theme.id to theme.toDraft().let { it.copy(rules = it.rules + RuleSetting(suggestion.rule)) })
-    }
-
-    /** "Not now" hides it for a week; [forever] for good. */
-    fun dismissBanner(banner: HomeBanner, forever: Boolean) {
-        if (banner.isAutoPrompt) return autoSwitcher.dismissPrompt()
-        if (liveSuggestion.value?.id == banner.id) liveSuggestion.value = null
-        val until = if (forever) Long.MAX_VALUE else System.currentTimeMillis() + WEEK_MS.toLong()
-        updatePrefs { it.copy(dismissedSuggestions = it.dismissedSuggestions + (banner.id to until)) }
-    }
-
-    fun resetSuggestions() {
-        updatePrefs { it.copy(dismissedSuggestions = emptyMap()) }
-        message(res.getString(R.string.dismissed_suggestions_can_show_again))
-    }
-
-    /**
-     * The earliest app installed since the last one answered, not on any phase yet, to ask which
-     * phases it goes on. Personal profile only: work apps can arrive in batches, and the private
-     * space keeps its apps out of sight. Worked out from install times, so apps installed while
-     * the launcher wasn't running are asked about too.
-     */
-    val newApp: StateFlow<AppInfo?> =
-        combine(homeState, settingsRepository.newAppsSeenUntil, prefs.map { it.askForNewApps }.distinctUntilChanged()) { state, seenUntil, ask ->
-            if (!ask || seenUntil == null || state.isLoading || state.themes.isEmpty()) return@combine null
-            state.apps.values
-                .filter { it.profile == ProfileType.Personal && it.installTime > seenUntil && state.themesContaining(it.key).isEmpty() }
-                .minByOrNull { it.installTime }
-        }
-            .flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
-    init {
-        // On the first run only apps installed from now on count as new.
-        viewModelScope.launch {
-            if (settingsRepository.newAppsSeenUntil.first() == null) settingsRepository.markNewAppsSeen(System.currentTimeMillis())
-        }
-    }
-
-    /** Puts [app] on [themeIds] (none: skipped) and moves on to the next new app. */
-    fun answerNewApp(app: AppInfo, themeIds: Collection<Long>) {
-        viewModelScope.launch {
-            themeIds.forEach { themeRepository.addApp(it, app.key) }
-            settingsRepository.markNewAppsSeen(app.installTime)
-            if (themeIds.isNotEmpty()) {
-                val names = homeState.value.themes.filter { it.id in themeIds }.joinToString { it.name }
-                message(res.getString(R.string.added_to, names))
-            }
-        }
-    }
-
-    fun clearHistory() {
-        viewModelScope.launch {
-            history.clear()
-            message(res.getString(R.string.activity_history_cleared))
-        }
-    }
+    val prompts = HomePrompts(container, viewModelScope, prefs, homeState, ::selectTheme, ::message, ::updatePrefs)
 
     // endregion
 
@@ -588,24 +341,6 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     fun customizeApp(app: AppInfo, label: String?, iconPack: String?, iconName: String?) {
         viewModelScope.launch {
             container.customizationRepository.set(app.key, label?.takeIf { it != app.defaultLabel }, iconPack, iconName)
-        }
-    }
-
-    fun exportBackup(uri: Uri) {
-        viewModelScope.launch {
-            runCatchingCancellable { container.backupRepository.exportTo(uri) }
-                .onSuccess { message(res.getString(R.string.backed_up, phasesCount(it.themes), favoritesCount(it.favorites))) }
-                .onFailure { message(res.getString(R.string.backup_failed, it.message)) }
-        }
-    }
-
-    fun importBackup(uri: Uri) {
-        viewModelScope.launch {
-            // Widget ids belong to this phone's widget host; the restored themes start without widgets.
-            widgets.removeAll()
-            runCatchingCancellable { container.backupRepository.importFrom(uri) }
-                .onSuccess { message(res.getString(R.string.restored, phasesCount(it.themes), favoritesCount(it.favorites))) }
-                .onFailure { message(res.getString(R.string.couldn_t_restore, it.message)) }
         }
     }
 
@@ -696,7 +431,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         val active = state.activeTheme ?: return
         if (app.key in state.appKeysOf(active) || state.favorites.any { it.key == app.key }) return
         val home = state.themes.filter { it.id != active.id && app.key in state.appKeysOf(it) }.singleOrNull() ?: return
-        liveSuggestion.value = Suggestion.SwitchForApp(app.key, home.id)
+        prompts.suggest(Suggestion.SwitchForApp(app.key, home.id))
     }
 
     /** Launches an app or pinned shortcut. Folders are opened by the UI. */
@@ -818,55 +553,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     // endregion
 
-    // region Sharing and importing
-
-    suspend fun shareJson(theme: Theme, options: ShareOptions, iconPackLabel: String?): JSONObject {
-        val state = homeState.value
-        val dock = if (theme.ownDock) favoritesRepository.getKeys(theme.id) else emptyList()
-        return container.themeSharing.export(
-            theme = theme,
-            folders = state.folders,
-            dock = dock,
-            labelOf = { key -> state.apps[key]?.label },
-            iconPackLabel = iconPackLabel,
-            options = options,
-        )
-    }
-
-    fun shareLink(json: JSONObject): String = container.themeSharing.toLink(json)
-
-    fun qrCode(text: String, sizePx: Int) = container.themeSharing.qrCode(text, sizePx)
-
-    suspend fun shareFile(json: JSONObject, name: String): Uri = container.themeSharing.writeFile(json, name)
-
-    suspend fun readSharedTheme(uri: Uri): Result<SharedTheme> = runCatchingCancellable { container.themeSharing.read(uri) }
-
-    fun parseSharedTheme(text: String): Result<SharedTheme> = runCatching { container.themeSharing.parse(text) }
-
-    fun resolveSharedTheme(shared: SharedTheme): Resolution =
-        container.themeSharing.resolve(shared, homeState.value.apps.values.toList())
-
-    fun installSharedTheme(shared: SharedTheme, resolution: Resolution, options: ImportOptions) {
-        viewModelScope.launch {
-            runCatchingCancellable { container.themeSharing.install(shared, resolution, options) }
-                .onSuccess { id ->
-                    activate(id)
-                    message(res.getString(R.string.added, options.name.ifBlank { shared.name }))
-                }
-                .onFailure { message(res.getString(R.string.couldn_t_add_the_phase, it.message)) }
-        }
-    }
-
-    suspend fun readLauncherBackup(uri: Uri): Result<LauncherLayout> =
-        runCatchingCancellable { container.launcherImporter.read(uri, homeState.value.apps.values.toList()) }
-
-    fun importLauncherLayout(layout: LauncherLayout, options: LayoutImportOptions) {
-        viewModelScope.launch {
-            runCatchingCancellable { container.launcherImporter.apply(layout, options) }
-                .onSuccess { count -> message(res.getQuantityString(R.plurals.imported_phases, count, count)) }
-                .onFailure { message(res.getString(R.string.import_failed, it.message)) }
-        }
-    }
+    // region Phase contents
 
     fun reorderThemes(orderedIds: List<Long>) {
         viewModelScope.launch { themeRepository.reorderThemes(orderedIds) }
@@ -1051,10 +738,6 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     // endregion
-
-    private fun phasesCount(n: Int) = res.getQuantityString(R.plurals.phases_count, n, n)
-
-    private fun favoritesCount(n: Int) = res.getQuantityString(R.plurals.favorites_count, n, n)
 
     fun message(text: String) {
         _messages.trySend(text)

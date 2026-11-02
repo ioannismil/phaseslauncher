@@ -160,8 +160,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     var incomingTheme by remember { mutableStateOf<IncomingTheme?>(null) }
     var pastingTheme by remember { mutableStateOf(false) }
     var incomingLayout by remember { mutableStateOf<LauncherLayout?>(null) }
-    val banner by viewModel.homeBanner.collectAsStateWithLifecycle()
-    val newApp by viewModel.newApp.collectAsStateWithLifecycle()
+    val banner by viewModel.prompts.homeBanner.collectAsStateWithLifecycle()
+    val newApp by viewModel.prompts.newApp.collectAsStateWithLifecycle()
     val pendingLaunch by viewModel.pendingLaunch.collectAsStateWithLifecycle()
     val uiScope = rememberCoroutineScope()
     val customizations by viewModel.customizations.collectAsStateWithLifecycle()
@@ -217,7 +217,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
         viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
     }
     LaunchedEffect(viewModel) {
-        viewModel.editDraft.collect { (themeId, draft) -> editor = EditorRequest(themeId, draft) }
+        viewModel.prompts.editDraft.collect { (themeId, draft) -> editor = EditorRequest(themeId, draft) }
     }
 
     val editorEnvironment = remember(viewModel) {
@@ -379,8 +379,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 },
                 onFinished = { showOnboarding = false },
                 editorEnv = editorEnvironment,
-                readLauncherBackup = viewModel::readLauncherBackup,
-                onImportLayout = viewModel::importLauncherLayout,
+                readLauncherBackup = viewModel.transfers::readLauncherBackup,
+                onImportLayout = viewModel.transfers::importLauncherLayout,
             )
             return
         }
@@ -475,9 +475,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 },
                 onAddDockApps = { pickingDockApps = true },
                 banner = banner,
-                onBannerAccept = viewModel::acceptBanner,
-                onBannerCustomize = viewModel::customizeBanner,
-                onBannerDismiss = viewModel::dismissBanner,
+                onBannerAccept = viewModel.prompts::acceptBanner,
+                onBannerCustomize = viewModel.prompts::customizeBanner,
+                onBannerDismiss = viewModel.prompts::dismissBanner,
                 modifier = Modifier
                     .graphicsLayer {
                         val zoom = homeZoom.value
@@ -565,8 +565,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     allApps = homeState.apps.values.toList(),
                     notificationDots = viewModel.notificationDots,
                     onUpdatePrefs = viewModel::updatePrefs,
-                    onExport = viewModel::exportBackup,
-                    onImport = viewModel::importBackup,
+                    onExport = viewModel.transfers::exportBackup,
+                    onImport = viewModel.transfers::importBackup,
                     onNewTheme = { editor = EditorRequest(themeId = null) },
                     onEditTheme = { editor = EditorRequest(it.id) },
                     onDeleteTheme = { deletingTheme = it },
@@ -580,21 +580,21 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     onAddWidget = { showWidgetPicker = true },
                     onImportThemeFile = { uri ->
                         uiScope.launch {
-                            viewModel.readSharedTheme(uri)
-                                .onSuccess { incomingTheme = IncomingTheme(it, viewModel.resolveSharedTheme(it)) }
+                            viewModel.transfers.readSharedTheme(uri)
+                                .onSuccess { incomingTheme = IncomingTheme(it, viewModel.transfers.resolveSharedTheme(it)) }
                                 .onFailure { viewModel.message(it.message ?: res.getString(R.string.couldn_t_open_the_phase)) }
                         }
                     },
                     onPasteTheme = { pastingTheme = true },
                     onImportLauncher = { uri ->
                         uiScope.launch {
-                            viewModel.readLauncherBackup(uri)
+                            viewModel.transfers.readLauncherBackup(uri)
                                 .onSuccess { incomingLayout = it }
                                 .onFailure { viewModel.message(it.message ?: res.getString(R.string.couldn_t_read_the_backup)) }
                         }
                     },
-                    onResetSuggestions = viewModel::resetSuggestions,
-                    onClearHistory = viewModel::clearHistory,
+                    onResetSuggestions = viewModel.prompts::resetSuggestions,
+                    onClearHistory = viewModel.prompts::clearHistory,
                 )
             }
         }
@@ -624,10 +624,10 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             theme = theme,
             actions = remember(viewModel, iconPacks) {
                 ShareActions(
-                    build = { t, options -> viewModel.shareJson(t, options, iconPacks.firstOrNull { it.packageName == t.iconPack }?.label) },
-                    link = viewModel::shareLink,
-                    qrCode = viewModel::qrCode,
-                    writeFile = viewModel::shareFile,
+                    build = { t, options -> viewModel.transfers.shareJson(t, options, iconPacks.firstOrNull { it.packageName == t.iconPack }?.label) },
+                    link = viewModel.transfers::shareLink,
+                    qrCode = viewModel.transfers::qrCode,
+                    writeFile = viewModel.transfers::shareFile,
                 )
             },
             onDismiss = { sharingTheme = null },
@@ -640,7 +640,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             resolution = incoming.resolution,
             onImport = { options ->
                 incomingTheme = null
-                viewModel.installSharedTheme(incoming.shared, incoming.resolution, options)
+                viewModel.transfers.installSharedTheme(incoming.shared, incoming.resolution, options)
             },
             onDismiss = { incomingTheme = null },
         )
@@ -649,10 +649,10 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     if (pastingTheme) {
         PasteThemeDialog(
             onParse = { text ->
-                viewModel.parseSharedTheme(text).fold(
+                viewModel.transfers.parseSharedTheme(text).fold(
                     onSuccess = {
                         pastingTheme = false
-                        incomingTheme = IncomingTheme(it, viewModel.resolveSharedTheme(it))
+                        incomingTheme = IncomingTheme(it, viewModel.transfers.resolveSharedTheme(it))
                         null
                     },
                     onFailure = { it.message ?: res.getString(R.string.that_isn_t_a_phase_link) },
@@ -667,7 +667,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             layout = layout,
             onImport = { options ->
                 incomingLayout = null
-                viewModel.importLauncherLayout(layout, options)
+                viewModel.transfers.importLauncherLayout(layout, options)
             },
             onDismiss = { incomingLayout = null },
         )
@@ -707,8 +707,8 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             title = stringResource(R.string.new_app_add_to_a_phase, app.label),
             message = stringResource(R.string.you_just_installed_it_tick_the_phases_it_belongs_on),
             dismissLabel = stringResource(R.string.skip),
-            onConfirm = { ids -> viewModel.answerNewApp(app, ids) },
-            onDismiss = { viewModel.answerNewApp(app, emptySet()) },
+            onConfirm = { ids -> viewModel.prompts.answerNewApp(app, ids) },
+            onDismiss = { viewModel.prompts.answerNewApp(app, emptySet()) },
         )
     }
 
