@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Four tiles, one highlighted: a grid of apps with an active theme. -->
+<!-- Four parts of the day in a ring around the moon (docs/brand/icon.svg). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#FFB4A6FF" android:pathData="M42,36h8a4,4 0,0 1,4 4v8a4,4 0,0 1,-4 4h-8a4,4 0,0 1,-4 -4v-8a4,4 0,0 1,4 -4z" />
-    <path android:fillColor="#B3FFFFFF" android:pathData="M62,36h8a4,4 0,0 1,4 4v8a4,4 0,0 1,-4 4h-8a4,4 0,0 1,-4 -4v-8a4,4 0,0 1,4 -4z" />
-    <path android:fillColor="#B3FFFFFF" android:pathData="M42,56h8a4,4 0,0 1,4 4v8a4,4 0,0 1,-4 4h-8a4,4 0,0 1,-4 -4v-8a4,4 0,0 1,4 -4z" />
-    <path android:fillColor="#B3FFFFFF" android:pathData="M62,56h8a4,4 0,0 1,4 4v8a4,4 0,0 1,-4 4h-8a4,4 0,0 1,-4 -4v-8a4,4 0,0 1,4 -4z" />
+    <path android:pathData="M59.1,33.53A21.09,21.09 0,0 1,74.47,48.9" android:strokeColor="#FFFFAB00" android:strokeWidth="6.19" android:strokeLineCap="round" />
+    <path android:pathData="M74.47,59.1A21.09,21.09 0,0 1,59.1,74.47" android:strokeColor="#FF00BFA5" android:strokeWidth="6.19" android:strokeLineCap="round" />
+    <path android:pathData="M48.9,74.47A21.09,21.09 0,0 1,33.53,59.1" android:strokeColor="#FF448AFF" android:strokeWidth="6.19" android:strokeLineCap="round" />
+    <path android:pathData="M33.53,48.9A21.09,21.09 0,0 1,48.9,33.53" android:strokeColor="#FFF50057" android:strokeWidth="6.19" android:strokeLineCap="round" />
+    <path android:pathData="M52.23,44.03A10.12,10.12 0,1 0,63.67,57A8.72,8.72 0,0 1,52.23,44.03Z" android:fillColor="#FFF4EFFF" />
 </vector>
