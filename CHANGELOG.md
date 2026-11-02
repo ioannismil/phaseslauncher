@@ -4,6 +4,10 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-02
+
+**New apps find their phase.** Install an app and Phases asks where it goes.
+
 ### Added
 - When you install an app, Phases asks which phases it goes on: tick them and tap *Add*, or *Skip*. Turn it off in Settings → Suggestions → New apps.
 
@@ -38,5 +42,7 @@ The changes people will notice in each release. The format follows [Keep a Chang
 - A drawer with search for apps, contacts and settings, plus a calculator and unit conversions. It also has work profile and Private Space tabs, hidden apps, icon packs and themed icons.
 - Suggestions learned on the phone: apps to add to a phase, schedules to set and phases to switch to.
 
-[Unreleased]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ioannismil/phaseslauncher/releases/tag/v0.3.0

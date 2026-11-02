@@ -1,0 +1,1 @@
+New apps find their phase: when you install an app, Phases asks which phases it goes on. Tick them and tap Add, or Skip. Turn it off in Settings, Suggestions, New apps.
