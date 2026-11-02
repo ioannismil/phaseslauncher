@@ -4,6 +4,13 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-02
+
+**A new icon.** Four parts of the day around the moon, in the phase colors.
+
+### Changed
+- New app icon, also used for themed icons on Android 13 and newer.
+
 ## [0.3.0] - 2026-11-02
 
 **The first public release.** Give each part of your day its own home screen, and switch with one swipe.
