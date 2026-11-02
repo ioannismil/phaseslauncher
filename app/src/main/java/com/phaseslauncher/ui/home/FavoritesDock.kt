@@ -1,10 +1,8 @@
 package com.phaseslauncher.ui.home
 
-import com.phaseslauncher.R
-import androidx.compose.ui.res.stringResource
 import android.graphics.Rect
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -20,11 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.ui.components.AppAction
 import com.phaseslauncher.ui.components.AppMenuState
@@ -44,6 +43,8 @@ fun FavoritesDock(
     appActions: (AppInfo) -> List<AppAction>,
     onReorder: (List<String>) -> Unit,
     onEmptyLongPress: () -> Unit,
+    /** Tapping the empty dock: pick apps for it. */
+    onAddApps: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val wallpaper = LocalWallpaperContent.current
@@ -58,14 +59,22 @@ fun FavoritesDock(
             .heightIn(min = 80.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(wallpaper.scrim)
-            .pointerInput(favorites.isEmpty()) {
-                if (favorites.isEmpty()) detectTapGestures(onLongPress = { onEmptyLongPress() })
-            },
+            .then(
+                if (favorites.isEmpty()) {
+                    Modifier.combinedClickable(
+                        onClickLabel = stringResource(R.string.add_apps_to_the_dock),
+                        onLongClick = onEmptyLongPress,
+                        onClick = onAddApps,
+                    )
+                } else {
+                    Modifier
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (favorites.isEmpty()) {
             Text(
-                text = stringResource(R.string.your_dock_is_empty_long_press_an_app_in_the_draw),
+                text = stringResource(R.string.tap_to_add_apps_to_the_dock),
                 style = MaterialTheme.typography.bodySmall.onWallpaper(wallpaper),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),

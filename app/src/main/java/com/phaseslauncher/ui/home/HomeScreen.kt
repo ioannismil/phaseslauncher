@@ -1,6 +1,7 @@
 package com.phaseslauncher.ui.home
 
 import android.graphics.Rect
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,8 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ import com.phaseslauncher.data.settings.ClockPosition
 import com.phaseslauncher.data.settings.SwitcherSide
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.ui.components.AppAction
+import com.phaseslauncher.ui.components.LocalExternalDrag
 
 /**
  * Clock and active theme, the theme's grid, and the favorites dock, with the theme switcher
@@ -57,6 +59,7 @@ fun HomeScreen(
     onMergeItems: (Theme, List<String>, String, String) -> Unit,
     onReorderFavorites: (List<String>) -> Unit,
     onEmptyLongPress: () -> Unit,
+    onAddDockApps: () -> Unit,
     modifier: Modifier = Modifier,
     /** A suggestion or an automatic switch asking first, shown above the apps. */
     banner: HomeBanner? = null,
@@ -143,14 +146,22 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(gridPadding),
             )
-            FavoritesDock(
-                favorites = state.favorites,
-                onLaunch = onLaunch,
-                appActions = dockAppActions,
-                onReorder = onReorderFavorites,
-                onEmptyLongPress = onEmptyLongPress,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-            )
+            if (layout.showDock) {
+                FavoritesDock(
+                    favorites = state.favorites,
+                    onLaunch = onLaunch,
+                    appActions = dockAppActions,
+                    onReorder = onReorderFavorites,
+                    onEmptyLongPress = onEmptyLongPress,
+                    onAddApps = onAddDockApps,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                )
+            } else {
+                // No dock to drop apps carried from the drawer onto.
+                val externalDrag = LocalExternalDrag.current
+                SideEffect { externalDrag?.dockBounds = null }
+                Spacer(Modifier.height(12.dp))
+            }
         }
 
         if (state.themes.isNotEmpty()) {

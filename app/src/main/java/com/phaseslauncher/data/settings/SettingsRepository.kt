@@ -24,6 +24,16 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 /** Which screen edge the theme switcher bar sits on. */
 enum class SwitcherSide { Left, Right }
 
+/** How the phases appear when swiping from the switcher bar. */
+enum class SwitcherStyle(@StringRes override val labelRes: Int, @StringRes val descriptionRes: Int) : Labeled {
+    Arc(R.string.switcher_style_arc, R.string.switcher_style_arc_description),
+    Rail(R.string.switcher_style_rail, R.string.switcher_style_rail_description),
+    Wheel(R.string.switcher_style_wheel, R.string.switcher_style_wheel_description),
+    Dial(R.string.switcher_style_dial, R.string.switcher_style_dial_description),
+    Cards(R.string.switcher_style_cards, R.string.switcher_style_cards_description),
+    Bands(R.string.switcher_style_bands, R.string.switcher_style_bands_description),
+}
+
 enum class IconSize(val dp: Int, @StringRes override val labelRes: Int) : Labeled { Small(48, R.string.small), Medium(56, R.string.medium), Large(64, R.string.large) }
 
 /**
@@ -97,6 +107,7 @@ data class GestureAction(val kind: GestureKind, val appKey: String? = null) {
 /** User-adjustable launcher settings. */
 data class LauncherPrefs(
     val switcherSide: SwitcherSide = SwitcherSide.Right,
+    val switcherStyle: SwitcherStyle = SwitcherStyle.Arc,
     val gridColumns: Int = DEFAULT_COLUMNS,
     val iconSize: IconSize = IconSize.Medium,
     val showLabels: Boolean = true,
@@ -132,6 +143,8 @@ data class LauncherPrefs(
     val clockPosition: ClockPosition = ClockPosition.Left,
     /** The pill with the active theme's name under the clock (tap opens the theme arc). */
     val showThemeLabel: Boolean = true,
+    /** The favorites dock at the bottom of home. */
+    val showDock: Boolean = true,
     /** The system status bar while Phases is on screen. */
     val showStatusBar: Boolean = true,
     val appearance: AppearanceMode = AppearanceMode.System,
@@ -185,6 +198,7 @@ class SettingsRepository(context: Context) {
 
     private fun Preferences.toPrefs() = LauncherPrefs(
         switcherSide = SwitcherSide.entries.firstOrNull { it.name == this[SWITCHER_SIDE] } ?: SwitcherSide.Right,
+        switcherStyle = SwitcherStyle.entries.firstOrNull { it.name == this[SWITCHER_STYLE] } ?: SwitcherStyle.Arc,
         gridColumns = (this[GRID_COLUMNS] ?: LauncherPrefs.DEFAULT_COLUMNS).coerceIn(LauncherPrefs.COLUMN_RANGE),
         iconSize = IconSize.entries.firstOrNull { it.name == this[ICON_SIZE] } ?: IconSize.Medium,
         showLabels = this[SHOW_LABELS] ?: true,
@@ -210,6 +224,7 @@ class SettingsRepository(context: Context) {
         clockPosition = ClockPosition.entries.firstOrNull { it.name == this[CLOCK_POSITION] } ?: ClockPosition.Left,
         showStatusBar = this[SHOW_STATUS_BAR] ?: true,
         showThemeLabel = this[SHOW_THEME_LABEL] ?: true,
+        showDock = this[SHOW_DOCK] ?: true,
         appearance = AppearanceMode.entries.firstOrNull { it.name == this[APPEARANCE] } ?: AppearanceMode.System,
         suggestApps = this[SUGGEST_APPS] ?: true,
         suggestSchedules = this[SUGGEST_SCHEDULES] ?: true,
@@ -224,6 +239,7 @@ class SettingsRepository(context: Context) {
 
     private fun MutablePreferences.write(prefs: LauncherPrefs) {
         this[SWITCHER_SIDE] = prefs.switcherSide.name
+        this[SWITCHER_STYLE] = prefs.switcherStyle.name
         this[GRID_COLUMNS] = prefs.gridColumns.coerceIn(LauncherPrefs.COLUMN_RANGE)
         this[ICON_SIZE] = prefs.iconSize.name
         this[SHOW_LABELS] = prefs.showLabels
@@ -246,6 +262,7 @@ class SettingsRepository(context: Context) {
         this[CLOCK_POSITION] = prefs.clockPosition.name
         this[SHOW_STATUS_BAR] = prefs.showStatusBar
         this[SHOW_THEME_LABEL] = prefs.showThemeLabel
+        this[SHOW_DOCK] = prefs.showDock
         this[APPEARANCE] = prefs.appearance.name
         this[SUGGEST_APPS] = prefs.suggestApps
         this[SUGGEST_SCHEDULES] = prefs.suggestSchedules
@@ -312,6 +329,7 @@ class SettingsRepository(context: Context) {
         val ACTIVE_THEME_ID = longPreferencesKey("active_theme_id")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val SWITCHER_SIDE = stringPreferencesKey("switcher_side")
+        val SWITCHER_STYLE = stringPreferencesKey("switcher_style")
         val GRID_COLUMNS = intPreferencesKey("grid_columns")
         val ICON_SIZE = stringPreferencesKey("icon_size")
         val SHOW_LABELS = booleanPreferencesKey("show_labels")
@@ -336,6 +354,7 @@ class SettingsRepository(context: Context) {
         val SHOW_BATTERY = booleanPreferencesKey("show_battery")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
         val SHOW_THEME_LABEL = booleanPreferencesKey("show_theme_label")
+        val SHOW_DOCK = booleanPreferencesKey("show_dock")
         val APPEARANCE = stringPreferencesKey("appearance")
         val SUGGEST_APPS = booleanPreferencesKey("suggest_apps")
         val SUGGEST_SCHEDULES = booleanPreferencesKey("suggest_schedules")

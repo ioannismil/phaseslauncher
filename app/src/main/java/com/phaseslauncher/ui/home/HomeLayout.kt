@@ -20,6 +20,7 @@ data class HomeLayout(
     val showBattery: Boolean = false,
     val clockPosition: ClockPosition = ClockPosition.Left,
     val showThemeLabel: Boolean = true,
+    val showDock: Boolean = true,
     /** Pick the grid's columns and icon size so the theme fits without scrolling. */
     val autoFit: Boolean = false,
     val arrangement: IconArrangement = IconArrangement.TopLeft,

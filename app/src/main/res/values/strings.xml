@@ -25,6 +25,7 @@
     <string name="add_a_widget_to">Add a widget to %1$s</string>
     <string name="add_another_theme">Add another phase</string>
     <string name="add_apps">Add apps</string>
+    <string name="add_apps_to_the_dock">Add apps to the dock</string>
     <string name="add_limits">Add limits</string>
     <string name="add_phase">Add phase</string>
     <string name="add_schedule">Add schedule</string>
@@ -205,6 +206,7 @@
     <string name="every_day">Every day</string>
     <string name="everything_in_one_phase">Everything in one phase</string>
     <string name="extra_large">Extra large</string>
+    <string name="favorites_at_the_bottom_of_the_home_screen">Favorites at the bottom of the home screen</string>
     <string name="file">File</string>
     <string name="finding_you">Finding you…</string>
     <string name="finish">Finish</string>
@@ -227,6 +229,7 @@
     <string name="headphones_connected">Headphones connected</string>
     <string name="hidden_apps">Hidden apps</string>
     <string name="hidden_apps_don_t_appear_in_the_drawer_or_its_se">Hidden apps don\'t appear in the drawer or its search. They stay in your phases and dock.</string>
+    <string name="hidden_apps_get_the_room">Hidden; apps get the room</string>
     <string name="hidden_swipe_down_from_the_top_edge_to_see_it">Hidden \u2014 swipe down from the top edge to see it</string>
     <string name="hidden_unhide_it_in_launcher_settings">%1$s hidden. Unhide it in Launcher settings.</string>
     <string name="hidden_use_the_edge_bar_to_switch_themes">Hidden — use the edge bar to switch phases</string>
@@ -307,7 +310,6 @@
     <string name="move_earlier">Move earlier</string>
     <string name="move_later">Move later</string>
     <string name="move_out_of_folder">Move out of folder</string>
-    <string name="move_to_favorites">Move to favorites</string>
     <string name="move_up">Move up</string>
     <string name="move_up_2">Move %1$s up</string>
     <string name="music">Music</string>
@@ -510,6 +512,21 @@
     <string name="swipe_up">Swipe up</string>
     <string name="switch_action">Switch</string>
     <string name="switch_automatically">Switch automatically</string>
+    <string name="switcher_style">Style</string>
+    <string name="switcher_style_arc">Arc</string>
+    <string name="switcher_style_arc_description">Phases fan out in a half circle around your thumb</string>
+    <string name="switcher_style_bands">Color bands</string>
+    <string name="switcher_style_bands_description">The screen turns into a bar for each phase; the one under your finger grows</string>
+    <string name="switcher_style_cards">Card stack</string>
+    <string name="switcher_style_cards_description">Slide up or down through a card for each phase, with its apps and sound</string>
+    <string name="switcher_style_dial">Dial</string>
+    <string name="switcher_style_dial_description">Phases sit on a full circle; slide onto one</string>
+    <string name="switcher_style_rail">Edge rail</string>
+    <string name="switcher_style_rail_description">A list slides out of the edge; slide up or down to a phase</string>
+    <string name="switcher_style_wheel">Picker wheel</string>
+    <string name="switcher_style_wheel_description">Phase names scroll past as you slide up or down</string>
+    <string name="release_to_switch">Release to switch</string>
+    <string name="now">Now</string>
     <string name="switch_back_to_the_previous_phase">Switch back to the previous phase</string>
     <string name="switch_by_hand">Switch by hand</string>
     <string name="switch_early">Switch early</string>
@@ -528,6 +545,7 @@
     <string name="system">System</string>
     <string name="take_a_breath_still_want_it_it_will_open_freely">Take a breath. Still want it? It will open freely for %1$s.</string>
     <string name="tap_the_search_bar_to_search_the_search_gesture">Tap the search bar to search; the Search gesture always opens it</string>
+    <string name="tap_to_add_apps_to_the_dock">Tap to add apps to the dock</string>
     <string name="tasker_and_similar_apps_can_switch_phases">Tasker and similar apps can switch phases in the background</string>
     <string name="that_isn_t_a_phase_link">That isn\'t a phase link</string>
     <string name="that_phase_no_longer_exists">That phase no longer exists</string>
@@ -610,7 +628,6 @@
     <string name="you_re_all_set">You\'re all set</string>
     <string name="you_re_at">You\'re at %1$s</string>
     <string name="your_current_themes_dock_and_launcher_settings_w">Your current phases, dock and launcher settings will be replaced by the ones in the backup.</string>
-    <string name="your_dock_is_empty_long_press_an_app_in_the_draw">Your dock is empty. Long-press an app in the drawer to add favorites.</string>
     <string name="your_favorites_stay_in_the_dock_on_every_theme">Your favorites stay in the dock on every phase.</string>
     <!-- Plurals -->
     <plurals name="all_apps_installed">
@@ -620,6 +637,10 @@
     <plurals name="apps_count">
         <item quantity="one">%d app</item>
         <item quantity="other">%d apps</item>
+    </plurals>
+    <plurals name="blocked_count">
+        <item quantity="one">%d blocked</item>
+        <item quantity="other">%d blocked</item>
     </plurals>
     <plurals name="apps_hidden">
         <item quantity="one">%d app hidden from the drawer</item>

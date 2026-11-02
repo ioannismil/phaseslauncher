@@ -82,6 +82,7 @@ import com.phaseslauncher.data.share.SharedTheme
 import com.phaseslauncher.data.system.LockScreenService
 import com.phaseslauncher.data.system.SystemActions
 import com.phaseslauncher.data.themes.Theme
+import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeDraft
 import com.phaseslauncher.data.themes.ThemeLook
 import com.phaseslauncher.data.themes.toDraft
@@ -97,6 +98,7 @@ import com.phaseslauncher.ui.components.externalDragTracker
 import com.phaseslauncher.ui.drawer.AppDrawer
 import com.phaseslauncher.ui.drawer.DrawerSearchActions
 import com.phaseslauncher.ui.editor.AddToThemesDialog
+import com.phaseslauncher.ui.editor.AppPickerDialog
 import com.phaseslauncher.ui.editor.CustomizeAppDialog
 import com.phaseslauncher.ui.editor.DeleteThemeDialog
 import com.phaseslauncher.ui.editor.ThemeEditorEnvironment
@@ -109,9 +111,9 @@ import com.phaseslauncher.ui.home.HomeLayout
 import com.phaseslauncher.ui.home.HomeOptionsSheet
 import com.phaseslauncher.ui.home.HomeScreen
 import com.phaseslauncher.ui.home.LocalHomeLayout
+import com.phaseslauncher.ui.home.PhaseSwitcherOverlay
 import com.phaseslauncher.ui.home.RenameFolderDialog
 import com.phaseslauncher.ui.home.ThemeAction
-import com.phaseslauncher.ui.home.ThemeArcOverlay
 import com.phaseslauncher.ui.home.ThemeArcState
 import com.phaseslauncher.ui.importer.LauncherImportDialog
 import com.phaseslauncher.ui.onboarding.OnboardingScreen
@@ -150,6 +152,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showWidgetPicker by remember { mutableStateOf(false) }
     var customizingApp by remember { mutableStateOf<AppInfo?>(null) }
+    var pickingDockApps by remember { mutableStateOf(false) }
     var openFolderKey by remember { mutableStateOf<String?>(null) }
     var addToFolderItem by remember { mutableStateOf<HomeItem?>(null) }
     var renamingFolder by remember { mutableStateOf<FolderItem?>(null) }
@@ -276,7 +279,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
 
     val drawerActions: (AppInfo) -> List<AppAction> = { app ->
         buildList {
-            if (app.key in favoriteKeys) {
+            if (!prefs.showDock) {
+                // No dock, no favorites to manage.
+            } else if (app.key in favoriteKeys) {
                 add(AppAction(res.getString(R.string.remove_from_favorites), Icons.Rounded.Star) { viewModel.removeFavorite(app) })
             } else {
                 add(AppAction(res.getString(R.string.add_to_favorites), Icons.Rounded.StarOutline) { viewModel.addFavorite(app) })
@@ -294,7 +299,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 is AppItem -> {
                     val app = item.app
                     add(AppAction(res.getString(R.string.remove_from_this_phase), Icons.Rounded.RemoveCircleOutline) { viewModel.removeFromActiveTheme(item) })
-                    if (app.key !in favoriteKeys) add(AppAction(res.getString(R.string.move_to_favorites), Icons.Rounded.Star) { viewModel.moveToFavorites(app) })
+                    if (prefs.showDock && app.key !in favoriteKeys) {
+                        add(AppAction(res.getString(R.string.add_to_favorites), Icons.Rounded.StarOutline) { viewModel.addFavorite(app) })
+                    }
                     add(AppAction(res.getString(R.string.add_to_folder), Icons.Outlined.CreateNewFolder) { addToFolderItem = item })
                     add(AppAction(res.getString(R.string.customize), Icons.Outlined.Edit) { customizingApp = app })
                     add(AppAction(res.getString(R.string.app_info), Icons.Outlined.Info) { viewModel.openAppInfo(app, it) })
@@ -435,6 +442,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
             showBattery = prefs.showBattery,
             clockPosition = prefs.clockPosition,
             showThemeLabel = prefs.showThemeLabel,
+            showDock = prefs.showDock,
             autoFit = when (homeState.activeTheme?.gridLayout) {
                 null -> prefs.autoFitIcons
                 ThemeLook.GRID_FIT -> true
@@ -468,6 +476,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     showHomeOptions = true
                 },
+                onAddDockApps = { pickingDockApps = true },
                 banner = banner,
                 onBannerAccept = viewModel::acceptBanner,
                 onBannerCustomize = viewModel::customizeBanner,
@@ -499,9 +508,11 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 },
             )
 
-            ThemeArcOverlay(
+            PhaseSwitcherOverlay(
+                style = prefs.switcherStyle,
                 state = arcState,
                 themes = homeState.themes,
+                apps = homeState.apps,
                 activeThemeId = homeState.activeTheme?.id,
                 side = switcherSide,
                 onSelect = onArcItem,
@@ -770,6 +781,20 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
         )
     }
 
+    if (pickingDockApps) {
+        val apps = remember(homeState.apps) { homeState.apps.values.sortedBy { it.label.lowercase() } }
+        AppPickerDialog(
+            title = stringResource(R.string.add_apps_to_the_dock),
+            allApps = apps,
+            initial = emptySet(),
+            maxSelected = ThemeDefaults.MAX_FAVORITES,
+            onDone = { keys ->
+                pickingDockApps = false
+                viewModel.addFavorites(keys.mapNotNull(homeState.apps::get))
+            },
+            onDismiss = { pickingDockApps = false },
+        )
+    }
     customizingApp?.let { app ->
         val iconPacks by produceState(emptyList<IconPackInfo>()) { value = viewModel.installedIconPacks() }
         val current = customizations[app.key]

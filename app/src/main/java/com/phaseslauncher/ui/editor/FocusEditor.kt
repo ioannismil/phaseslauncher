@@ -245,6 +245,8 @@ fun AppPickerDialog(
     initial: Set<String>,
     onDone: (Set<String>) -> Unit,
     onDismiss: () -> Unit,
+    /** Once this many are chosen, the rest can't be ticked. */
+    maxSelected: Int = Int.MAX_VALUE,
 ) {
     var selected by remember { mutableStateOf(initial) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -272,7 +274,11 @@ fun AppPickerDialog(
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .toggleable(value = app.key in selected, role = Role.Checkbox) {
+                                .toggleable(
+                                    value = app.key in selected,
+                                    enabled = app.key in selected || selected.size < maxSelected,
+                                    role = Role.Checkbox,
+                                ) {
                                     selected = if (it) selected + app.key else selected - app.key
                                 }
                                 .padding(vertical = 6.dp),
@@ -281,7 +287,7 @@ fun AppPickerDialog(
                             AppIcon(app, size = 32.dp)
                             Spacer(Modifier.width(12.dp))
                             Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Checkbox(checked = app.key in selected, onCheckedChange = null)
+                            Checkbox(checked = app.key in selected, onCheckedChange = null, enabled = app.key in selected || selected.size < maxSelected)
                         }
                     }
                 }

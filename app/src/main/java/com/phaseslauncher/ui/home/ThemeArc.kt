@@ -203,16 +203,24 @@ class ThemeArcState {
     var finger by mutableStateOf<Offset?>(null)
         private set
 
+    /** Where the current drag began, in window coordinates. */
+    var dragStart by mutableStateOf<Offset?>(null)
+        private set
+
     internal var barAnchor = Offset.Zero
-    internal var geometry: ArcGeometry? = null
-    internal var deadZone = 0f
+
+    /** Set by the switcher on screen: the item under a finger at this window position, if any. */
+    internal var hitTest: ((Offset) -> Int?)? = null
 
     val highlighted: Int?
         get() {
             val f = finger ?: return null
-            val g = geometry ?: return null
-            return if (isDragging) nearestItem(g, f, deadZone) else null
+            return if (isDragging) hitTest?.invoke(f) else null
         }
+
+    /** True once the finger has moved [distance] from where the drag began. */
+    fun movedFromStart(finger: Offset, distance: Float): Boolean =
+        dragStart?.let { (finger - it).getDistance() >= distance } ?: true
 
     fun openForTap() {
         anchor = barAnchor
@@ -224,6 +232,7 @@ class ThemeArcState {
     internal fun startDrag(window: Offset) {
         anchor = barAnchor
         finger = window
+        dragStart = window
         isDragging = true
         isOpen = true
     }
@@ -239,6 +248,7 @@ class ThemeArcState {
         isOpen = false
         isDragging = false
         finger = null
+        dragStart = null
     }
 }
 
@@ -358,8 +368,8 @@ fun ThemeArcOverlay(
             }
         }
         SideEffect {
-            state.geometry = geometry
-            state.deadZone = with(density) { 56.dp.toPx() }
+            val deadZone = with(density) { 56.dp.toPx() }
+            state.hitTest = { nearestItem(geometry, it, deadZone) }
         }
 
         // Scrim. In tap mode it dismisses; while dragging the bar owns the gesture.

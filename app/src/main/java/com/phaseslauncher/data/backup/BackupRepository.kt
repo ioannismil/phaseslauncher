@@ -19,6 +19,7 @@ import com.phaseslauncher.data.settings.IconArrangement
 import com.phaseslauncher.data.settings.IconSize
 import com.phaseslauncher.data.settings.SettingsRepository
 import com.phaseslauncher.data.settings.SwitcherSide
+import com.phaseslauncher.data.settings.SwitcherStyle
 import com.phaseslauncher.data.themes.SoundProfile
 import com.phaseslauncher.data.themes.ThemeDefaults
 import com.phaseslauncher.data.themes.ThemeIconKey
@@ -76,6 +77,7 @@ class BackupRepository(
             .put("favorites", JSONArray(favorites))
             .put("settings", JSONObject()
                 .put("switcherSide", prefs.switcherSide.name)
+                .put("switcherStyle", prefs.switcherStyle.name)
                 .put("gridColumns", prefs.gridColumns)
                 .put("iconSize", prefs.iconSize.name)
                 .put("showLabels", prefs.showLabels)
@@ -98,6 +100,7 @@ class BackupRepository(
                 .put("showBattery", prefs.showBattery)
                 .put("showStatusBar", prefs.showStatusBar)
                 .put("showThemeLabel", prefs.showThemeLabel)
+                .put("showDock", prefs.showDock)
                 .put("appearance", prefs.appearance.name)
                 .put("suggestApps", prefs.suggestApps)
                 .put("suggestSchedules", prefs.suggestSchedules)
@@ -176,6 +179,7 @@ class BackupRepository(
             settings.updatePrefs { current ->
                 current.copy(
                     switcherSide = SwitcherSide.entries.firstOrNull { it.name == s.optString("switcherSide") } ?: current.switcherSide,
+                    switcherStyle = SwitcherStyle.entries.firstOrNull { it.name == s.optString("switcherStyle") } ?: current.switcherStyle,
                     gridColumns = s.optInt("gridColumns", current.gridColumns),
                     iconSize = IconSize.entries.firstOrNull { it.name == s.optString("iconSize") } ?: current.iconSize,
                     showLabels = s.optBoolean("showLabels", current.showLabels),
@@ -209,6 +213,7 @@ class BackupRepository(
                     showBattery = s.optBoolean("showBattery", current.showBattery),
                     showStatusBar = s.optBoolean("showStatusBar", current.showStatusBar),
                     showThemeLabel = s.optBoolean("showThemeLabel", current.showThemeLabel),
+                    showDock = s.optBoolean("showDock", current.showDock),
                     appearance = AppearanceMode.entries.firstOrNull { it.name == s.optString("appearance") } ?: current.appearance,
                     suggestApps = s.optBoolean("suggestApps", current.suggestApps),
                     suggestSchedules = s.optBoolean("suggestSchedules", current.suggestSchedules),

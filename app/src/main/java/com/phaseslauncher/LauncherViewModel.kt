@@ -998,13 +998,16 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { reportFavoriteResult(app, favoritesRepository.add(app.key, dockId)) }
     }
 
-    /** Adds the app to the dock and, if that worked, takes it out of the active theme's grid. */
-    fun moveToFavorites(app: AppInfo) {
+    /** Adds apps to the dock in this order, stopping (and saying so) if it fills up. */
+    fun addFavorites(apps: List<AppInfo>) {
+        val dock = dockId
         viewModelScope.launch {
-            val result = favoritesRepository.add(app.key, dockId)
-            reportFavoriteResult(app, result)
-            if (result == AddFavoriteResult.Added) {
-                homeState.value.activeTheme?.let { themeRepository.removeApp(it.id, app.key) }
+            for (app in apps) {
+                val result = favoritesRepository.add(app.key, dock)
+                if (result == AddFavoriteResult.Full) {
+                    reportFavoriteResult(app, result)
+                    break
+                }
             }
         }
     }

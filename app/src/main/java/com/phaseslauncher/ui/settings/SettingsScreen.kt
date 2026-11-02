@@ -27,9 +27,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -40,6 +42,7 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Dock
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditCalendar
@@ -57,6 +60,7 @@ import androidx.compose.material.icons.outlined.SettingsBackupRestore
 import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.Swipe
 import androidx.compose.material.icons.outlined.SwipeDown
 import androidx.compose.material.icons.outlined.SwipeUp
 import androidx.compose.material.icons.outlined.TouchApp
@@ -125,6 +129,7 @@ import com.phaseslauncher.data.settings.IconArrangement
 import com.phaseslauncher.data.settings.IconSize
 import com.phaseslauncher.data.settings.LauncherPrefs
 import com.phaseslauncher.data.settings.SwitcherSide
+import com.phaseslauncher.data.settings.SwitcherStyle
 import com.phaseslauncher.data.system.LockScreenService
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.ui.components.label
@@ -175,6 +180,7 @@ fun SettingsScreen(
     var explainLock by remember { mutableStateOf(false) }
     var showDateFormats by remember { mutableStateOf(false) }
     var showArrangements by remember { mutableStateOf(false) }
+    var showSwitcherStyles by remember { mutableStateOf(false) }
     val iconPacks by produceState(emptyList<IconPackInfo>()) { value = loadIconPacks() }
     val appsByKey = remember(allApps) { allApps.associateBy { it.key } }
     var lockServiceOn by remember { mutableStateOf(LockScreenService.isEnabled(context)) }
@@ -257,6 +263,11 @@ fun SettingsScreen(
                             ) { Text(if (side == SwitcherSide.Left) stringResource(R.string.left_edge) else stringResource(R.string.right_edge)) }
                         }
                     }
+                }
+            }
+            item {
+                Option(Icons.Outlined.Swipe, stringResource(R.string.switcher_style), prefs.switcherStyle.label) {
+                    showSwitcherStyles = true
                 }
             }
 
@@ -457,6 +468,14 @@ fun SettingsScreen(
             }
 
             item { SectionHeader(stringResource(R.string.home_screen)) }
+            item {
+                SwitchOption(
+                    Icons.Outlined.Dock,
+                    stringResource(R.string.dock),
+                    if (prefs.showDock) stringResource(R.string.favorites_at_the_bottom_of_the_home_screen) else stringResource(R.string.hidden_apps_get_the_room),
+                    prefs.showDock,
+                ) { on -> onUpdatePrefs { it.copy(showDock = on) } }
+            }
             item {
                 SwitchOption(
                     Icons.Outlined.FitScreen,
@@ -709,6 +728,41 @@ fun SettingsScreen(
                 }
             },
             confirmButton = { TextButton(onClick = { showDateFormats = false }) { Text(stringResource(R.string.close)) } },
+        )
+    }
+
+    if (showSwitcherStyles) {
+        AlertDialog(
+            onDismissRequest = { showSwitcherStyles = false },
+            title = { Text(stringResource(R.string.switcher_style)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    SwitcherStyle.entries.forEach { option ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(prefs.switcherStyle == option, role = Role.RadioButton) {
+                                    onUpdatePrefs { it.copy(switcherStyle = option) }
+                                    showSwitcherStyles = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = prefs.switcherStyle == option, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Column {
+                                Text(option.label)
+                                Text(
+                                    stringResource(option.descriptionRes),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSwitcherStyles = false }) { Text(stringResource(R.string.close)) } },
         )
     }
 
