@@ -28,7 +28,7 @@ jobs:
 
       - name: Keep the reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports
           path: |
@@ -36,7 +36,7 @@ jobs:
             app/build/test-results/
 
       - name: Keep the debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: phases-debug
           path: app/build/outputs/apk/debug/app-debug.apk
