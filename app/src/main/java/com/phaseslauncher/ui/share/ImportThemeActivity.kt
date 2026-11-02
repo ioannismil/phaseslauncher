@@ -14,6 +14,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.phaseslauncher.R
 import com.phaseslauncher.appContainer
+import com.phaseslauncher.data.runCatchingCancellable
 import com.phaseslauncher.data.settings.AppearanceMode
 import com.phaseslauncher.data.share.Resolution
 import com.phaseslauncher.data.share.SharedTheme
@@ -56,7 +57,7 @@ class ImportThemeActivity : ComponentActivity() {
                         resolution = resolution,
                         onImport = { options ->
                             container.appScope.launch {
-                                val message = runCatching { container.themeSharing.install(shared, resolution, options) }
+                                val message = runCatchingCancellable { container.themeSharing.install(shared, resolution, options) }
                                     .onSuccess { container.settingsRepository.setActiveThemeId(it) }
                                     .fold({ getString(R.string.added, options.name.ifBlank { shared.name }) }, { getString(R.string.couldn_t_add_the_phase, it.message) })
                                 withContext(Dispatchers.Main) { done(message) }

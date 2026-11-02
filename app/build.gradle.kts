@@ -97,6 +97,7 @@ dependencies {
     testImplementation(libs.junit)
     // The real org.json for JVM unit tests (Android's is a stub there).
     testImplementation(libs.org.json)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

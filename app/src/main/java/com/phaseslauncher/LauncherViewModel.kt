@@ -32,6 +32,7 @@ import com.phaseslauncher.data.importer.LauncherLayout
 import com.phaseslauncher.data.importer.LayoutImportOptions
 import com.phaseslauncher.data.rules.RuleText
 import com.phaseslauncher.data.rules.ThemeRule
+import com.phaseslauncher.data.runCatchingCancellable
 import com.phaseslauncher.data.share.ImportOptions
 import com.phaseslauncher.data.share.Resolution
 import com.phaseslauncher.data.share.ShareOptions
@@ -592,7 +593,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     fun exportBackup(uri: Uri) {
         viewModelScope.launch {
-            runCatching { container.backupRepository.exportTo(uri) }
+            runCatchingCancellable { container.backupRepository.exportTo(uri) }
                 .onSuccess { message(res.getString(R.string.backed_up, phasesCount(it.themes), favoritesCount(it.favorites))) }
                 .onFailure { message(res.getString(R.string.backup_failed, it.message)) }
         }
@@ -602,7 +603,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             // Widget ids belong to this phone's widget host; the restored themes start without widgets.
             widgets.removeAll()
-            runCatching { container.backupRepository.importFrom(uri) }
+            runCatchingCancellable { container.backupRepository.importFrom(uri) }
                 .onSuccess { message(res.getString(R.string.restored, phasesCount(it.themes), favoritesCount(it.favorites))) }
                 .onFailure { message(res.getString(R.string.couldn_t_restore, it.message)) }
         }
@@ -838,7 +839,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     suspend fun shareFile(json: JSONObject, name: String): Uri = container.themeSharing.writeFile(json, name)
 
-    suspend fun readSharedTheme(uri: Uri): Result<SharedTheme> = runCatching { container.themeSharing.read(uri) }
+    suspend fun readSharedTheme(uri: Uri): Result<SharedTheme> = runCatchingCancellable { container.themeSharing.read(uri) }
 
     fun parseSharedTheme(text: String): Result<SharedTheme> = runCatching { container.themeSharing.parse(text) }
 
@@ -847,7 +848,7 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     fun installSharedTheme(shared: SharedTheme, resolution: Resolution, options: ImportOptions) {
         viewModelScope.launch {
-            runCatching { container.themeSharing.install(shared, resolution, options) }
+            runCatchingCancellable { container.themeSharing.install(shared, resolution, options) }
                 .onSuccess { id ->
                     activate(id)
                     message(res.getString(R.string.added, options.name.ifBlank { shared.name }))
@@ -857,11 +858,11 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     suspend fun readLauncherBackup(uri: Uri): Result<LauncherLayout> =
-        runCatching { container.launcherImporter.read(uri, homeState.value.apps.values.toList()) }
+        runCatchingCancellable { container.launcherImporter.read(uri, homeState.value.apps.values.toList()) }
 
     fun importLauncherLayout(layout: LauncherLayout, options: LayoutImportOptions) {
         viewModelScope.launch {
-            runCatching { container.launcherImporter.apply(layout, options) }
+            runCatchingCancellable { container.launcherImporter.apply(layout, options) }
                 .onSuccess { count -> message(res.getQuantityString(R.plurals.imported_phases, count, count)) }
                 .onFailure { message(res.getString(R.string.import_failed, it.message)) }
         }
