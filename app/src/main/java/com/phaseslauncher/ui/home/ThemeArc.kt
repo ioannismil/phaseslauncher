@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -250,6 +251,13 @@ class ThemeArcState {
     }
 }
 
+/** The bar's touch area: wider than it looks, so a swipe that starts a little off it still counts. */
+private val BarTouchWidth = 40.dp
+private val BarTouchHeight = 168.dp
+
+/** How much of the edge is kept from the back gesture: the most Android honors per edge. */
+private val BarExclusionHeight = 200.dp
+
 /**
  * The thin handle on the screen edge. Swipe from it toward the middle to fan out the themes
  * and release on one to switch; tap it to open the arc and pick with a tap instead.
@@ -268,13 +276,19 @@ fun ThemeEdgeBar(
     val haptics = LocalHapticFeedback.current
     var origin by remember { mutableStateOf(Offset.Zero) }
     val pressed by animateFloatAsState(if (state.isOpen) 1f else 0f, label = "barPressed")
+    val exclusionHeightPx = with(LocalDensity.current) { BarExclusionHeight.toPx() }
 
     Box(
         modifier = modifier
-            .width(28.dp)
-            .height(168.dp)
-            // Keep Android's edge back-gesture from stealing swipes that start on the bar.
-            .systemGestureExclusion()
+            .width(BarTouchWidth)
+            .height(BarTouchHeight)
+            // Keep Android's edge back gesture from stealing swipes that start on or near the bar.
+            // Its zone can be wider than the bar (Samsung's "Back gesture sensitivity" widens it),
+            // and on home Back does nothing anyway, so take the most height Android allows.
+            .systemGestureExclusion { coords ->
+                val extra = ((exclusionHeightPx - coords.size.height) / 2f).coerceAtLeast(0f)
+                Rect(0f, -extra, coords.size.width.toFloat(), coords.size.height + extra)
+            }
             .onGloballyPositioned { coords ->
                 origin = coords.positionInWindow()
                 val edgeX = if (side == SwitcherSide.Right) origin.x + coords.size.width else origin.x
