@@ -4,6 +4,8 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-11-09
+
 ### Fixed
 - Sliding from the phase switcher bar no longer turns into a Back gesture on phones where that gesture reaches further in, like Samsung phones with a higher *Back gesture sensitivity*. The bar is also easier to grab.
 
@@ -81,7 +83,8 @@ The changes people will notice in each release. The format follows [Keep a Chang
 - A drawer with search for apps, contacts and settings, plus a calculator and unit conversions. It also has work profile and Private Space tabs, hidden apps, icon packs and themed icons.
 - Suggestions learned on the phone: apps to add to a phase, schedules to set and phases to switch to.
 
-[Unreleased]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.6...HEAD
+[0.3.6]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.2...v0.3.3

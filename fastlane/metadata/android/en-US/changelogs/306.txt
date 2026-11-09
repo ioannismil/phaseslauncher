@@ -1,0 +1,1 @@
+• Sliding from the phase switcher bar no longer turns into a Back gesture on phones where that gesture reaches further in, like Samsung phones with a higher Back gesture sensitivity. The bar is also easier to grab.
