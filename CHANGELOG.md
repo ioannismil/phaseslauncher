@@ -4,6 +4,9 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+- Sliding from the phase switcher bar no longer turns into a Back gesture on phones where that gesture reaches further in, like Samsung phones with a higher *Back gesture sensitivity*. The bar is also easier to grab.
+
 ## [0.3.5] - 2026-11-09
 
 **Swipe between phases.** Swipe left or right on the home screen for the next or previous phase.
