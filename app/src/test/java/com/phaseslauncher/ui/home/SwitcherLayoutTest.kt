@@ -1,7 +1,9 @@
 package com.phaseslauncher.ui.home
 
+import androidx.compose.ui.geometry.Offset
 import com.phaseslauncher.data.settings.SwitcherSide
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -97,5 +99,78 @@ class SwitcherLayoutTest {
             assertEquals("y=$y", picked, b.indexAt(y, current = picked))
             y += 7f
         }
+    }
+
+    private fun tiles(count: Int, mirrored: Boolean = false, anchorY: Float = 1200f) = tileLayout(
+        count = count,
+        anchorY = anchorY,
+        width = width,
+        top = 140f,
+        bottom = 2080f,
+        margin = 44f,
+        gap = 28f,
+        maxTileHeight = 340f,
+        minTileHeight = 200f,
+        mirrored = mirrored,
+    )
+
+    @Test
+    fun eachTilePicksItselfAndTheGridFitsTheArea() {
+        for (mirrored in listOf(false, true)) {
+            for (count in listOf(1, 3, 5, 8, 14, 30)) {
+                val t = tiles(count, mirrored)
+                for (i in 0 until count) assertEquals("$count $mirrored", i, t.indexAt(t.centerOf(i), slack = 0f))
+                assertTrue("$count", t.top >= 140f && t.top + t.height <= 2080f + 0.5f)
+                assertTrue(t.left + t.width <= width - 44f + 0.5f)
+            }
+        }
+    }
+
+    @Test
+    fun tilesStartOnTheBarSideAndCancelOffTheGrid() {
+        val left = tiles(5)
+        val right = tiles(5, mirrored = true)
+        assertTrue(left.centerOf(0).x < width / 2f)
+        assertTrue(right.centerOf(0).x > width / 2f)
+        // The bar's edge, at the grid's height, is still on the grid.
+        assertEquals(0, right.indexAt(Offset(width, right.centerOf(0).y), slack = 60f))
+        assertNull(left.indexAt(Offset(width / 2f, left.top - 200f), slack = 60f))
+        // The empty cell at the end of a partial last row picks nothing.
+        assertNull(left.indexAt(left.centerOf(4) + Offset(left.tileWidth + left.gap, 0f), slack = 0f))
+    }
+
+    @Test
+    fun crowdedTilesUseMoreColumns() {
+        assertEquals(2, tiles(4).columns)
+        assertTrue(tiles(30).columns > 3)
+    }
+
+    @Test
+    fun magnificationPeaksUnderTheFingerAndFades() {
+        assertEquals(1f, magnification(0f), 0.0001f)
+        assertTrue(magnification(1f) < 1f && magnification(1f) > magnification(2f))
+        assertEquals(magnification(-1.5f), magnification(1.5f), 0.0001f)
+        assertTrue(magnification(4f) < 0.01f)
+    }
+
+    private fun slider(count: Int, fromRight: Boolean, anchorY: Float = 1200f) =
+        sliderLayout(count, anchorY, width, height, margin = 28f, above = 470f, below = 220f, fromRight = fromRight)
+
+    @Test
+    fun sliderRunsInwardFromTheBar() {
+        for (fromRight in listOf(false, true)) {
+            val s = slider(6, fromRight)
+            for (i in 0 until 6) assertEquals(i, s.indexAt(Offset(s.centerX(i), s.y), reach = 100f))
+            val edge = if (fromRight) width else 0f
+            assertEquals(0, s.indexAt(Offset(edge, s.y), reach = 100f))
+        }
+    }
+
+    @Test
+    fun sliderCancelsAwayFromTheTrackAndStaysClearOfTheEdges() {
+        val s = slider(6, fromRight = true)
+        assertNull(s.indexAt(Offset(width / 2f, s.y + 300f), reach = 100f))
+        assertEquals(470f, slider(6, fromRight = true, anchorY = 10f).y, 0.01f)
+        assertEquals(height - 220f, slider(6, fromRight = true, anchorY = height).y, 0.01f)
     }
 }

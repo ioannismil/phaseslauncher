@@ -514,6 +514,9 @@
     <string name="suggested">Suggested</string>
     <string name="suggestions">Suggestions</string>
     <string name="swipe_down">Swipe down</string>
+    <string name="swipe_between_phases">Swipe between phases</string>
+    <string name="swipe_between_phases_on">Swipe left or right on the home screen for the next or previous phase</string>
+    <string name="swipe_between_phases_off">Off — use the bar on the edge to switch</string>
     <string name="swipe_from_the_bar_on_the_screen_edge_toward_the">Swipe from the bar on the screen edge toward the middle, then release on a phase. Tap the bar to pick with a tap.</string>
     <string name="swipe_up">Swipe up</string>
     <string name="switch_action">Switch</string>
@@ -531,6 +534,12 @@
     <string name="switcher_style_rail_description">A list slides out of the edge; slide up or down to a phase</string>
     <string name="switcher_style_wheel">Picker wheel</string>
     <string name="switcher_style_wheel_description">Phase names scroll past as you slide up or down</string>
+    <string name="switcher_style_tiles">Tiles</string>
+    <string name="switcher_style_tiles_description">A grid of colored tiles near your thumb; slide onto one, or off the grid to cancel</string>
+    <string name="switcher_style_magnifier">Magnifier</string>
+    <string name="switcher_style_magnifier_description">A dock of icons along the edge that swells under your finger</string>
+    <string name="switcher_style_slider">Slider</string>
+    <string name="switcher_style_slider_description">Swipe in along a track; how far you go picks the phase</string>
     <string name="release_to_switch">Release to switch</string>
     <string name="now">Now</string>
     <string name="switch_back_to_the_previous_phase">Switch back to the previous phase</string>

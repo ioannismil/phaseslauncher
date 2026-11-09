@@ -32,6 +32,9 @@ enum class SwitcherStyle(@StringRes override val labelRes: Int, @StringRes val d
     Dial(R.string.switcher_style_dial, R.string.switcher_style_dial_description),
     Cards(R.string.switcher_style_cards, R.string.switcher_style_cards_description),
     Bands(R.string.switcher_style_bands, R.string.switcher_style_bands_description),
+    Tiles(R.string.switcher_style_tiles, R.string.switcher_style_tiles_description),
+    Magnifier(R.string.switcher_style_magnifier, R.string.switcher_style_magnifier_description),
+    Slider(R.string.switcher_style_slider, R.string.switcher_style_slider_description),
 }
 
 enum class IconSize(val dp: Int, @StringRes override val labelRes: Int) : Labeled { Small(48, R.string.small), Medium(56, R.string.medium), Large(64, R.string.large) }
@@ -127,6 +130,8 @@ data class LauncherPrefs(
     val swipeUp: GestureAction = GestureAction(GestureKind.Drawer),
     val swipeDown: GestureAction = GestureAction(GestureKind.Notifications),
     val doubleTap: GestureAction = GestureAction(GestureKind.None),
+    /** A sideways swipe on the home screen moves to the next or previous phase. */
+    val swipeBetweenPhases: Boolean = false,
     val drawerSort: DrawerSort = DrawerSort.Name,
     /** Open the keyboard (search) whenever the drawer opens. */
     val drawerKeyboard: Boolean = false,
@@ -211,6 +216,7 @@ class SettingsRepository(context: Context) {
             ?: GestureAction(if (this[SWIPE_DOWN_NOTIFICATIONS] != false) GestureKind.Notifications else GestureKind.None),
         doubleTap = GestureAction.parse(this[GESTURE_DOUBLE_TAP])
             ?: GestureAction(if (this[DOUBLE_TAP_LOCK] == true) GestureKind.Lock else GestureKind.None),
+        swipeBetweenPhases = this[SWIPE_BETWEEN_PHASES] ?: false,
         drawerSort = DrawerSort.entries.firstOrNull { it.name == this[DRAWER_SORT] } ?: DrawerSort.Name,
         drawerKeyboard = this[DRAWER_KEYBOARD] ?: false,
         hiddenApps = this[HIDDEN_APPS].orEmpty(),
@@ -250,6 +256,7 @@ class SettingsRepository(context: Context) {
         this[GESTURE_SWIPE_UP] = prefs.swipeUp.serialize()
         this[GESTURE_SWIPE_DOWN] = prefs.swipeDown.serialize()
         this[GESTURE_DOUBLE_TAP] = prefs.doubleTap.serialize()
+        this[SWIPE_BETWEEN_PHASES] = prefs.swipeBetweenPhases
         this[DRAWER_SORT] = prefs.drawerSort.name
         this[DRAWER_KEYBOARD] = prefs.drawerKeyboard
         this[HIDDEN_APPS] = prefs.hiddenApps
@@ -350,6 +357,7 @@ class SettingsRepository(context: Context) {
         val GESTURE_SWIPE_UP = stringPreferencesKey("gesture_swipe_up")
         val GESTURE_SWIPE_DOWN = stringPreferencesKey("gesture_swipe_down")
         val GESTURE_DOUBLE_TAP = stringPreferencesKey("gesture_double_tap")
+        val SWIPE_BETWEEN_PHASES = booleanPreferencesKey("swipe_between_phases")
         val DRAWER_SORT = stringPreferencesKey("drawer_sort")
         val DRAWER_KEYBOARD = booleanPreferencesKey("drawer_keyboard")
         val HIDDEN_APPS = stringSetPreferencesKey("hidden_apps")

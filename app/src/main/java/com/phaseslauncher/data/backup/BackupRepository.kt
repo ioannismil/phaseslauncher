@@ -111,6 +111,7 @@ class BackupRepository(
                     .put("swipeUp", prefs.swipeUp.serialize())
                     .put("swipeDown", prefs.swipeDown.serialize())
                     .put("doubleTap", prefs.doubleTap.serialize())
+                    .put("swipeBetweenPhases", prefs.swipeBetweenPhases)
                     .put("drawerSort", prefs.drawerSort.name)
                     .put("drawerKeyboard", prefs.drawerKeyboard)
                     .put("hiddenApps", JSONArray(prefs.hiddenApps.toList()))
@@ -236,6 +237,7 @@ class BackupRepository(
                         } else {
                             current.doubleTap
                         },
+                    swipeBetweenPhases = s.optBoolean("swipeBetweenPhases", current.swipeBetweenPhases),
                     drawerSort = DrawerSort.entries.firstOrNull { it.name == s.optString("drawerSort") } ?: current.drawerSort,
                     drawerKeyboard = s.optBoolean("drawerKeyboard", current.drawerKeyboard),
                     hiddenApps = s.optJSONArray("hiddenApps").strings().toSet(),

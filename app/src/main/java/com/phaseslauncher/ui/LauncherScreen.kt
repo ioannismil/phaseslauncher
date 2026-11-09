@@ -6,18 +6,13 @@ import android.appwidget.AppWidgetProviderInfo
 import android.graphics.Rect
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -41,11 +36,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -53,12 +50,16 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -88,8 +89,10 @@ import com.phaseslauncher.data.themes.ThemeLook
 import com.phaseslauncher.data.themes.toDraft
 import com.phaseslauncher.ui.components.AppAction
 import com.phaseslauncher.ui.components.AppIcon
+import com.phaseslauncher.ui.components.BackDismissible
 import com.phaseslauncher.ui.components.ExternalDragState
 import com.phaseslauncher.ui.components.LaunchAnimation
+import com.phaseslauncher.ui.components.LocalCloseMenus
 import com.phaseslauncher.ui.components.LocalExternalDrag
 import com.phaseslauncher.ui.components.LocalNotificationDots
 import com.phaseslauncher.ui.components.LocalShortcutHost
@@ -97,6 +100,7 @@ import com.phaseslauncher.ui.components.ShortcutHost
 import com.phaseslauncher.ui.components.externalDragTracker
 import com.phaseslauncher.ui.drawer.AppDrawer
 import com.phaseslauncher.ui.drawer.DrawerSearchActions
+import com.phaseslauncher.ui.drawer.DrawerSwipeState
 import com.phaseslauncher.ui.editor.AddToThemesDialog
 import com.phaseslauncher.ui.editor.AppPickerDialog
 import com.phaseslauncher.ui.editor.CustomizeAppDialog
@@ -128,6 +132,7 @@ import com.phaseslauncher.ui.theme.rememberWallpaperContentColors
 import com.phaseslauncher.ui.widgets.LocalWidgetHost
 import com.phaseslauncher.ui.widgets.WidgetHostUi
 import com.phaseslauncher.ui.widgets.WidgetPickerSheet
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 /** Which theme the editor is open for; [themeId] == null creates a new one. [draft] opens it with changes already made. */
@@ -166,6 +171,10 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     val uiScope = rememberCoroutineScope()
     val customizations by viewModel.customizations.collectAsStateWithLifecycle()
     val arcState = remember { ThemeArcState() }
+    // The drawer follows the finger; the view model's drawerOpen is where it settles.
+    val drawerSwipe = remember { DrawerSwipeState(uiScope) }
+    drawerSwipe.onSettle = { open -> if (open) viewModel.openDrawer() else viewModel.closeDrawer() }
+    LaunchedEffect(drawerOpen) { drawerSwipe.animateTo(drawerOpen) }
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val switcherSide = prefs.switcherSide
     val dotKeys by viewModel.notificationDots.dotKeys.collectAsStateWithLifecycle()
@@ -219,6 +228,27 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     LaunchedEffect(viewModel) {
         viewModel.prompts.editDraft.collect { (themeId, draft) -> editor = EditorRequest(themeId, draft) }
     }
+    // Home means home: close whatever is open on top of the home screen. Setup is left alone.
+    LaunchedEffect(viewModel) {
+        viewModel.homePressed.collect {
+            arcState.close()
+            showSettings = false
+            editor = null
+            showHomeOptions = false
+            showWidgetPicker = false
+            openFolderKey = null
+            addToFolderItem = null
+            renamingFolder = null
+            customizingApp = null
+            pickingDockApps = false
+            addToThemesApp = null
+            deletingTheme = null
+            sharingTheme = null
+            pastingTheme = false
+            incomingTheme = null
+            incomingLayout = null
+        }
+    }
 
     val editorEnvironment = remember(viewModel) {
         val switcher = viewModel.autoSwitcher
@@ -244,11 +274,19 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
         )
     }
 
-    // Back closes the arc or the drawer; on the home screen it does nothing (we are home).
+    // Back closes the arc; on the home screen it does nothing (we are home). The drawer and
+    // settings register their own predictive handlers later, so they take precedence.
     BackHandler(enabled = true) {
-        when {
-            arcState.isOpen -> arcState.close()
-            drawerOpen -> viewModel.closeDrawer()
+        if (arcState.isOpen) arcState.close()
+    }
+    // The drawer sinks a little as the back swipe progresses, then closes on release.
+    PredictiveBackHandler(enabled = drawerOpen && !showSettings) { events ->
+        try {
+            events.collect { drawerSwipe.previewBack(it.progress) }
+            viewModel.closeDrawer()
+        } catch (e: CancellationException) {
+            drawerSwipe.animateTo(open = true)
+            throw e
         }
     }
 
@@ -257,9 +295,12 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     // System-bar icons follow the wallpaper on home, and the surface color in the drawer.
     val view = LocalView.current
     val darkTheme = LocalDarkTheme.current
+    // The bars flip once the drawer reaches the status bar; derived so it doesn't recompose every frame.
+    val drawerCovers by remember { derivedStateOf { drawerSwipe.progress > 0.95f } }
+    val drawerShown by remember { derivedStateOf { drawerSwipe.isVisible } }
+    val overSurface = drawerCovers || showOnboarding == true || showSettings
     SideEffect {
         val window = (view.context as? Activity)?.window ?: return@SideEffect
-        val overSurface = drawerOpen || showOnboarding == true || showSettings
         val lightBars = if (overSurface) !darkTheme else wallpaperColors.isDark
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = lightBars
@@ -271,8 +312,6 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     }
 
     val swipeThresholdPx = with(LocalDensity.current) { 48.dp.toPx() }
-    // The drawer is slightly translucent to tint the wallpaper; hide home so it doesn't ghost through.
-    val homeAlpha by animateFloatAsState(if (drawerOpen) 0f else 1f, label = "homeAlpha")
     // Blur home behind the theme arc so its labels stand out (no-op before Android 12).
     val homeBlur by animateDpAsState(if (arcState.isOpen) 14.dp else 0.dp, label = "homeBlur")
 
@@ -425,6 +464,9 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
     }
     val swipeDown: () -> Unit = { performGesture(prefs.swipeDown) }
     val swipeUp: () -> Unit = { performGesture(prefs.swipeUp) }
+    // Only a plain "open the drawer" swipe follows the finger; Search opens it with the keyboard instead.
+    val swipeUpOpensDrawer = prefs.swipeUp.kind == GestureKind.Drawer
+    val currentSwipeUpOpensDrawer = rememberUpdatedState(swipeUpOpensDrawer)
     val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         // Re-run the search so contacts show up right away, or stop asking if declined.
         if (granted) viewModel.refreshSearch() else viewModel.updatePrefs { it.copy(contactSearch = false) }
@@ -469,8 +511,14 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
         LocalShortcutHost provides shortcutHost,
         LocalWidgetHost provides widgetHost,
         LocalExternalDrag provides externalDrag,
+        LocalCloseMenus provides viewModel.homePressed,
     ) {
-        Box(Modifier.fillMaxSize().externalDragTracker(externalDrag)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .onSizeChanged { drawerSwipe.heightPx = it.height.toFloat() }
+                .externalDragTracker(externalDrag),
+        ) {
             HomeScreen(
                 state = homeState,
                 arcState = arcState,
@@ -496,10 +544,20 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 onBannerAccept = viewModel.prompts::acceptBanner,
                 onBannerCustomize = viewModel.prompts::customizeBanner,
                 onBannerDismiss = viewModel.prompts::dismissBanner,
+                drawerSwipe = drawerSwipe.takeIf { swipeUpOpensDrawer },
+                // The phase label on home already shows the new name, so no toast.
+                onStepPhase = if (prefs.swipeBetweenPhases) {
+                    { delta -> viewModel.stepTheme(delta, announce = false) }
+                } else {
+                    null
+                },
                 modifier = Modifier
                     .graphicsLayer {
-                        val zoom = homeZoom.value
-                        alpha = homeAlpha * (1f - (1f - zoom) * 5f).coerceIn(0f, 1f)
+                        // Home fades and recedes as the drawer comes up over it, so it doesn't ghost
+                        // through the translucent drawer.
+                        val drawer = drawerSwipe.progress
+                        val zoom = homeZoom.value * (1f - drawer * DRAWER_HOME_SHRINK)
+                        alpha = (1f - drawer) * (1f - (1f - homeZoom.value) * 5f).coerceIn(0f, 1f)
                         scaleX = zoom
                         scaleY = zoom
                     }
@@ -510,15 +568,33 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                     }
                     .pointerInput(Unit) {
                         var dragged = 0f
+                        var draggingDrawer = false
+                        val velocity = VelocityTracker()
                         detectVerticalDragGestures(
-                            onDragStart = { dragged = 0f },
-                            onVerticalDrag = { _, delta -> dragged += delta },
+                            onDragStart = {
+                                dragged = 0f
+                                draggingDrawer = false
+                                velocity.resetTracking()
+                            },
+                            onVerticalDrag = { change, delta ->
+                                dragged += delta
+                                velocity.addPointerInputChange(change)
+                                // An upward swipe that opens the drawer pulls it along with the finger.
+                                if (!draggingDrawer && dragged < 0f && currentSwipeUpOpensDrawer.value) {
+                                    draggingDrawer = true
+                                    drawerSwipe.dragBy(dragged)
+                                } else if (draggingDrawer) {
+                                    drawerSwipe.dragBy(delta)
+                                }
+                            },
                             onDragEnd = {
                                 when {
+                                    draggingDrawer -> drawerSwipe.release(velocity.calculateVelocity().y)
                                     dragged < -swipeThresholdPx -> swipeUp()
                                     dragged > swipeThresholdPx -> swipeDown()
                                 }
                             },
+                            onDragCancel = { if (draggingDrawer) drawerSwipe.release(0f) },
                         )
                     },
             )
@@ -534,29 +610,36 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 themeActions = themeActions,
             )
 
-            AnimatedVisibility(
-                visible = drawerOpen,
-                enter = slideInVertically { it / 3 } + fadeIn(),
-                exit = slideOutVertically { it / 3 } + fadeOut(),
-            ) {
-                AppDrawer(
-                    state = drawerState,
-                    query = query,
-                    onQueryChange = viewModel::onQueryChange,
-                    onLaunch = launchApp,
-                    appActions = drawerActions,
-                    onClose = viewModel::closeDrawer,
-                    onOpenSettings = {
-                        viewModel.closeDrawer()
-                        showSettings = true
+            // Always composed, parked below the screen while closed: building it mid-swipe
+            // stalls the first pull. Hidden from accessibility until it starts coming up.
+            AppDrawer(
+                isOpen = drawerOpen,
+                swipe = drawerSwipe,
+                modifier = Modifier
+                    .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
+                    .graphicsLayer {
+                        val drawer = drawerSwipe.progress
+                        translationY = (1f - drawer) * size.height
+                        // Fades in over the first few percent so the top edge isn't a hard line, then
+                        // stays opaque so the dock doesn't show through its header.
+                        alpha = (drawer * 12f).coerceAtMost(1f)
                     },
-                    onSelectProfile = viewModel::selectProfileTab,
-                    onSetProfileQuiet = viewModel::setProfileQuiet,
-                    searchActions = searchActions,
-                    openKeyboard = drawerKeyboard,
-                    onSortChange = { sort -> viewModel.updatePrefs { it.copy(drawerSort = sort) } },
-                )
-            }
+                state = drawerState,
+                query = query,
+                onQueryChange = viewModel::onQueryChange,
+                onLaunch = launchApp,
+                appActions = drawerActions,
+                onOpenSettings = {
+                    viewModel.closeDrawer()
+                    showSettings = true
+                },
+                onSelectProfile = viewModel::selectProfileTab,
+                onSetProfileQuiet = viewModel::setProfileQuiet,
+                searchActions = searchActions,
+                // Only once it's really open, not while it's being pulled up.
+                openKeyboard = drawerKeyboard && drawerOpen,
+                onSortChange = { sort -> viewModel.updatePrefs { it.copy(drawerSort = sort) } },
+            )
 
             // The app being carried from the drawer, under the finger.
             externalDrag.app?.let { app ->
@@ -575,7 +658,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
                 )
             }
 
-            if (showSettings) {
+            BackDismissible(visible = showSettings, onDismiss = { showSettings = false }) {
                 SettingsScreen(
                     themes = homeState.themes,
                     appCounts = homeState.themes.associate { it.id to homeState.itemCount(it) },
@@ -841,4 +924,7 @@ fun LauncherScreen(viewModel: LauncherViewModel, startWidgetAdd: (AppWidgetProvi
 }
 
 private const val RETURN_ZOOM_FROM = 0.92f
+
+/** How much home shrinks once the drawer is fully up. */
+private const val DRAWER_HOME_SHRINK = 0.06f
 private const val RETURN_ZOOM_MS = 360

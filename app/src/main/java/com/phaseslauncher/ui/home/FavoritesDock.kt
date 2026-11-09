@@ -14,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,9 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.phaseslauncher.R
 import com.phaseslauncher.data.apps.AppInfo
 import com.phaseslauncher.ui.components.AppAction
-import com.phaseslauncher.ui.components.AppMenuState
 import com.phaseslauncher.ui.components.AppTileWithMenu
 import com.phaseslauncher.ui.components.LocalExternalDrag
+import com.phaseslauncher.ui.components.rememberAppMenuState
 import com.phaseslauncher.ui.components.rememberReorderState
 import com.phaseslauncher.ui.components.reorderContainer
 import com.phaseslauncher.ui.components.reorderItem
@@ -48,7 +47,7 @@ fun FavoritesDock(
     modifier: Modifier = Modifier,
 ) {
     val wallpaper = LocalWallpaperContent.current
-    val menuState = remember { AppMenuState() }
+    val menuState = rememberAppMenuState()
     val reorder = rememberReorderState(favorites.map { it.key }, onReorder)
     val externalDrag = LocalExternalDrag.current
     Box(

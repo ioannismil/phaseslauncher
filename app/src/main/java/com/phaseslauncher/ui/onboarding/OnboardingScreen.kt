@@ -311,7 +311,8 @@ private fun WelcomeStep() {
         Text(stringResource(R.string.welcome_to_phases), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
         Text(
-            stringResource(R.string.group_your_apps_into_themes_like_gaming_or_work) +
+            // aapt trims the resource's trailing space, so the gap goes here.
+            stringResource(R.string.group_your_apps_into_themes_like_gaming_or_work) + " " +
                 stringResource(R.string.your_favorites_stay_in_the_dock_on_every_theme),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -403,7 +404,7 @@ private fun ThemesStep(
         item {
             StepHeader(
                 title = stringResource(R.string.create_your_themes),
-                body = stringResource(R.string.start_from_these_suggestions_rename_them_or_unti) +
+                body = stringResource(R.string.start_from_these_suggestions_rename_them_or_unti) + " " +
                     stringResource(R.string.you_can_change_everything_later_by_long_pressing),
             )
             TextButton(onClick = onImport, modifier = Modifier.padding(horizontal = 16.dp)) {

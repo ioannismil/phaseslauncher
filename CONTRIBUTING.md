@@ -41,7 +41,12 @@ Every push to `main` and every pull request is built, tested and linted (*CI* wo
 
 As changes land, add them under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md): the changes people will notice, grouped under `### Added`, `### Changed` or `### Fixed`. A one-line **bold headline** at the top is optional.
 
-To publish what's there: Actions tab → *Release* → *Run workflow* on `main`, and pick which part of the version goes up (patch, minor or major). The workflow:
+Every push to `main` publishes what's there as a patch release (1.2.3 → 1.2.4). A push with nothing under `[Unreleased]`, like a Dependabot bump, doesn't release. To steer it, put one of these in the pushed commit's message (for a merged PR, its title is in the merge commit):
+
+- `[minor]` or `[major]` bumps that part of the version instead;
+- `[no release]` keeps the changes under `[Unreleased]` for the next release.
+
+You can also release by hand: Actions tab → *Release* → *Run workflow* on `main`, and pick which part of the version goes up (patch, minor or major). Either way, the workflow:
 
 1. runs [scripts/prepare_release.py](scripts/prepare_release.py), which bumps `versionName` and `versionCode` in [gradle.properties](gradle.properties) (versionCode is major × 10000 + minor × 100 + patch), turns `[Unreleased]` into a dated version section with a fresh, empty `[Unreleased]` above it, updates the comparison links, and writes the store changelog (`fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`);
 2. tests and builds a signed APK;
