@@ -16,6 +16,7 @@ The changes people will notice in each release. The format follows [Keep a Chang
 - Pressing Home closes whatever is open, like menus, dialogs, Settings or the phase switcher, and takes you back to the plain home screen.
 
 ### Fixed
+- Sliding from the phase switcher bar no longer turns into a Back gesture on phones where that gesture reaches further in, like Samsung phones with a higher *Back gesture sensitivity*. The bar is also easier to grab.
 - The keyboard no longer pops up over the home screen after pressing Home with the drawer open.
 - Missing spaces between sentences in setup and in the screen-lock explanation.
 
