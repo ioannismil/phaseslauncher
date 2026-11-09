@@ -1,0 +1,4 @@
+Swipe between phases. Swipe left or right on the home screen for the next or previous phase.
+
+• Swipe between phases: swipe sideways on the home screen and the phase's apps slide out as the next phase's slide in. Turn it on in Settings → Gestures.
+…

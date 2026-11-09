@@ -4,6 +4,8 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-11-09
+
 **Swipe between phases.** Swipe left or right on the home screen for the next or previous phase.
 
 ### Added
@@ -76,7 +78,8 @@ The changes people will notice in each release. The format follows [Keep a Chang
 - A drawer with search for apps, contacts and settings, plus a calculator and unit conversions. It also has work profile and Private Space tabs, hidden apps, icon packs and themed icons.
 - Suggestions learned on the phone: apps to add to a phase, schedules to set and phases to switch to.
 
-[Unreleased]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/ioannismil/phaseslauncher/compare/v0.3.1...v0.3.2
