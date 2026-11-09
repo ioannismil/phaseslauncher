@@ -4,6 +4,21 @@ The changes people will notice in each release. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+**Swipe between phases.** Swipe left or right on the home screen for the next or previous phase.
+
+### Added
+- *Swipe between phases*: swipe sideways on the home screen and the phase's apps slide out as the next phase's slide in. Turn it on in *Settings → Gestures*.
+- Three new phase switcher styles in *Settings → Phase switcher → Style*: *Tiles* (a grid of colored tiles near your thumb), *Magnifier* (a dock of icons along the edge that swells under your finger) and *Slider* (swipe in along a track; how far you go picks the phase).
+
+### Changed
+- The app drawer follows your finger: swipe up from home to pull it up, or down from the top of the list to push it away. A short pull is enough to open or close it.
+- The back gesture previews where it's going: Settings shrinks toward the edge you swipe from, and the drawer sinks, before you let go.
+- Pressing Home closes whatever is open, like menus, dialogs, Settings or the phase switcher, and takes you back to the plain home screen.
+
+### Fixed
+- The keyboard no longer pops up over the home screen after pressing Home with the drawer open.
+- Missing spaces between sentences in setup and in the screen-lock explanation.
+
 ## [0.3.4] - 2026-11-02
 
 ### Changed

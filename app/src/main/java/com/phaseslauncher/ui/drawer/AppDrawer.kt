@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -72,6 +73,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +87,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -100,7 +103,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -113,6 +115,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.phaseslauncher.DrawerState
 import com.phaseslauncher.R
@@ -135,8 +138,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val CloseDragThreshold = 96.dp
-
 @Composable
 fun AppDrawer(
     state: DrawerState,
@@ -144,7 +145,8 @@ fun AppDrawer(
     onQueryChange: (String) -> Unit,
     onLaunch: (AppInfo, Rect?) -> Unit,
     appActions: (AppInfo) -> List<AppAction>,
-    onClose: () -> Unit,
+    /** Shared with the home screen's swipe; pulling the drawer down moves it, releasing settles it. */
+    swipe: DrawerSwipeState,
     onOpenSettings: () -> Unit,
     onSelectProfile: (ProfileType) -> Unit,
     onSetProfileQuiet: (ProfileState, Boolean) -> Unit,
@@ -153,12 +155,22 @@ fun AppDrawer(
     openKeyboard: Boolean,
     onSortChange: (DrawerSort) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The drawer stays composed while closed, so the first pull doesn't stall on building it.
+     * Closing resets it the way leaving the composition used to: back at the top, no keyboard.
+     */
+    isOpen: Boolean = true,
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val gridState = rememberLazyGridState()
-    val closeThresholdPx = with(LocalDensity.current) { CloseDragThreshold.toPx() }
-    val currentOnClose = rememberUpdatedState(onClose)
+    val currentSwipe = rememberUpdatedState(swipe)
+
+    LaunchedEffect(isOpen) {
+        if (isOpen) return@LaunchedEffect
+        keyboard?.hide()
+        gridState.scrollToItem(0)
+    }
 
     LaunchedEffect(openKeyboard) {
         if (!openKeyboard) return@LaunchedEffect
@@ -171,38 +183,49 @@ fun AppDrawer(
     // New query → jump back to the best match at the top.
     LaunchedEffect(query) { gridState.scrollToItem(0) }
 
-    // Pulling down past the top of the list closes the drawer; scrolling hides the keyboard.
+    // Pulling down past the top of the list drags the drawer down with the finger; scrolling hides
+    // the keyboard. Once the drawer is moving it takes the whole gesture, so dragging back up
+    // re-opens it instead of scrolling the list.
     val pullToClose = remember {
         object : NestedScrollConnection {
-            var pulled = 0f
+            var movingDrawer = false
 
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && available.y < 0) keyboard?.hide()
-                return Offset.Zero
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (available.y < 0) keyboard?.hide()
+                if (!movingDrawer) return Offset.Zero
+                currentSwipe.value.dragBy(available.y)
+                return Offset(0f, available.y)
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
-                if (available.y > 0 && consumed.y == 0f) {
-                    pulled += available.y
-                    if (pulled > closeThresholdPx) {
-                        pulled = 0f
-                        currentOnClose.value()
-                    }
-                } else {
-                    pulled = 0f
-                }
-                return Offset.Zero
+                if (source != NestedScrollSource.UserInput || available.y <= 0f || consumed.y != 0f) return Offset.Zero
+                movingDrawer = true
+                keyboard?.hide()
+                currentSwipe.value.dragBy(available.y)
+                return Offset(0f, available.y)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (!movingDrawer) return Velocity.Zero
+                movingDrawer = false
+                currentSwipe.value.release(available.y)
+                return available
             }
         }
     }
 
-    // The header (handle + search bar) can also be dragged down to close.
-    val headerDrag = remember { mutableFloatStateOf(0f) }
-    val headerDragState = rememberDraggableState { delta -> headerDrag.floatValue += delta }
+    // The header (handle + search bar) can also be dragged down; the drawer follows it.
+    val headerDragState = rememberDraggableState { delta -> currentSwipe.value.dragBy(delta) }
 
     Surface(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            // While closed (parked off screen) focus must not land here: Android re-focuses the
+            // window's first focusable after a Home press or a clearFocus, and that would be the
+            // search field, bringing the keyboard up over home.
+            .focusProperties { if (!isOpen) onEnter = { cancelFocusChange() } }
+            .focusGroup(),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
         // Set explicitly: the translucent color matches no scheme color, so it can't be derived.
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -215,10 +238,7 @@ fun AppDrawer(
                     .draggable(
                         state = headerDragState,
                         orientation = Orientation.Vertical,
-                        onDragStarted = { headerDrag.floatValue = 0f },
-                        onDragStopped = { velocity ->
-                            if (headerDrag.floatValue > closeThresholdPx || velocity > 1500f) onClose()
-                        },
+                        onDragStopped = { velocity -> swipe.release(velocity) },
                     ),
             ) {
                 Box(
@@ -228,26 +248,30 @@ fun AppDrawer(
                         .size(width = 36.dp, height = 4.dp)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape),
                 )
-                SearchField(
-                    onOpenSettings = onOpenSettings,
-                    sort = state.sort,
-                    onSortChange = onSortChange,
-                    query = query,
-                    onQueryChange = onQueryChange,
-                    // Go: open the top app, or search the web when no app matches.
-                    onSearch = {
-                        val top = state.apps.firstOrNull()
-                        if (top != null) {
-                            onLaunch(top, null)
-                        } else if (query.isNotBlank()) {
-                            searchActions.onSearchWeb(query)
-                        }
-                    },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                )
+                // Recreated on close: a focused field left behind would bring the keyboard back
+                // when the window regains focus after a Home press.
+                key(isOpen) {
+                    SearchField(
+                        onOpenSettings = onOpenSettings,
+                        sort = state.sort,
+                        onSortChange = onSortChange,
+                        query = query,
+                        onQueryChange = onQueryChange,
+                        // Go: open the top app, or search the web when no app matches.
+                        onSearch = {
+                            val top = state.apps.firstOrNull()
+                            if (top != null) {
+                                onLaunch(top, null)
+                            } else if (query.isNotBlank()) {
+                                searchActions.onSearchWeb(query)
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                    )
+                }
                 if (state.profiles.size > 1 && query.isBlank()) {
                     ProfileTabs(state, onSelectProfile)
                 }

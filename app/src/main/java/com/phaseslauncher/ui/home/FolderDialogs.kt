@@ -33,7 +33,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,8 +48,8 @@ import com.phaseslauncher.data.items.FolderItem
 import com.phaseslauncher.data.items.FolderRepository
 import com.phaseslauncher.data.items.HomeItem
 import com.phaseslauncher.ui.components.AppAction
-import com.phaseslauncher.ui.components.AppMenuState
 import com.phaseslauncher.ui.components.drawerLabelStyle
+import com.phaseslauncher.ui.components.rememberAppMenuState
 import com.phaseslauncher.ui.components.rememberReorderState
 import com.phaseslauncher.ui.components.reorderContainer
 import com.phaseslauncher.ui.components.reorderItem
@@ -78,7 +77,7 @@ fun FolderDialog(
                     )
                     IconButton(onClick = onRename) { Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.rename_folder)) }
                 }
-                val menuState = remember { AppMenuState() }
+                val menuState = rememberAppMenuState()
                 val reorder = rememberReorderState(folder.items.map { it.key }, onReorder)
                 val labelStyle = drawerLabelStyle()
                 val folderBackground = MaterialTheme.colorScheme.surfaceVariant

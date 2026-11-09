@@ -108,6 +108,10 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
     /** Fires when the launcher comes back after opening an app, so home can zoom back in. */
     private val _returnedFromApp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val returnedFromApp: SharedFlow<Unit> = _returnedFromApp.asSharedFlow()
+
+    /** Fires when Home is pressed with the launcher in front: every screen, sheet and dialog closes. */
+    private val _homePressed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val homePressed: SharedFlow<Unit> = _homePressed.asSharedFlow()
     private var appInFront = false
 
     /** Installed apps with custom names applied, re-sorted by the shown name. */
@@ -376,8 +380,12 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
         _query.value = query
     }
 
-    /** The Home button was pressed while we were already in front. */
-    fun onHomePressed() = closeDrawer()
+    /** The Home button was pressed: back to the plain home screen, whatever was open. */
+    fun onHomePressed() {
+        closeDrawer()
+        cancelPendingLaunch()
+        _homePressed.tryEmit(Unit)
+    }
 
     /** Re-runs the current search, e.g. after the contacts permission was granted. */
     fun refreshSearch() = searchRefresh.update { it + 1 }
@@ -462,14 +470,17 @@ class LauncherViewModel(private val container: AppContainer) : ViewModel() {
 
     // region Themes
 
-    /** Moves [delta] themes along the switcher's order, wrapping around (the next/previous theme gestures). */
-    fun stepTheme(delta: Int) {
+    /**
+     * Moves [delta] themes along the switcher's order, wrapping around (the next/previous theme
+     * gestures and swiping between phases). [announce] names the new theme in a toast.
+     */
+    fun stepTheme(delta: Int, announce: Boolean = true) {
         val themes = homeState.value.themes
         if (themes.size < 2) return
         val index = themes.indexOfFirst { it.id == homeState.value.activeTheme?.id }.coerceAtLeast(0)
         val next = themes[Math.floorMod(index + delta, themes.size)]
         selectTheme(next.id)
-        message(next.name)
+        if (announce) message(next.name)
     }
 
     /** The user picked a theme (it's remembered for schedule suggestions). */

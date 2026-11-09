@@ -59,6 +59,8 @@ import com.phaseslauncher.data.apps.AppShortcut
 import com.phaseslauncher.data.apps.IconCache
 import com.phaseslauncher.data.items.PinnedShortcut
 import com.phaseslauncher.data.notifications.NotificationDotsRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 val LocalIconCache = staticCompositionLocalOf<IconCache> { error("IconCache not provided") }
 
@@ -202,7 +204,7 @@ fun AppTileWithMenu(
     modifier: Modifier = Modifier,
     iconSize: Dp = 56.dp,
     showLabel: Boolean = true,
-    menuState: AppMenuState = remember { AppMenuState() },
+    menuState: AppMenuState = rememberAppMenuState(),
     accessibilityActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val expanded = menuState.openKey == app.key
@@ -309,6 +311,18 @@ class AppMenuState {
     fun close() {
         openKey = null
     }
+}
+
+/** Fires when every open menu should close, e.g. on a Home press. */
+val LocalCloseMenus = staticCompositionLocalOf<Flow<Unit>> { emptyFlow() }
+
+/** An [AppMenuState] whose menu closes on [LocalCloseMenus]. */
+@Composable
+fun rememberAppMenuState(): AppMenuState {
+    val state = remember { AppMenuState() }
+    val closeMenus = LocalCloseMenus.current
+    LaunchedEffect(closeMenus) { closeMenus.collect { state.close() } }
+    return state
 }
 
 /** Loads and launches app shortcuts for long-press menus, and draws pinned shortcuts. */

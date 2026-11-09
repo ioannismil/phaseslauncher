@@ -82,10 +82,10 @@ import com.phaseslauncher.data.settings.LauncherPrefs
 import com.phaseslauncher.data.themes.Theme
 import com.phaseslauncher.data.widgets.ThemeWidget
 import com.phaseslauncher.ui.components.AppAction
-import com.phaseslauncher.ui.components.AppMenuState
 import com.phaseslauncher.ui.components.HomeDrop
 import com.phaseslauncher.ui.components.LocalExternalDrag
 import com.phaseslauncher.ui.components.TilePadding
+import com.phaseslauncher.ui.components.rememberAppMenuState
 import com.phaseslauncher.ui.theme.LocalWallpaperContent
 import com.phaseslauncher.ui.theme.imageVector
 import com.phaseslauncher.ui.theme.onWallpaper
@@ -326,7 +326,7 @@ private fun ItemGrid(
     val res = LocalResources.current
     val wallpaper = LocalWallpaperContent.current
     val labelStyle = MaterialTheme.typography.labelMedium.onWallpaper(wallpaper)
-    val menuState = remember { AppMenuState() }
+    val menuState = rememberAppMenuState()
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val layout = LocalHomeLayout.current

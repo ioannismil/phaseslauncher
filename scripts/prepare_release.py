@@ -2,6 +2,7 @@
 """Turns what's under [Unreleased] in CHANGELOG.md into a release.
 
     python3 scripts/prepare_release.py patch|minor|major|1.2.3 [--date YYYY-MM-DD]
+    python3 scripts/prepare_release.py --pending
 
 - gradle.properties: versionName and versionCode (major * 10000 + minor * 100 + patch).
 - CHANGELOG.md: the [Unreleased] entries become "## [1.2.3] - date" under a fresh, empty
@@ -10,6 +11,9 @@
   text for the store listings (500 characters at most).
 
 Prints the new version. The Release workflow runs this, then commits, tags and publishes.
+
+With --pending it changes nothing and only exits 0 if there's something under [Unreleased], 1 if
+not: the Release workflow asks this on each push to main to decide whether to release.
 """
 import argparse
 import datetime
@@ -53,6 +57,14 @@ def version_code(version):
     return major * 10000 + minor * 100 + patch
 
 
+def unreleased(changelog):
+    """The [Unreleased] section's match; group 1 is its entries."""
+    match = re.search(r"^## \[Unreleased\]\n(.*?)(?=^## \[|^\[Unreleased\]:|\Z)", changelog, re.M | re.S)
+    if not match:
+        sys.exit("CHANGELOG.md has no '## [Unreleased]' section")
+    return match
+
+
 def store_text(entries):
     """The changelog entries as plain text: no headings or emphasis, bullets as •."""
     lines = []
@@ -75,9 +87,15 @@ def store_text(entries):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("bump", help="patch, minor, major, or an exact version like 1.2.3")
+    parser.add_argument("bump", nargs="?", help="patch, minor, major, or an exact version like 1.2.3")
     parser.add_argument("--date", default=datetime.date.today().isoformat())
+    parser.add_argument("--pending", action="store_true", help="only check whether [Unreleased] has entries")
     args = parser.parse_args()
+
+    if args.pending:
+        sys.exit(0 if unreleased(read(CHANGELOG)[0]).group(1).strip() else 1)
+    if not args.bump:
+        parser.error("say which part of the version goes up: patch, minor, major, or a version like 1.2.3")
 
     properties, properties_newline = read(PROPERTIES)
     current = re.search(r"^versionName=(\S+)$", properties, re.M).group(1)
@@ -87,9 +105,7 @@ def main():
         sys.exit(f"{version} isn't after the current version {current}")
 
     changelog, changelog_newline = read(CHANGELOG)
-    match = re.search(r"^## \[Unreleased\]\n(.*?)(?=^## \[|^\[Unreleased\]:|\Z)", changelog, re.M | re.S)
-    if not match:
-        sys.exit("CHANGELOG.md has no '## [Unreleased]' section")
+    match = unreleased(changelog)
     entries = match.group(1).strip()
     if not entries:
         sys.exit("Nothing under [Unreleased] in CHANGELOG.md: add what changed first")

@@ -1,7 +1,13 @@
 # Publishes a signed release APK on the Releases page.
 #
-# Usually: Actions tab → "Release" → "Run workflow" on main, picking patch, minor or major.
-# That turns what's under [Unreleased] in CHANGELOG.md into the release (scripts/prepare_release.py
+# Every push to main releases what's under [Unreleased] in CHANGELOG.md, as a patch (1.2.3 → 1.2.4).
+# Pushes with nothing there (dependency bumps, CI tweaks) don't release. Put [minor] or [major] in
+# the pushed commit's message (a PR's title does, in its merge commit) to bump that instead, or
+# [no release] to hold the changes for a later release.
+#
+# By hand: Actions tab → "Release" → "Run workflow" on main, picking patch, minor or major.
+#
+# Either way it turns what's under [Unreleased] in CHANGELOG.md into the release (scripts/prepare_release.py
 # bumps gradle.properties, dates the changelog section and writes the store changelog), builds and
 # tests it, and only then pushes a "Release x.y.z" commit and its tag and publishes.
 #
@@ -17,6 +23,7 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
@@ -29,18 +36,64 @@ on:
 permissions:
   contents: write
 
+# One at a time. A push that lands mid-release waits (GitHub keeps only the newest waiting run,
+# which is enough: it checks main as it is then), and releases whatever is still unreleased.
 concurrency: release
 
 jobs:
+  # Whether this run releases, and how: "prepare" bumps the version from the changelog first,
+  # "tag" publishes the version gradle.properties already has.
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      bump: ${{ steps.plan.outputs.bump }}
+    steps:
+      # A push to main checks main as it is now, which a release that ran first may have moved on.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_type == 'branch' && github.ref_name || '' }}
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          shopt -s nocasematch
+          if [ "$EVENT" = workflow_dispatch ]; then
+            echo "mode=prepare" >> "$GITHUB_OUTPUT"
+            echo "bump=$INPUT_BUMP" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "mode=tag" >> "$GITHUB_OUTPUT"
+          elif [[ "$MESSAGE" == *"[no release]"* ]]; then
+            echo "::notice::[no release] in the commit message, so no release"
+          elif ! python3 scripts/prepare_release.py --pending; then
+            echo "::notice::Nothing under [Unreleased] in CHANGELOG.md, so no release"
+          else
+            bump=patch
+            if [[ "$MESSAGE" == *"[major]"* ]]; then bump=major
+            elif [[ "$MESSAGE" == *"[minor]"* ]]; then bump=minor; fi
+            echo "mode=prepare" >> "$GITHUB_OUTPUT"
+            echo "bump=$bump" >> "$GITHUB_OUTPUT"
+            echo "::notice::Releasing a $bump version"
+          fi
+
   release:
+    needs: plan
+    if: needs.plan.outputs.mode != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_type == 'branch' && github.ref_name || '' }}
 
       - name: Prepare the release
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.mode == 'prepare'
         env:
-          BUMP: ${{ inputs.bump }}
+          BUMP: ${{ needs.plan.outputs.bump }}
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "::error::Run the release from main, not $GITHUB_REF_NAME"
@@ -102,8 +155,10 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:testDebugUnitTest :app:assembleRelease
 
+      # Pushed with the workflow's own token, which doesn't start workflows, so this push doesn't
+      # set off another release.
       - name: Push the release commit and tag
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.mode == 'prepare'
         run: git push --atomic origin HEAD:main "v$RELEASE_VERSION"
 
       - name: Publish the release

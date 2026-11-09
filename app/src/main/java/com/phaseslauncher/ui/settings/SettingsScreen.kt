@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -45,6 +44,7 @@ import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Swipe
 import androidx.compose.material.icons.outlined.SwipeDown
+import androidx.compose.material.icons.outlined.SwipeLeft
 import androidx.compose.material.icons.outlined.SwipeUp
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Tune
@@ -170,7 +170,7 @@ fun SettingsScreen(
         pendingImport = uri
     }
 
-    BackHandler(onBack = onClose)
+    // Back is handled by the caller's BackDismissible, which animates the predictive back gesture.
 
     // Large title that collapses as the list scrolls, like the system Settings app.
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -443,6 +443,14 @@ fun SettingsScreen(
                     explainLock = true
                 }
             }
+            item {
+                SwitchOption(
+                    Icons.Outlined.SwipeLeft,
+                    stringResource(R.string.swipe_between_phases),
+                    if (prefs.swipeBetweenPhases) stringResource(R.string.swipe_between_phases_on) else stringResource(R.string.swipe_between_phases_off),
+                    prefs.swipeBetweenPhases,
+                ) { on -> onUpdatePrefs { it.copy(swipeBetweenPhases = on) } }
+            }
 
             item { SectionHeader(stringResource(R.string.app_drawer)) }
             item {
@@ -596,7 +604,7 @@ fun SettingsScreen(
             title = { Text(stringResource(R.string.turn_on_screen_locking)) },
             text = {
                 Text(
-                    stringResource(R.string.android_only_lets_apps_lock_the_screen_through_a) +
+                    stringResource(R.string.android_only_lets_apps_lock_the_screen_through_a) + " " +
                         stringResource(R.string.on_the_next_screen_open_phases_double_tap) +
                         stringResource(R.string.it_is_used_only_to_lock_the_screen_it_can_t_read),
                 )

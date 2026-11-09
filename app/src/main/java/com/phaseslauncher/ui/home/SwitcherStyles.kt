@@ -99,6 +99,9 @@ fun PhaseSwitcherOverlay(
         SwitcherStyle.Dial -> DialSwitcher(state, entries, active, side, onSelect, themeActions)
         SwitcherStyle.Cards -> CardSwitcher(state, entries, apps, active, side, onSelect, themeActions)
         SwitcherStyle.Bands -> BandSwitcher(state, entries, active, side, onSelect, themeActions)
+        SwitcherStyle.Tiles -> TileSwitcher(state, entries, active, side, onSelect, themeActions)
+        SwitcherStyle.Magnifier -> MagnifierSwitcher(state, entries, active, side, onSelect, themeActions)
+        SwitcherStyle.Slider -> SliderSwitcher(state, entries, active, side, onSelect, themeActions)
     }
 }
 
